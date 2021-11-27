@@ -29,24 +29,14 @@ namespace funscript {
 
     void tokenize(const std::wstring &code, const std::function<void(Token)> &cb) {
         size_t l = 0;
-        for (size_t r = 1; r <= code.size(); r++) {
-            std::wstring cur_token = code.substr(l, r - l);
-            if (get_token(cur_token).type) continue;
-
-            cur_token.pop_back();
-            r--;
-            if (cur_token.empty()) {
-                if (!iswspace(code[r])) throw CompilationError("invalid token");
-            } else cb(get_token(cur_token));
-            while (iswspace(code[r])) if (++r == code.size()) return;
+        while (l < code.length() && iswspace(code[l])) l++;
+        while (l < code.length()) {
+            size_t r = l;
+            while (r < code.length() && get_token(code.substr(l, r + 1 - l)).type != Token::UNKNOWN) r++;
+            if (r == l) throw CompilationError("invalid token");
+            cb(get_token(code.substr(l, r - l)));
             l = r;
-        }
-        if (l < code.length()) {
-            Token token = get_token(code.substr(l));
-            if (!token.type) throw CompilationError("invalid token");
-            cb(token);
+            while (l < code.length() && iswspace(code[l])) l++;
         }
     }
 }
-
-#include "tokenizer.h"
