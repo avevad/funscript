@@ -77,6 +77,7 @@ namespace funscript {
 
             [[nodiscard]] stack_pos_t length() const;
             const Value &operator[](stack_pos_t pos);
+            stack_pos_t abs(stack_pos_t pos) const;
 
             void push_sep();
             void push_nul();

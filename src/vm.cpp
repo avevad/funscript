@@ -64,14 +64,12 @@ namespace funscript {
     }
 
     void VM::Stack::mov() {
-        stack_pos_t val_pos = find_sep(0);
-        stack_pos_t ref_pos = 0;
-        Value val, ref;
-        while ((val = get(--val_pos)).type != Value::SEP &&
-               (ref = get(--ref_pos)).type != Value::SEP) {
-            *ref.data.ref = val;
-        }
-        pop(val_pos);
+        stack_pos_t ref_sep = abs(find_sep(0)), val_sep = abs(find_sep(ref_sep));
+        stack_pos_t ref_pos = ref_sep + 1, val_pos = val_sep + 1;
+        while (get(val_pos).type != Value::SEP && ref_pos != len) *get(ref_pos++).data.ref = get(val_pos++);
+        pop(ref_sep);
+        memmove(stack + val_sep, stack + val_sep + 1, sizeof(Value) * (len - val_sep - 1));
+        len--;
     }
 
     void VM::Stack::dis() {
@@ -113,6 +111,8 @@ namespace funscript {
     void VM::Stack::push_val(Scope *scope, const std::wstring &key) {
         push(scope->resolve(key));
     }
+
+    stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? len + pos : pos; }
 
     VM::VM(VM::Config config) : config(config) {}
 
