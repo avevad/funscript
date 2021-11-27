@@ -10,6 +10,7 @@
 
 namespace funscript {
     AST *parse(const std::vector<Token> &tokens) {
+        if (tokens.empty()) return new VoidAST;
         std::vector<Token> stack, queue;
         for (const Token &token: tokens) {
             switch (token.type) {
@@ -46,7 +47,8 @@ namespace funscript {
                     }
                     break;
                 }
-                case Token::UNKNOWN: throw CompilationError("unknown token");
+                case Token::UNKNOWN:
+                    throw CompilationError("unknown token");
             }
         }
         while (!stack.empty()) {
@@ -58,7 +60,7 @@ namespace funscript {
         for (const Token &token: queue) {
             switch (token.type) {
                 case Token::NUL: {
-                    ast.push_back(new NulAST());
+                    ast.push_back(new NulAST);
                     break;
                 }
                 case Token::ID: {
@@ -232,4 +234,8 @@ namespace funscript {
     void NulAST::compile_ref(Assembler &as, size_t cid) {
         throw CompilationError("expression is not assignable");
     }
+
+    void VoidAST::compile_val(Assembler &as, size_t cid) {}
+
+    void VoidAST::compile_ref(Assembler &as, size_t cid) {}
 }

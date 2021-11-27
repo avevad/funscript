@@ -92,6 +92,11 @@ namespace funscript {
     public:
         NulAST() = default;
     };
+
+    class VoidAST : public AST {
+        void compile_val(Assembler &as, size_t cid) override;
+        void compile_ref(Assembler &as, size_t cid) override;
+    };
 }
 
 #endif //FUNSCRIPT_COMPILER_H
