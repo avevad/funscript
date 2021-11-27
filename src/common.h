@@ -11,6 +11,21 @@
 #include <map>
 
 namespace funscript {
+
+#define M_VERSION_MAJOR 0
+#define M_VERSION_MINOR 1
+#define M_STR(S) #S
+#define M_TO_STR(X) M_STR(X)
+
+    const static constexpr size_t VERSION_MAJOR = M_VERSION_MAJOR;
+    const static constexpr size_t VERSION_MINOR = M_VERSION_MINOR;
+    const static constexpr char *VERSION = "Funscript " M_TO_STR(M_VERSION_MAJOR) "." M_TO_STR(M_VERSION_MINOR);
+
+#undef M_VERSION_MAJOR
+#undef M_VERSION_MINOR
+#undef M_STR
+#undef M_TO_STR
+
     enum class Operator : char {
         TIMES,
         DIVIDE,
@@ -61,13 +76,13 @@ namespace funscript {
     };
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
-            {Operator::TIMES,    {1,  true,  L"times"}},
-            {Operator::DIVIDE,    {1,  true,  L"divide"}},
+            {Operator::TIMES,   {1,  true,  L"times"}},
+            {Operator::DIVIDE,  {1,  true,  L"divide"}},
             {Operator::PLUS,    {2,  true,  L"plus"}},
-            {Operator::MINUS,    {2,  true,  L"minus"}},
+            {Operator::MINUS,   {2,  true,  L"minus"}},
             {Operator::APPEND,  {9,  true,  L"append"}}, // special
             {Operator::ASSIGN,  {10, false, L"assign"}}, // special
-            {Operator::DISCARD, {11, false,  L"discard"}}, // special
+            {Operator::DISCARD, {11, false, L"discard"}}, // special
     };
 
     enum class Opcode : char {
