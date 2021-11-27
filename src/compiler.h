@@ -11,7 +11,14 @@
 
 namespace funscript {
 
-    class AST;
+    class Assembler;
+
+    class AST {
+        friend Assembler;
+    public:
+        virtual void compile_val(Assembler &as, size_t cid) = 0;
+        virtual void compile_ref(Assembler &as, size_t cid) = 0;
+    };
 
     AST *parse(const std::vector<Token> &tokens);
 
@@ -44,14 +51,8 @@ namespace funscript {
             relocs.clear();
         }
 
+        void compile_expression(AST *ast);
         void assemble(char *buffer);
-    };
-
-    class AST {
-        friend Assembler;
-    public:
-        virtual void compile_val(Assembler &as, size_t cid) = 0;
-        virtual void compile_ref(Assembler &as, size_t cid) = 0;
     };
 
     class IntegerAST : public AST {
@@ -83,6 +84,13 @@ namespace funscript {
     public:
         OperatorAST(AST *left, AST *right, Operator op) : left(left), right(right), op(op) {}
 
+    };
+
+    class NulAST : public AST {
+        void compile_val(Assembler &as, size_t cid) override;
+        void compile_ref(Assembler &as, size_t cid) override;
+    public:
+        NulAST() = default;
     };
 }
 

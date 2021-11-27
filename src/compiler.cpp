@@ -13,6 +13,7 @@ namespace funscript {
         std::vector<Token> stack, queue;
         for (const Token &token: tokens) {
             switch (token.type) {
+                case Token::NUL:
                 case Token::INTEGER:
                 case Token::ID: {
                     queue.push_back(token);
@@ -56,6 +57,10 @@ namespace funscript {
         std::vector<AST *> ast;
         for (const Token &token: queue) {
             switch (token.type) {
+                case Token::NUL: {
+                    ast.push_back(new NulAST());
+                    break;
+                }
                 case Token::ID: {
                     ast.push_back(new IdentifierAST(get<std::wstring>(token.data)));
                     break;
@@ -158,6 +163,12 @@ namespace funscript {
         new_chunk(); // data chunk
     }
 
+    void Assembler::compile_expression(AST *ast) {
+        size_t cid = new_chunk();
+        ast->compile_val(*this, cid);
+        put_opcode(cid, Opcode::END);
+    }
+
     void OperatorAST::compile_val(Assembler &as, size_t cid) {
         if (op == Operator::ASSIGN) {
             as.put_opcode(cid, Opcode::SEP);
@@ -211,6 +222,14 @@ namespace funscript {
     }
 
     void IntegerAST::compile_ref(Assembler &as, size_t cid) {
-        throw std::runtime_error("expression is not assignable");
+        throw CompilationError("expression is not assignable");
+    }
+
+    void NulAST::compile_val(Assembler &as, size_t cid) {
+        as.put_opcode(cid, Opcode::NUL);
+    }
+
+    void NulAST::compile_ref(Assembler &as, size_t cid) {
+        throw CompilationError("expression is not assignable");
     }
 }

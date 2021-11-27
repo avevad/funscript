@@ -131,6 +131,11 @@ namespace funscript {
             switch (opcode) {
                 case Opcode::NOP:
                     break;
+                case Opcode::NUL: {
+                    ip++;
+                    stack.push_nul();
+                    break;
+                }
                 case Opcode::SEP: {
                     ip++;
                     stack.push_sep();

@@ -42,9 +42,7 @@ int main() {
 
         funscript::Assembler as;
         try {
-            size_t cid = as.new_chunk();
-            ast->compile_val(as, cid);
-            as.put_opcode(cid, funscript::Opcode::END);
+            as.compile_expression(ast);
         } catch (const funscript::CompilationError &err) {
             std::cerr << "compilation error: " << err.what() << std::endl;
             continue;
@@ -53,7 +51,7 @@ int main() {
         as.assemble(buf);
 
         funscript::exec_bytecode(vm.stack(sid), buf, scope);
-        if(vm.stack(sid).length() == 0) continue;
+        if (vm.stack(sid).length() == 0) continue;
         std::wcout << L"= ";
         for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).length(); pos++) {
             funscript::Value val = vm.stack(sid)[pos];
