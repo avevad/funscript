@@ -90,16 +90,18 @@ namespace funscript {
     };
 
     enum class Opcode : char {
-        NOP,
-        SEP,
-        NUL,
-        INT,
-        OP,
-        REF,
-        VAL,
-        MOV,
-        DIS,
-        END
+        NOP, // do nothing
+        SEP, // push a separator
+        NUL, // push NUL
+        INT, // push an integer
+        OP,  // make an operator call
+        REF, // push a variable reference
+        VAL, // push a variable value
+        MOV, // assign values
+        DIS, // discard values until the separator
+        END, // finish execution
+        NS,  // push new scope
+        DS, // pop current scope
     };
 
 

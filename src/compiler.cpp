@@ -44,6 +44,7 @@ namespace funscript {
                     break;
                 }
                 case Token::RIGHT_BRACKET: {
+                    Bracket br = get<Bracket>(token.data);
                     if (pos > 0) {
                         if (tokens[pos - 1].type == Token::OPERATOR || tokens[pos - 1].type == Token::LEFT_BRACKET) {
                             queue.push_back({Token::VOID, 0});
@@ -55,6 +56,7 @@ namespace funscript {
                     }
                     if (stack.empty()) throw CompilationError("unmatched right bracket");
                     stack.pop_back();
+                    queue.push_back({Token::RIGHT_BRACKET, br});
                     break;
                 }
                 case Token::VOID:
@@ -95,8 +97,13 @@ namespace funscript {
                     break;
                 }
                 case Token::LEFT_BRACKET:
-                case Token::RIGHT_BRACKET:
                     throw std::runtime_error(""); // TODO
+                case Token::RIGHT_BRACKET: {
+                    AST *child = ast.back();
+                    ast.pop_back();
+                    ast.push_back(new BracketAST(std::get<Bracket>(token.data), child));
+                    break;
+                }
                 case Token::VOID: {
                     ast.push_back(new VoidAST);
                     break;
@@ -258,4 +265,28 @@ namespace funscript {
     void VoidAST::compile_val(Assembler &as, size_t cid) {}
 
     void VoidAST::compile_ref(Assembler &as, size_t cid) {}
+
+    void BracketAST::compile_val(Assembler &as, size_t cid) {
+        switch (type) {
+            case Bracket::PLAIN:
+                as.put_opcode(cid, Opcode::NS);
+                child->compile_val(as, cid);
+                as.put_opcode(cid, Opcode::DS);
+                break;
+            default:
+                throw std::runtime_error(""); // TODO
+        }
+    }
+
+    void BracketAST::compile_ref(Assembler &as, size_t cid) {
+        switch (type) {
+            case Bracket::PLAIN:
+                as.put_opcode(cid, Opcode::NS);
+                child->compile_ref(as, cid);
+                as.put_opcode(cid, Opcode::DS);
+                break;
+            default:
+                throw std::runtime_error(""); // TODO
+        }
+    }
 }

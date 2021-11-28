@@ -212,6 +212,17 @@ namespace funscript {
                     stack.dis();
                     break;
                 }
+                case Opcode::NS: {
+                    ip++;
+                    stack.push_tab();
+                    scope = new Scope(stack.pop().data.tab, scope);
+                    break;
+                }
+                case Opcode::DS: {
+                    ip++;
+                    scope = scope->prev_scope;
+                    break;
+                }
                 case Opcode::END:
                     return;
             }

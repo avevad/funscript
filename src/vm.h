@@ -45,8 +45,9 @@ namespace funscript {
     class Scope {
     private:
         Table *const vars;
-        Scope *const prev_scope;
     public:
+        Scope *const prev_scope;
+
         Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
         bool contains(const std::wstring &key) const;

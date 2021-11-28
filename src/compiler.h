@@ -97,6 +97,15 @@ namespace funscript {
         void compile_val(Assembler &as, size_t cid) override;
         void compile_ref(Assembler &as, size_t cid) override;
     };
+
+    class BracketAST : public AST {
+        Bracket type;
+        AST *child;
+        void compile_val(Assembler &as, size_t cid) override;
+        void compile_ref(Assembler &as, size_t cid) override;
+    public:
+        BracketAST(Bracket type, AST *child) : type(type), child(child) {}
+    };
 }
 
 #endif //FUNSCRIPT_COMPILER_H
