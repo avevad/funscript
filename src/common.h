@@ -34,6 +34,7 @@ namespace funscript {
         ASSIGN,
         APPEND,
         DISCARD,
+        CALL
     };
 
     enum class Bracket {
@@ -80,6 +81,7 @@ namespace funscript {
     };
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
+            {Operator::CALL,   {0,  false}},
             {Operator::TIMES,   {1,  true}},
             {Operator::DIVIDE,  {1,  true}},
             {Operator::PLUS,    {2,  true}},

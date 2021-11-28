@@ -9,6 +9,16 @@
 #include <cstring>
 
 namespace funscript {
+
+    bool insert_void_after(Token::Type type) {
+        return type == Token::OPERATOR || type == Token::LEFT_BRACKET;
+    }
+
+    bool insert_call_after(Token::Type type) {
+        return !insert_void_after(type);
+    }
+
+
     AST *parse(const std::vector<Token> &tokens) {
         if (tokens.empty()) return new VoidAST;
         std::vector<Token> stack, queue;
@@ -18,14 +28,14 @@ namespace funscript {
                 case Token::NUL:
                 case Token::INTEGER:
                 case Token::ID: {
+                    if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
+                        stack.push_back({Token::OPERATOR, Operator::CALL});
+                    }
                     queue.push_back(token);
                     break;
                 }
                 case Token::OPERATOR: {
-                    if (pos == 0 ||
-                        tokens[pos - 1].type == Token::OPERATOR || tokens[pos - 1].type == Token::LEFT_BRACKET) {
-                        queue.push_back({Token::VOID, 0});
-                    }
+                    if (pos > 0 || insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
                     OperatorMeta op1 = OPERATORS.at(std::get<Operator>(token.data));
                     while (!stack.empty()) {
                         Token top = stack.back();
@@ -40,16 +50,15 @@ namespace funscript {
                     break;
                 }
                 case Token::LEFT_BRACKET: {
+                    if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
+                        stack.push_back({Token::OPERATOR, Operator::CALL});
+                    }
                     stack.push_back(token);
                     break;
                 }
                 case Token::RIGHT_BRACKET: {
                     Bracket br = get<Bracket>(token.data);
-                    if (pos > 0) {
-                        if (tokens[pos - 1].type == Token::OPERATOR || tokens[pos - 1].type == Token::LEFT_BRACKET) {
-                            queue.push_back({Token::VOID, 0});
-                        }
-                    }
+                    if (pos > 0 && insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
                     while (!stack.empty() && stack.back().type != Token::LEFT_BRACKET) {
                         queue.push_back(stack.back());
                         stack.pop_back();
@@ -65,7 +74,7 @@ namespace funscript {
                     throw CompilationError("unknown token");
             }
         }
-        if (tokens.back().type == Token::OPERATOR) queue.push_back({Token::VOID, 0});
+        if (insert_void_after(tokens.back().type)) queue.push_back({Token::VOID, 0});
         while (!stack.empty()) {
             if (stack.back().type == Token::LEFT_BRACKET) throw CompilationError("unmatched left bracket");
             queue.push_back(stack.back());
