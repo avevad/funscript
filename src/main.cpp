@@ -21,7 +21,7 @@ int main() {
 
     while (true) {
         std::wstring code;
-        std::cout << "> ";
+        std::cout << ": ";
         if (!std::getline(std::wcin, code)) break;
 
         std::vector<funscript::Token> tokens;
