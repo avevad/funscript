@@ -37,8 +37,7 @@ namespace funscript {
     };
 
     enum class Bracket {
-        PLAIN,
-        PLAIN_R
+        PLAIN
     };
 
     struct Token {
@@ -47,8 +46,10 @@ namespace funscript {
             ID,
             INTEGER,
             OPERATOR,
-            BRACKET,
-            NUL
+            LEFT_BRACKET,
+            RIGHT_BRACKET,
+            NUL,
+            VOID, // special
         };
         using Data = std::variant<Operator, Bracket, int64_t, std::wstring>;
         Type type;
@@ -65,9 +66,12 @@ namespace funscript {
             {L";", Operator::DISCARD},
     };
 
-    static const std::map<std::wstring, Bracket> BRACKET_KEYWORDS{
+    static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
             {L"(", Bracket::PLAIN},
-            {L")", Bracket::PLAIN_R},
+    };
+
+    static const std::map<std::wstring, Bracket> RIGHT_BRACKET_KEYWORDS{
+            {L")", Bracket::PLAIN},
     };
 
     struct OperatorMeta {

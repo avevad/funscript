@@ -12,7 +12,8 @@ namespace funscript {
     AST *parse(const std::vector<Token> &tokens) {
         if (tokens.empty()) return new VoidAST;
         std::vector<Token> stack, queue;
-        for (const Token &token: tokens) {
+        for (size_t pos = 0; pos < tokens.size(); pos++) {
+            const auto &token = tokens[pos];
             switch (token.type) {
                 case Token::NUL:
                 case Token::INTEGER:
@@ -21,6 +22,10 @@ namespace funscript {
                     break;
                 }
                 case Token::OPERATOR: {
+                    if (pos == 0 ||
+                        tokens[pos - 1].type == Token::OPERATOR || tokens[pos - 1].type == Token::LEFT_BRACKET) {
+                        queue.push_back({Token::VOID, 0});
+                    }
                     OperatorMeta op1 = OPERATORS.at(std::get<Operator>(token.data));
                     while (!stack.empty()) {
                         Token top = stack.back();
@@ -34,25 +39,33 @@ namespace funscript {
                     stack.push_back(token);
                     break;
                 }
-                case Token::BRACKET: {
-                    Bracket br = get<Bracket>(token.data);
-                    if (br == Bracket::PLAIN) stack.push_back(token);
-                    if (br == Bracket::PLAIN_R) {
-                        while (!stack.empty() && stack.back().type != Token::BRACKET) {
-                            queue.push_back(stack.back());
-                            stack.pop_back();
-                        }
-                        if (stack.empty()) throw CompilationError("unmatched right bracket");
-                        stack.pop_back();
-                    }
+                case Token::LEFT_BRACKET: {
+                    stack.push_back(token);
                     break;
                 }
+                case Token::RIGHT_BRACKET: {
+                    if (pos > 0) {
+                        if (tokens[pos - 1].type == Token::OPERATOR || tokens[pos - 1].type == Token::LEFT_BRACKET) {
+                            queue.push_back({Token::VOID, 0});
+                        }
+                    }
+                    while (!stack.empty() && stack.back().type != Token::LEFT_BRACKET) {
+                        queue.push_back(stack.back());
+                        stack.pop_back();
+                    }
+                    if (stack.empty()) throw CompilationError("unmatched right bracket");
+                    stack.pop_back();
+                    break;
+                }
+                case Token::VOID:
+                    throw std::runtime_error(""); // TODO
                 case Token::UNKNOWN:
                     throw CompilationError("unknown token");
             }
         }
+        if (tokens.back().type == Token::OPERATOR) queue.push_back({Token::VOID, 0});
         while (!stack.empty()) {
-            if (stack.back().type == Token::BRACKET) throw CompilationError("unmatched left bracket");
+            if (stack.back().type == Token::LEFT_BRACKET) throw CompilationError("unmatched left bracket");
             queue.push_back(stack.back());
             stack.pop_back();
         }
@@ -81,7 +94,14 @@ namespace funscript {
                     ast.push_back(new OperatorAST(left, right, get<Operator>(token.data)));
                     break;
                 }
-                default: {
+                case Token::LEFT_BRACKET:
+                case Token::RIGHT_BRACKET:
+                    throw std::runtime_error(""); // TODO
+                case Token::VOID: {
+                    ast.push_back(new VoidAST);
+                    break;
+                }
+                case Token::UNKNOWN: {
                     throw std::runtime_error("unknown token");
                 }
             }
