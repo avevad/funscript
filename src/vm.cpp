@@ -78,30 +78,52 @@ namespace funscript {
     }
 
     void VM::Stack::op(Operator op) {
-        stack_pos_t sep_b = find_sep(), sep_a = find_sep(sep_b);
-        if (sep_b != -2 || sep_a != -4) throw std::runtime_error(""); // TODO
-        if (get(-1).type == Value::INT && get(-3).type == Value::INT) {
-            int64_t left = get(-3).data.num, right = get(-1).data.num;
-            int64_t result;
-            switch (op) {
-                case Operator::TIMES:
-                    result = left * right;
-                    break;
-                case Operator::DIVIDE:
-                    result = left / right;
-                    break;
-                case Operator::PLUS:
-                    result = left + right;
-                    break;
-                case Operator::MINUS:
-                    result = left - right;
-                    break;
-                default:
-                    throw std::runtime_error(""); // TODO
+        stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
+        size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
+        if (cnt_a == 0) {
+            if (cnt_b != 1) throw std::runtime_error(""); // TODO
+            if (get(pos_b).type == Value::INT) {
+                int64_t val = get(-1).data.num;
+                int64_t result;
+                switch (op) {
+                    case Operator::PLUS:
+                        result = val;
+                        break;
+                    case Operator::MINUS:
+                        result = -val;
+                        break;
+                    default:
+                        throw std::runtime_error(""); // TODO
+                }
+                pop(-3);
+                push_int(result);
+            } else throw std::runtime_error(""); // TODO
+        } else if (cnt_a == 1) {
+            if (get(pos_a).type == Value::INT) {
+                if (cnt_b != 1 || get(pos_b).type != Value::INT) throw std::runtime_error(""); // TODO
+                int64_t left = get(-3).data.num, right = get(-1).data.num;
+                int64_t result;
+                switch (op) {
+                    case Operator::TIMES:
+                        result = left * right;
+                        break;
+                    case Operator::DIVIDE:
+                        result = left / right;
+                        break;
+                    case Operator::PLUS:
+                        result = left + right;
+                        break;
+                    case Operator::MINUS:
+                        result = left - right;
+                        break;
+                    default:
+                        throw std::runtime_error(""); // TODO
+                }
+                pop(-4);
+                push_int(result);
             }
-            pop(-4);
-            push_int(result);
         } else throw std::runtime_error(""); // TODO
+
     }
 
     void VM::Stack::push_ref(Scope *scope, const std::wstring &key) {
