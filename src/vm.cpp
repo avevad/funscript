@@ -19,8 +19,14 @@ namespace funscript {
     }
 
     Value &Scope::resolve(const std::wstring &key) {
+        if (!contains(key)) return vars->var(key);
         if (!vars->contains(key) && prev_scope != nullptr) return prev_scope->resolve(key);
         return vars->var(key);
+    }
+
+    bool Scope::contains(const std::wstring &key) const {
+        if (vars->contains(key)) return true;
+        return prev_scope != nullptr && prev_scope->contains(key);
     }
 
     stack_pos_t VM::Stack::length() const { return len; }
@@ -121,7 +127,7 @@ namespace funscript {
                 }
                 pop(-4);
                 push_int(result);
-            }
+            } else throw std::runtime_error(""); // TODO
         } else throw std::runtime_error(""); // TODO
 
     }
