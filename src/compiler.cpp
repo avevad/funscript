@@ -225,7 +225,7 @@ namespace funscript {
             left->compile_val(as, cid);
             as.put_opcode(cid, Opcode::DIS);
             right->compile_ref(as, cid);
-        }
+        } else throw CompilationError("expression is not assignable");
     }
 
     void IdentifierAST::compile_val(Assembler &as, size_t cid) {
