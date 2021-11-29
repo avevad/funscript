@@ -142,6 +142,11 @@ namespace funscript {
 
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? len + pos : pos; }
 
+    void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
+        auto *fun = new Function{.def = def, .data = data, .scope = scope};
+        push({.type=Value::FUN, .data = {.fun = fun}});
+    }
+
     VM::VM(VM::Config config) : config(config) {}
 
     VM::Stack &VM::stack(size_t id) { return stacks[id]; }
@@ -151,7 +156,8 @@ namespace funscript {
         return stacks.size() - 1;
     }
 
-    void exec_bytecode(VM::Stack &stack, const void *data, Scope *scope) {
+    void exec_bytecode(VM::Stack *stack_ptr, Frame *frame, const void *data, Scope *scope) {
+        VM::Stack &stack = *stack_ptr;
         const char *bytecode = reinterpret_cast<const char *>(data);
         size_t ip = 0;
         while (true) {
@@ -225,6 +231,16 @@ namespace funscript {
                 }
                 case Opcode::END:
                     return;
+                case Opcode::FUN: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    stack.push_fun(exec_bytecode, bytecode + pos, scope);
+                    break;
+                }
+                default:
+                    throw std::runtime_error("unknown opcode"); // TODO
             }
         }
     }

@@ -50,7 +50,7 @@ int main() {
         char *buf = reinterpret_cast<char *>(malloc(as.total_size()));
         as.assemble(buf);
 
-        funscript::exec_bytecode(vm.stack(sid), buf, scope);
+        funscript::exec_bytecode(&vm.stack(sid), nullptr, buf, scope);
         if (vm.stack(sid).length() == 0) continue;
         std::wcout << L"= ";
         for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).length(); pos++) {
@@ -64,6 +64,9 @@ int main() {
                     break;
                 case funscript::Value::TAB:
                     std::wcout << L"table(" << val.data.tab << ")";
+                    break;
+                case funscript::Value::FUN:
+                    std::wcout << L"function(" << val.data.fun << ")";
                     break;
                 default:
                     throw std::runtime_error("unknown value");

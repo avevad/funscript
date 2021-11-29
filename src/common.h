@@ -34,7 +34,8 @@ namespace funscript {
         ASSIGN,
         APPEND,
         DISCARD,
-        CALL
+        CALL,
+        LAMBDA
     };
 
     enum class Bracket {
@@ -65,6 +66,7 @@ namespace funscript {
             {L"=", Operator::ASSIGN},
             {L",", Operator::APPEND},
             {L";", Operator::DISCARD},
+            {L":", Operator::LAMBDA},
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -81,12 +83,13 @@ namespace funscript {
     };
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
-            {Operator::CALL,   {0,  false}},
+            {Operator::CALL,    {0,  false}},
             {Operator::TIMES,   {1,  true}},
             {Operator::DIVIDE,  {1,  true}},
             {Operator::PLUS,    {2,  true}},
             {Operator::MINUS,   {2,  true}},
-            {Operator::APPEND,  {9,  true}}, // special
+            {Operator::LAMBDA,  {8,  false}}, // special
+            {Operator::APPEND,  {9,  false}}, // special
             {Operator::ASSIGN,  {10, false}}, // special
             {Operator::DISCARD, {11, false}}, // special
     };
@@ -103,7 +106,8 @@ namespace funscript {
         DIS, // discard values until the separator
         END, // finish execution
         NS,  // push new scope
-        DS, // pop current scope
+        DS,  // pop current scope
+        FUN, // create function
     };
 
 

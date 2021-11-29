@@ -222,6 +222,14 @@ namespace funscript {
             left->compile_val(as, cid);
             as.put_opcode(cid, Opcode::DIS);
             right->compile_val(as, cid);
+        } else if (op == Operator::LAMBDA) {
+            auto f_cid = as.new_chunk();
+            left->compile_ref(as, f_cid);
+            as.put_opcode(f_cid, Opcode::MOV);
+            right->compile_val(as, f_cid);
+            as.put_opcode(f_cid, Opcode::END);
+            as.put_opcode(cid, Opcode::FUN);
+            as.put_reloc(cid, f_cid, 0);
         } else {
             as.put_opcode(cid, Opcode::SEP);
             left->compile_val(as, cid);

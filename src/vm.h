@@ -14,51 +14,20 @@ namespace funscript {
 
     class Table;
 
-    class VM;
+    class Scope;
 
-    struct Value {
-        enum Type {
-            NUL, SEP, INT, TAB, REF
-        };
-        union Data {
-            int64_t num;
-            Table *tab;
-            Value *ref;
-        };
-        Type type = NUL;
-        Data data = {.tab = nullptr};
-    };
+    class Value;
 
-    class Table {
-    private:
-        friend VM;
-
-        std::map<std::wstring, Value> str_map;
-        VM &vm;
-
-        explicit Table(VM &vm) : vm(vm) {};
-    public:
-        bool contains(const std::wstring &key);
-        Value &var(const std::wstring &key);
-    };
-
-    class Scope {
-    private:
-        Table *const vars;
-    public:
-        Scope *const prev_scope;
-
-        Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
-
-        bool contains(const std::wstring &key) const;
-        Value &resolve(const std::wstring &key);
-    };
+    class Frame;
 
     typedef ssize_t stack_pos_t;
 
     class VM {
     public:
+        class Stack;
+
         typedef void *(*heap_allocator)(void *, size_t);
+        using fun_def = void (*)(Stack *, Frame *, const void *data, Scope *scope);
 
         struct Config {
             heap_allocator alloc;
@@ -79,7 +48,7 @@ namespace funscript {
 
             [[nodiscard]] stack_pos_t length() const;
             const Value &operator[](stack_pos_t pos);
-            stack_pos_t abs(stack_pos_t pos) const;
+            [[nodiscard]] stack_pos_t abs(stack_pos_t pos) const;
 
             void push_sep();
             void push_nul();
@@ -87,7 +56,7 @@ namespace funscript {
             void push_tab();
             void push_ref(Scope *scope, const std::wstring &key);
             void push_val(Scope *scope, const std::wstring &key);
-
+            void push_fun(fun_def def, const void *data, Scope *scope);
 
             void add();
             void mov();
@@ -116,7 +85,56 @@ namespace funscript {
         std::vector<Stack> stacks;
     };
 
-    void exec_bytecode(VM::Stack &stack, const void *data, Scope *scope);
+    void exec_bytecode(VM::Stack *stack, Frame *, const void *data, Scope *scope);
+
+    struct Function {
+        VM::fun_def def;
+        const void *data;
+        Scope *scope;
+    };
+
+    struct Value {
+        enum Type {
+            NUL, SEP, INT, TAB, REF, FUN
+        };
+        union Data {
+            int64_t num;
+            Table *tab;
+            Value *ref;
+            Function *fun;
+        };
+        Type type = NUL;
+        Data data = {.tab = nullptr};
+    };
+
+    class Frame {
+        Frame *prev_frame;
+    };
+
+    class Table {
+    private:
+        friend VM;
+
+        std::map<std::wstring, Value> str_map;
+        VM &vm;
+
+        explicit Table(VM &vm) : vm(vm) {};
+    public:
+        bool contains(const std::wstring &key);
+        Value &var(const std::wstring &key);
+    };
+
+    class Scope {
+    private:
+        Table *const vars;
+    public:
+        Scope *const prev_scope;
+
+        Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+
+        [[nodiscard]] bool contains(const std::wstring &key) const;
+        Value &resolve(const std::wstring &key);
+    };
 }
 
 #endif //FUNSCRIPT_VM_H
