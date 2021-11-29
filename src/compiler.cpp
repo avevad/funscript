@@ -171,8 +171,8 @@ namespace funscript {
             if (pos % align != 0) pos += align - (pos % align);
         }
         for (Relocation reloc: relocs) {
-            size_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos;
-            memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(size_t));
+            ssize_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos - chunks_pos[reloc.src_cid];
+            memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(ssize_t));
         }
     }
 
@@ -224,12 +224,20 @@ namespace funscript {
             right->compile_val(as, cid);
         } else if (op == Operator::LAMBDA) {
             auto f_cid = as.new_chunk();
-            left->compile_ref(as, f_cid);
-            as.put_opcode(f_cid, Opcode::MOV);
-            right->compile_val(as, f_cid);
+            as.put_opcode(f_cid, Opcode::SEP); // to assign arguments
+            left->compile_ref(as, f_cid); // arguments destination
+            as.put_opcode(f_cid, Opcode::MVD); // assigning arguments to the destination
+            right->compile_val(as, f_cid); // executing function body
             as.put_opcode(f_cid, Opcode::END);
             as.put_opcode(cid, Opcode::FUN);
             as.put_reloc(cid, f_cid, 0);
+        } else if (op == Operator::CALL) {
+            as.put_opcode(cid, Opcode::SEP);
+            right->compile_val(as, cid);
+            as.put_opcode(cid, Opcode::SEP);
+            left->compile_val(as, cid);
+            as.put_opcode(cid, Opcode::OP);
+            as.put_byte(cid, (char) op);
         } else {
             as.put_opcode(cid, Opcode::SEP);
             left->compile_val(as, cid);

@@ -83,7 +83,7 @@ namespace funscript {
     };
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
-            {Operator::CALL,    {0,  false}},
+            {Operator::CALL,    {0,  false}}, // special
             {Operator::TIMES,   {1,  true}},
             {Operator::DIVIDE,  {1,  true}},
             {Operator::PLUS,    {2,  true}},
@@ -108,6 +108,7 @@ namespace funscript {
         NS,  // push new scope
         DS,  // pop current scope
         FUN, // create function
+        MVD, // move and discard
     };
 
 

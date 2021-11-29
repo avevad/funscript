@@ -20,6 +20,8 @@ namespace funscript {
 
     class Frame;
 
+    class Function;
+
     typedef ssize_t stack_pos_t;
 
     class VM {
@@ -58,10 +60,9 @@ namespace funscript {
             void push_val(Scope *scope, const std::wstring &key);
             void push_fun(fun_def def, const void *data, Scope *scope);
 
-            void add();
-            void mov();
+            void mov(bool discard = false);
             void dis();
-            void op(Operator op);
+            void op(Frame *frame, Operator op);
 
             Value pop();
             void pop(stack_pos_t pos);
@@ -76,6 +77,7 @@ namespace funscript {
             void push(const Value &e);
             Value &get(stack_pos_t pos);
             stack_pos_t find_sep(stack_pos_t before = 0);
+            void call(Function *fun, Frame *frame);
         };
 
         Stack &stack(size_t id);
@@ -109,6 +111,8 @@ namespace funscript {
 
     class Frame {
         Frame *prev_frame;
+    public:
+        Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
     };
 
     class Table {

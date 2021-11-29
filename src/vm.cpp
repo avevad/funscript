@@ -45,13 +45,16 @@ namespace funscript {
         push({Value::TAB, {.tab = new Table(vm)}});
     }
 
-    void VM::Stack::add() { op(Operator::PLUS); }
-
     Value VM::Stack::pop() { return stack[--len]; }
 
     void VM::Stack::pop(stack_pos_t pos) {
         if (pos < 0) pos += len;
         len = pos;
+    }
+
+    void VM::Stack::call(Function *fun, Frame *frame) {
+        auto *new_frame = new Frame(frame);
+        fun->def(this, new_frame, fun->data, fun->scope);
     }
 
     VM::Stack::~Stack() { delete[] stack; }
@@ -69,13 +72,17 @@ namespace funscript {
         return pos;
     }
 
-    void VM::Stack::mov() {
+    void VM::Stack::mov(bool discard) {
         stack_pos_t ref_sep = abs(find_sep(0)), val_sep = abs(find_sep(ref_sep));
         stack_pos_t ref_pos = ref_sep + 1, val_pos = val_sep + 1;
         while (get(val_pos).type != Value::SEP && ref_pos != len) *get(ref_pos++).data.ref = get(val_pos++);
-        pop(ref_sep);
-        memmove(stack + val_sep, stack + val_sep + 1, sizeof(Value) * (len - val_sep - 1));
-        len--;
+        if (discard) {
+            pop(val_sep);
+        } else {
+            pop(ref_sep);
+            memmove(stack + val_sep, stack + val_sep + 1, sizeof(Value) * (len - val_sep - 1));
+            len--;
+        }
     }
 
     void VM::Stack::dis() {
@@ -83,9 +90,17 @@ namespace funscript {
         pop(sep_pos);
     }
 
-    void VM::Stack::op(Operator op) {
+    void VM::Stack::op(Frame *frame, Operator op) {
         stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
         size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
+        if (op == Operator::CALL) {
+            if (cnt_b != 1) throw std::runtime_error(""); // TODO
+            if (get(-1).type != Value::FUN) throw std::runtime_error(""); // TODO
+            Function *fun = pop().data.fun;
+            pop();
+            call(fun, frame);
+            return;
+        }
         if (cnt_a == 0) {
             if (cnt_b != 1) throw std::runtime_error(""); // TODO
             if (get(pos_b).type == Value::INT) {
@@ -187,23 +202,23 @@ namespace funscript {
                     ip++;
                     auto op = (Operator) bytecode[ip];
                     ip++;
-                    stack.op(op);
+                    stack.op(frame, op);
                     break;
                 }
                 case Opcode::REF: {
                     ip++;
-                    size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
-                    ip += sizeof(size_t);
+                    ssize_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
+                    ip += sizeof(ssize_t);
                     std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
                     stack.push_ref(scope, key);
                     break;
                 }
                 case Opcode::VAL: {
                     ip++;
-                    size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
-                    ip += sizeof(size_t);
+                    ssize_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
+                    ip += sizeof(ssize_t);
                     std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
                     stack.push_val(scope, key);
                     break;
@@ -233,10 +248,15 @@ namespace funscript {
                     return;
                 case Opcode::FUN: {
                     ip++;
-                    size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
-                    ip += sizeof(size_t);
+                    ssize_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
+                    ip += sizeof(ssize_t);
                     stack.push_fun(exec_bytecode, bytecode + pos, scope);
+                    break;
+                }
+                case Opcode::MVD: {
+                    ip++;
+                    stack.mov(true);
                     break;
                 }
                 default:
