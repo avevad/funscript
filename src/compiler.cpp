@@ -35,7 +35,7 @@ namespace funscript {
                     break;
                 }
                 case Token::OPERATOR: {
-                    if (pos > 0 || insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
+                    if (pos == 0 || insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
                     OperatorMeta op1 = OPERATORS.at(std::get<Operator>(token.data));
                     while (!stack.empty()) {
                         Token top = stack.back();
@@ -58,7 +58,7 @@ namespace funscript {
                 }
                 case Token::RIGHT_BRACKET: {
                     Bracket br = get<Bracket>(token.data);
-                    if (pos > 0 && insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
+                    if (pos != 0 && insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
                     while (!stack.empty() && stack.back().type != Token::LEFT_BRACKET) {
                         queue.push_back(stack.back());
                         stack.pop_back();
