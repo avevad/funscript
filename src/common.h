@@ -35,7 +35,8 @@ namespace funscript {
         APPEND,
         DISCARD,
         CALL,
-        LAMBDA
+        LAMBDA,
+        MODULO
     };
 
     enum class Bracket {
@@ -67,6 +68,7 @@ namespace funscript {
             {L",", Operator::APPEND},
             {L";", Operator::DISCARD},
             {L":", Operator::LAMBDA},
+            {L"%", Operator::MODULO},
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -88,6 +90,7 @@ namespace funscript {
             {Operator::CALL,    {0,  false}}, // special
             {Operator::TIMES,   {1,  true}},
             {Operator::DIVIDE,  {1,  true}},
+            {Operator::MODULO,  {2,  true}},
             {Operator::PLUS,    {2,  true}},
             {Operator::MINUS,   {2,  true}},
             {Operator::LAMBDA,  {8,  false}}, // special

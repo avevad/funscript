@@ -137,6 +137,9 @@ namespace funscript {
                     case Operator::MINUS:
                         result = left - right;
                         break;
+                    case Operator::MODULO:
+                        result = left % right;
+                        break;
                     default:
                         throw std::runtime_error(""); // TODO
                 }
