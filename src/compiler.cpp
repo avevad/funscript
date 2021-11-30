@@ -64,6 +64,7 @@ namespace funscript {
                         stack.pop_back();
                     }
                     if (stack.empty()) throw CompilationError("unmatched right bracket");
+                    if (get<Bracket>(stack.back().data) != br) throw CompilationError("brackets do not match");
                     stack.pop_back();
                     queue.push_back({Token::RIGHT_BRACKET, br});
                     break;
@@ -298,6 +299,14 @@ namespace funscript {
                 child->compile_val(as, cid);
                 as.put_opcode(cid, Opcode::DS);
                 break;
+            case Bracket::CURLY:
+                as.put_opcode(cid, Opcode::NS);
+                as.put_opcode(cid, Opcode::SEP); // to discard values returned by child
+                child->compile_val(as, cid);
+                as.put_opcode(cid, Opcode::DIS); // discarding child values
+                as.put_opcode(cid, Opcode::TAB);
+                as.put_opcode(cid, Opcode::DS);
+                break;
             default:
                 throw std::runtime_error(""); // TODO
         }
@@ -308,6 +317,8 @@ namespace funscript {
             case Bracket::PLAIN:
                 child->compile_ref(as, cid);
                 break;
+            case Bracket::CURLY:
+                throw CompilationError("expression is not assignable");
             default:
                 throw std::runtime_error(""); // TODO
         }

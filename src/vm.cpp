@@ -162,6 +162,10 @@ namespace funscript {
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
+    void VM::Stack::push_tab(Table *table) {
+        push({.type = Value::TAB, .data = {.tab = table}});
+    }
+
     VM::VM(VM::Config config) : config(config) {}
 
     VM::Stack &VM::stack(size_t id) { return stacks[id]; }
@@ -257,6 +261,11 @@ namespace funscript {
                 case Opcode::MVD: {
                     ip++;
                     stack.mov(true);
+                    break;
+                }
+                case Opcode::TAB: {
+                    ip++;
+                    stack.push_tab(scope->vars);
                     break;
                 }
                 default:

@@ -56,6 +56,7 @@ namespace funscript {
             void push_nul();
             void push_int(int64_t num);
             void push_tab();
+            void push_tab(Table *table);
             void push_ref(Scope *scope, const std::wstring &key);
             void push_val(Scope *scope, const std::wstring &key);
             void push_fun(fun_def def, const void *data, Scope *scope);
@@ -129,9 +130,8 @@ namespace funscript {
     };
 
     class Scope {
-    private:
-        Table *const vars;
     public:
+        Table *const vars;
         Scope *const prev_scope;
 
         Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};

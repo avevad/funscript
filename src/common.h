@@ -39,7 +39,7 @@ namespace funscript {
     };
 
     enum class Bracket {
-        PLAIN
+        PLAIN, CURLY
     };
 
     struct Token {
@@ -71,10 +71,12 @@ namespace funscript {
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
             {L"(", Bracket::PLAIN},
+            {L"{", Bracket::CURLY},
     };
 
     static const std::map<std::wstring, Bracket> RIGHT_BRACKET_KEYWORDS{
             {L")", Bracket::PLAIN},
+            {L"}", Bracket::CURLY},
     };
 
     struct OperatorMeta {
@@ -109,6 +111,7 @@ namespace funscript {
         DS,  // pop current scope
         FUN, // create function
         MVD, // move and discard
+        TAB, // push current scope table
     };
 
 
