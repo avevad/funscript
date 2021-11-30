@@ -306,9 +306,7 @@ namespace funscript {
     void BracketAST::compile_ref(Assembler &as, size_t cid) {
         switch (type) {
             case Bracket::PLAIN:
-                as.put_opcode(cid, Opcode::NS);
                 child->compile_ref(as, cid);
-                as.put_opcode(cid, Opcode::DS);
                 break;
             default:
                 throw std::runtime_error(""); // TODO
