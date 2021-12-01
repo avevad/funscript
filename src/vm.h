@@ -9,6 +9,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace funscript {
 
@@ -29,7 +30,7 @@ namespace funscript {
         class Stack;
 
         typedef void *(*heap_allocator)(void *, size_t);
-        using fun_def = void (*)(Stack *, Frame *, const void *data, Scope *scope);
+        using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
         struct Config {
             heap_allocator alloc;
@@ -61,6 +62,7 @@ namespace funscript {
             void push_val(Scope *scope, const std::wstring &key);
             void push_fun(fun_def def, const void *data, Scope *scope);
 
+            void exec_bytecode(Frame *, const void *data, Scope *scope);
             void mov(bool discard = false);
             void dis();
             void op(Frame *frame, Operator op);
@@ -87,8 +89,6 @@ namespace funscript {
     private:
         std::vector<Stack> stacks;
     };
-
-    void exec_bytecode(VM::Stack *stack, Frame *, const void *data, Scope *scope);
 
     struct Function {
         VM::fun_def def;

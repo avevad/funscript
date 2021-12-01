@@ -50,7 +50,7 @@ int main() {
         char *buf = reinterpret_cast<char *>(malloc(as.total_size()));
         as.assemble(buf);
 
-        funscript::exec_bytecode(&vm.stack(sid), nullptr, buf, scope);
+        vm.stack(sid).exec_bytecode(nullptr, buf, scope);
         if (vm.stack(sid).length() == 0) continue;
         std::wcout << L"= ";
         for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).length(); pos++) {

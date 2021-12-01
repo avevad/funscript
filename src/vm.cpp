@@ -178,8 +178,7 @@ namespace funscript {
         return stacks.size() - 1;
     }
 
-    void exec_bytecode(VM::Stack *stack_ptr, Frame *frame, const void *data, Scope *scope) {
-        VM::Stack &stack = *stack_ptr;
+    void VM::Stack::exec_bytecode(Frame *frame, const void *data, Scope *scope) {
         const char *bytecode = reinterpret_cast<const char *>(data);
         size_t ip = 0;
         while (true) {
@@ -189,12 +188,12 @@ namespace funscript {
                     break;
                 case Opcode::NUL: {
                     ip++;
-                    stack.push_nul();
+                    push_nul();
                     break;
                 }
                 case Opcode::SEP: {
                     ip++;
-                    stack.push_sep();
+                    push_sep();
                     break;
                 }
                 case Opcode::INT: {
@@ -202,14 +201,14 @@ namespace funscript {
                     int64_t num;
                     memcpy(&num, bytecode + ip, sizeof(int64_t));
                     ip += sizeof(int64_t);
-                    stack.push_int(num);
+                    push_int(num);
                     break;
                 }
                 case Opcode::OP: {
                     ip++;
-                    auto op = (Operator) bytecode[ip];
+                    auto oper = (Operator) bytecode[ip];
                     ip++;
-                    stack.op(frame, op);
+                    op(frame, oper);
                     break;
                 }
                 case Opcode::REF: {
@@ -218,7 +217,7 @@ namespace funscript {
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
                     std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
-                    stack.push_ref(scope, key);
+                    push_ref(scope, key);
                     break;
                 }
                 case Opcode::VAL: {
@@ -227,23 +226,23 @@ namespace funscript {
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
                     std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
-                    stack.push_val(scope, key);
+                    push_val(scope, key);
                     break;
                 }
                 case Opcode::MOV: {
                     ip++;
-                    stack.mov();
+                    mov();
                     break;
                 }
                 case Opcode::DIS: {
                     ip++;
-                    stack.dis();
+                    dis();
                     break;
                 }
                 case Opcode::NS: {
                     ip++;
-                    stack.push_tab();
-                    scope = new Scope(stack.pop().data.tab, scope);
+                    push_tab();
+                    scope = new Scope(pop().data.tab, scope);
                     break;
                 }
                 case Opcode::DS: {
@@ -258,17 +257,17 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    stack.push_fun(exec_bytecode, bytecode + pos, scope);
+                    push_fun(&VM::Stack::exec_bytecode, bytecode + pos, scope);
                     break;
                 }
                 case Opcode::MVD: {
                     ip++;
-                    stack.mov(true);
+                    mov(true);
                     break;
                 }
                 case Opcode::TAB: {
                     ip++;
-                    stack.push_tab(scope->vars);
+                    push_tab(scope->vars);
                     break;
                 }
                 default:
