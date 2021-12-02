@@ -10,6 +10,7 @@
 
 
 int main() {
+    std::locale::global(std::locale(""));
 
     std::cout << funscript::VERSION << std::endl;
 
