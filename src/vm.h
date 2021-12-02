@@ -113,7 +113,7 @@ namespace funscript {
     class Frame {
         Frame *prev_frame;
     public:
-        Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
+        explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
     };
 
     class Table {
@@ -137,7 +137,7 @@ namespace funscript {
         Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
         [[nodiscard]] bool contains(const std::wstring &key) const;
-        Value &resolve(const std::wstring &key);
+        Value &resolve(const std::wstring &key) const;
     };
 }
 

@@ -7,6 +7,7 @@
 
 #include <stdexcept>
 #include <cstring>
+#include <utility>
 
 namespace funscript {
 
@@ -18,7 +19,7 @@ namespace funscript {
         return str_map[key];
     }
 
-    Value &Scope::resolve(const std::wstring &key) {
+    Value &Scope::resolve(const std::wstring &key) const {
         if (!contains(key)) return vars->var(key);
         if (!vars->contains(key) && prev_scope != nullptr) return prev_scope->resolve(key);
         return vars->var(key);
@@ -161,7 +162,7 @@ namespace funscript {
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? len + pos : pos; }
 
     void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
-        auto *fun = new Function{.def = def, .data = data, .scope = scope};
+        auto *fun = new Function{.def = std::move(def), .data = data, .scope = scope};
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
