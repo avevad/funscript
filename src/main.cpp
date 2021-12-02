@@ -13,7 +13,7 @@ int main() {
 
     std::cout << funscript::VERSION << std::endl;
 
-    funscript::VM vm({.stack_size = 4096});
+    funscript::VM vm({});
     const size_t sid = vm.new_stack();
     vm.stack(sid).push_tab();
     funscript::Table *globals = vm.stack(sid).pop().data.tab;
@@ -51,9 +51,9 @@ int main() {
         as.assemble(buf);
 
         vm.stack(sid).exec_bytecode(nullptr, buf, scope);
-        if (vm.stack(sid).length() == 0) continue;
+        if (vm.stack(sid).size() == 0) continue;
         std::wcout << L"= ";
-        for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).length(); pos++) {
+        for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).size(); pos++) {
             funscript::Value val = vm.stack(sid)[pos];
             switch (val.type) {
                 case funscript::Value::NUL:
@@ -71,7 +71,7 @@ int main() {
                 default:
                     throw std::runtime_error("unknown value");
             }
-            if (pos != vm.stack(sid).length() - 1) std::wcout << L", ";
+            if (pos != vm.stack(sid).size() - 1) std::wcout << L", ";
             else std::wcout << std::endl;
         }
         vm.stack(sid).pop(0);

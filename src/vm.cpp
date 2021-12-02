@@ -30,9 +30,9 @@ namespace funscript {
         return prev_scope != nullptr && prev_scope->contains(key);
     }
 
-    stack_pos_t VM::Stack::length() const { return len; }
+    stack_pos_t VM::Stack::size() const { return stack.size(); }
 
-    VM::Stack::Stack(VM &vm) : vm(vm), size(vm.config.stack_size), stack(new Value[size]) {}
+    VM::Stack::Stack(VM &vm) : vm(vm), stack() {}
 
     const Value &VM::Stack::operator[](stack_pos_t pos) { return get(pos); }
 
@@ -46,11 +46,15 @@ namespace funscript {
         push({Value::TAB, {.tab = new Table(vm)}});
     }
 
-    Value VM::Stack::pop() { return stack[--len]; }
+    Value VM::Stack::pop() {
+        Value val = stack.back();
+        stack.pop_back();
+        return val;
+    }
 
     void VM::Stack::pop(stack_pos_t pos) {
-        if (pos < 0) pos += len;
-        len = pos;
+        if (pos < 0) pos += size();
+        stack.resize(pos);
     }
 
     void VM::Stack::call(Function *fun, Frame *frame) {
@@ -58,12 +62,12 @@ namespace funscript {
         fun->def(this, new_frame, fun->data, fun->scope);
     }
 
-    VM::Stack::~Stack() { delete[] stack; }
+    VM::Stack::~Stack() {}
 
-    void VM::Stack::push(const Value &e) { stack[len++] = e; }
+    void VM::Stack::push(const Value &e) { stack.push_back(e); }
 
     Value &VM::Stack::get(stack_pos_t pos) {
-        if (pos < 0) pos += len;
+        if (pos < 0) pos += size();
         return stack[pos];
     }
 
@@ -76,13 +80,13 @@ namespace funscript {
     void VM::Stack::mov(bool discard) {
         stack_pos_t ref_sep = abs(find_sep(0)), val_sep = abs(find_sep(ref_sep));
         stack_pos_t ref_pos = ref_sep + 1, val_pos = val_sep + 1;
-        while (get(val_pos).type != Value::SEP && ref_pos != len) *get(ref_pos++).data.ref = get(val_pos++);
+        while (get(val_pos).type != Value::SEP && ref_pos != size()) *get(ref_pos++).data.ref = get(val_pos++);
         if (discard) {
             pop(val_sep);
         } else {
             pop(ref_sep);
-            memmove(stack + val_sep, stack + val_sep + 1, sizeof(Value) * (len - val_sep - 1));
-            len--;
+            memmove(stack.data() + val_sep, stack.data() + val_sep + 1, sizeof(Value) * (size() - val_sep - 1));
+            stack.pop_back();
         }
     }
 
@@ -159,7 +163,7 @@ namespace funscript {
         push(scope->resolve(key));
     }
 
-    stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? len + pos : pos; }
+    stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
     void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
         auto *fun = new Function{.def = std::move(def), .data = data, .scope = scope};

@@ -29,12 +29,10 @@ namespace funscript {
     public:
         class Stack;
 
-        typedef void *(*heap_allocator)(void *, size_t);
         using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
         struct Config {
-            heap_allocator alloc;
-            size_t stack_size;
+
         };
 
         const Config config;
@@ -49,7 +47,7 @@ namespace funscript {
 
             explicit Stack(VM &vm);
 
-            [[nodiscard]] stack_pos_t length() const;
+            [[nodiscard]] stack_pos_t size() const;
             const Value &operator[](stack_pos_t pos);
             [[nodiscard]] stack_pos_t abs(stack_pos_t pos) const;
 
@@ -73,9 +71,7 @@ namespace funscript {
             ~Stack();
 
         private:
-            const size_t size;
-            Value *const stack;
-            stack_pos_t len = 0;
+            std::vector<Value> stack;
 
             void push(const Value &e);
             Value &get(stack_pos_t pos);
@@ -137,7 +133,7 @@ namespace funscript {
         Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
         [[nodiscard]] bool contains(const std::wstring &key) const;
-        Value &resolve(const std::wstring &key) const;
+        [[nodiscard]] Value &resolve(const std::wstring &key) const;
     };
 }
 
