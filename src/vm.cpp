@@ -11,28 +11,28 @@
 
 namespace funscript {
 
-    bool Table::contains(const std::wstring &key) {
+    bool Table::contains(const fstring &key) {
         return str_map.contains(key);
     }
 
-    Value &Table::var(const std::wstring &key) {
+    Value &Table::var(const fstring &key) {
         return str_map[key];
     }
 
-    Value &Scope::resolve(const std::wstring &key) const {
+    Value &Scope::resolve(const fstring &key) const {
         if (!contains(key)) return vars->var(key);
         if (!vars->contains(key) && prev_scope != nullptr) return prev_scope->resolve(key);
         return vars->var(key);
     }
 
-    bool Scope::contains(const std::wstring &key) const {
+    bool Scope::contains(const fstring &key) const {
         if (vars->contains(key)) return true;
         return prev_scope != nullptr && prev_scope->contains(key);
     }
 
     stack_pos_t VM::Stack::size() const { return stack.size(); }
 
-    VM::Stack::Stack(VM &vm) : vm(vm), stack() {}
+    VM::Stack::Stack(VM &vm) : vm(vm), stack(AllocatorWrapper<Value>(vm.config.alloc)) {}
 
     const Value &VM::Stack::operator[](stack_pos_t pos) { return get(pos); }
 
@@ -43,7 +43,7 @@ namespace funscript {
     void VM::Stack::push_int(int64_t num) { push({Value::INT, {.num = num}}); }
 
     void VM::Stack::push_tab() {
-        push({Value::TAB, {.tab = new Table(vm)}});
+        push({Value::TAB, {.tab = new(vm.allocate<Table>())Table(vm)}});
     }
 
     Value VM::Stack::pop() {
@@ -58,7 +58,7 @@ namespace funscript {
     }
 
     void VM::Stack::call(Function *fun, Frame *frame) {
-        auto *new_frame = new Frame(frame);
+        auto *new_frame = new(vm.allocate<Frame>())Frame(frame);
         fun->def(this, new_frame, fun->data, fun->scope);
     }
 
@@ -155,18 +155,18 @@ namespace funscript {
 
     }
 
-    void VM::Stack::push_ref(Scope *scope, const std::wstring &key) {
+    void VM::Stack::push_ref(Scope *scope, const fstring &key) {
         push({.type = Value::REF, .data = {.ref = &scope->resolve(key)}});
     }
 
-    void VM::Stack::push_val(Scope *scope, const std::wstring &key) {
+    void VM::Stack::push_val(Scope *scope, const fstring &key) {
         push(scope->resolve(key));
     }
 
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
     void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
-        auto *fun = new Function{.def = std::move(def), .data = data, .scope = scope};
+        auto *fun = new(vm.allocate<Function>())Function{.def = std::move(def), .data = data, .scope = scope};
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
@@ -174,7 +174,7 @@ namespace funscript {
         push({.type = Value::TAB, .data = {.tab = table}});
     }
 
-    VM::VM(VM::Config config) : config(config) {}
+    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack>(config.alloc)) {}
 
     VM::Stack &VM::stack(size_t id) { return stacks[id]; }
 
@@ -221,7 +221,7 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.str_alloc());
                     push_ref(scope, key);
                     break;
                 }
@@ -230,7 +230,7 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    std::wstring key(reinterpret_cast<const wchar_t *>(bytecode + pos));
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.str_alloc());
                     push_val(scope, key);
                     break;
                 }
@@ -247,7 +247,7 @@ namespace funscript {
                 case Opcode::NS: {
                     ip++;
                     push_tab();
-                    scope = new Scope(pop().data.tab, scope);
+                    scope = new(vm.allocate<Scope>())Scope(pop().data.tab, scope);
                     break;
                 }
                 case Opcode::DS: {

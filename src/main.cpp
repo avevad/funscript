@@ -13,8 +13,8 @@ int main() {
     std::locale::global(std::locale(""));
 
     std::cout << funscript::VERSION << std::endl;
-
-    funscript::VM vm({});
+    auto *allocator = new funscript::DefaultAllocator();
+    funscript::VM vm({.alloc = allocator});
     const size_t sid = vm.new_stack();
     vm.stack(sid).push_tab();
     funscript::Table *globals = vm.stack(sid).pop().data.tab;

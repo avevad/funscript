@@ -125,6 +125,47 @@ namespace funscript {
 
         [[nodiscard]] const char *what() const noexcept override { return msg.c_str(); }
     };
+
+    class Allocator {
+    public:
+        virtual void *allocate(size_t size) = 0;
+        virtual void free(void *ptr) = 0;
+    };
+
+    class DefaultAllocator : public Allocator {
+    public:
+        void *allocate(size_t size) override { return std::malloc(size); }
+
+        void free(void *ptr) override { std::free(ptr); }
+    };
+
+    template<typename T>
+    class AllocatorWrapper {
+    public:
+        Allocator *alloc;
+        typedef T value_type;
+
+        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
+
+        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
+
+        template<typename E>
+        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
+
+        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
+
+        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
+
+        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
+            if (&old != this) alloc = old.alloc;
+            return *this;
+        }
+    };
+
+    using fchar = wchar_t;
+    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
+    template<typename K, typename V>
+    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
 }
 
 #endif //FUNSCRIPT_COMMON_H

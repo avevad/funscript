@@ -32,7 +32,7 @@ namespace funscript {
         using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
         struct Config {
-
+            Allocator *alloc = nullptr;
         };
 
         const Config config;
@@ -56,8 +56,8 @@ namespace funscript {
             void push_int(int64_t num);
             void push_tab();
             void push_tab(Table *table);
-            void push_ref(Scope *scope, const std::wstring &key);
-            void push_val(Scope *scope, const std::wstring &key);
+            void push_ref(Scope *scope, const fstring &key);
+            void push_val(Scope *scope, const fstring &key);
             void push_fun(fun_def def, const void *data, Scope *scope);
 
             void exec_bytecode(Frame *, const void *data, Scope *scope);
@@ -71,7 +71,7 @@ namespace funscript {
             ~Stack();
 
         private:
-            std::vector<Value> stack;
+            std::vector<Value, AllocatorWrapper<Value>> stack;
 
             void push(const Value &e);
             Value &get(stack_pos_t pos);
@@ -82,8 +82,19 @@ namespace funscript {
         Stack &stack(size_t id);
 
         size_t new_stack();
+
+        template<typename T>
+        AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(config.alloc); }
+
+        AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
+
+        template<typename T>
+        T *allocate(size_t n = 1) { return reinterpret_cast<T *>(config.alloc->allocate(n * sizeof(T))); }
+
+        void free(void *ptr) { config.alloc->free(ptr); }
+
     private:
-        std::vector<Stack> stacks;
+        std::vector<Stack, AllocatorWrapper<Stack>> stacks;
     };
 
     struct Function {
@@ -116,13 +127,13 @@ namespace funscript {
     private:
         friend VM;
 
-        std::map<std::wstring, Value> str_map;
+        fmap<fstring, Value> str_map;
         VM &vm;
 
-        explicit Table(VM &vm) : vm(vm) {};
+        explicit Table(VM &vm) : vm(vm), str_map(vm.std_alloc<std::pair<const fstring, Value>>()) {};
     public:
-        bool contains(const std::wstring &key);
-        Value &var(const std::wstring &key);
+        bool contains(const fstring &key);
+        Value &var(const fstring &key);
     };
 
     class Scope {
@@ -132,8 +143,8 @@ namespace funscript {
 
         Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
-        [[nodiscard]] bool contains(const std::wstring &key) const;
-        [[nodiscard]] Value &resolve(const std::wstring &key) const;
+        [[nodiscard]] bool contains(const fstring &key) const;
+        [[nodiscard]] Value &resolve(const fstring &key) const;
     };
 }
 
