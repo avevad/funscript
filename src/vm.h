@@ -54,7 +54,6 @@ namespace funscript {
             void push_sep();
             void push_nul();
             void push_int(int64_t num);
-            void push_tab();
             void push_tab(Table *table);
             void push_ref(Scope *scope, const fstring &key);
             void push_val(Scope *scope, const fstring &key);
@@ -130,8 +129,8 @@ namespace funscript {
         fmap<fstring, Value> str_map;
         VM &vm;
 
-        explicit Table(VM &vm) : vm(vm), str_map(vm.std_alloc<std::pair<const fstring, Value>>()) {};
     public:
+        explicit Table(VM &vm) : vm(vm), str_map(vm.std_alloc<std::pair<const fstring, Value>>()) {};
         bool contains(const fstring &key);
         Value &var(const fstring &key);
     };

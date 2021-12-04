@@ -42,10 +42,6 @@ namespace funscript {
 
     void VM::Stack::push_int(int64_t num) { push({Value::INT, {.num = num}}); }
 
-    void VM::Stack::push_tab() {
-        push({Value::TAB, {.tab = new(vm.allocate<Table>())Table(vm)}});
-    }
-
     Value VM::Stack::pop() {
         Value val = stack.back();
         stack.pop_back();
@@ -246,8 +242,8 @@ namespace funscript {
                 }
                 case Opcode::NS: {
                     ip++;
-                    push_tab();
-                    scope = new(vm.allocate<Scope>())Scope(pop().data.tab, scope);
+                    auto *vars = new(vm.allocate<Table>()) Table(vm);
+                    scope = new(vm.allocate<Scope>()) Scope(vars, scope);
                     break;
                 }
                 case Opcode::DS: {
