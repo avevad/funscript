@@ -54,7 +54,7 @@ namespace funscript {
     }
 
     void VM::Stack::call(Function *fun, Frame *frame) {
-        auto *new_frame = new(vm.allocate<Frame>())Frame(frame);
+        auto *new_frame = new(vm.mem.allocate<Frame>())Frame(frame);
         fun->def(this, new_frame, fun->data, fun->scope);
     }
 
@@ -162,7 +162,7 @@ namespace funscript {
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
     void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
-        auto *fun = new(vm.allocate<Function>())Function{.def = std::move(def), .data = data, .scope = scope};
+        auto *fun = new(vm.mem.allocate<Function>())Function{.def = std::move(def), .data = data, .scope = scope};
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
@@ -170,7 +170,7 @@ namespace funscript {
         push({.type = Value::TAB, .data = {.tab = table}});
     }
 
-    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack>(config.alloc)) {}
+    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack>(config.alloc)), mem(*this) {}
 
     VM::Stack &VM::stack(size_t id) { return stacks[id]; }
 
@@ -217,7 +217,7 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.str_alloc());
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     push_ref(scope, key);
                     break;
                 }
@@ -226,7 +226,7 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.str_alloc());
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     push_val(scope, key);
                     break;
                 }
@@ -242,8 +242,8 @@ namespace funscript {
                 }
                 case Opcode::NS: {
                     ip++;
-                    auto *vars = new(vm.allocate<Table>()) Table(vm);
-                    scope = new(vm.allocate<Scope>()) Scope(vars, scope);
+                    auto *vars = new(vm.mem.allocate<Table>()) Table(vm);
+                    scope = new(vm.mem.allocate<Scope>()) Scope(vars, scope);
                     break;
                 }
                 case Opcode::DS: {

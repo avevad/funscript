@@ -35,9 +35,28 @@ namespace funscript {
             Allocator *alloc = nullptr;
         };
 
+        class MemoryManager {
+        public:
+            VM &vm;
+            MemoryManager(VM &vm) : vm(vm) {}
+
+            template<typename T>
+            AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.alloc); }
+
+            AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
+
+            template<typename T>
+            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.alloc->allocate(n * sizeof(T))); }
+
+            void free(void *ptr) { vm.config.alloc->free(ptr); }
+        };
+
         const Config config;
+        MemoryManager mem;
 
         explicit VM(Config config);
+
+        friend MemoryManager;
 
         class Stack {
         public:
@@ -82,16 +101,6 @@ namespace funscript {
 
         size_t new_stack();
 
-        template<typename T>
-        AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(config.alloc); }
-
-        AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
-
-        template<typename T>
-        T *allocate(size_t n = 1) { return reinterpret_cast<T *>(config.alloc->allocate(n * sizeof(T))); }
-
-        void free(void *ptr) { config.alloc->free(ptr); }
-
     private:
         std::vector<Stack, AllocatorWrapper<Stack>> stacks;
     };
@@ -130,7 +139,7 @@ namespace funscript {
         VM &vm;
 
     public:
-        explicit Table(VM &vm) : vm(vm), str_map(vm.std_alloc<std::pair<const fstring, Value>>()) {};
+        explicit Table(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
         bool contains(const fstring &key);
         Value &var(const fstring &key);
     };

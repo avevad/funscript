@@ -16,8 +16,8 @@ int main() {
     auto *allocator = new funscript::DefaultAllocator();
     funscript::VM vm({.alloc = allocator});
     const size_t sid = vm.new_stack();
-    auto *globals = new(vm.allocate<funscript::Table>())funscript::Table(vm);
-    auto *scope = new(vm.allocate<funscript::Scope>())funscript::Scope(globals, nullptr);
+    auto *globals = new(vm.mem.allocate<funscript::Table>())funscript::Table(vm);
+    auto *scope = new(vm.mem.allocate<funscript::Scope>())funscript::Scope(globals, nullptr);
 
     while (true) {
         std::wstring code;
