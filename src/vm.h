@@ -38,7 +38,7 @@ namespace funscript {
         class MemoryManager {
         public:
             VM &vm;
-            MemoryManager(VM &vm) : vm(vm) {}
+            explicit MemoryManager(VM &vm) : vm(vm) {}
 
             template<typename T>
             AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.alloc); }
