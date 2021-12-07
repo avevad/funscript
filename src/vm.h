@@ -38,6 +38,7 @@ namespace funscript {
         class MemoryManager {
         public:
             VM &vm;
+
             explicit MemoryManager(VM &vm) : vm(vm) {}
 
             template<typename T>
