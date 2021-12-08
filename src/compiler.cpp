@@ -225,10 +225,12 @@ namespace funscript {
             right->compile_val(as, cid);
         } else if (op == Operator::LAMBDA) {
             auto f_cid = as.new_chunk();
+            as.put_opcode(f_cid, Opcode::NS); // lambda's new scope
             as.put_opcode(f_cid, Opcode::SEP); // to assign arguments
             left->compile_ref(as, f_cid); // arguments destination
             as.put_opcode(f_cid, Opcode::MVD); // assigning arguments to the destination
             right->compile_val(as, f_cid); // executing function body
+            as.put_opcode(f_cid, Opcode::DS); // discard lambda's scope (unnecessary, but still)
             as.put_opcode(f_cid, Opcode::END);
             as.put_opcode(cid, Opcode::FUN);
             as.put_reloc(cid, f_cid, 0);
