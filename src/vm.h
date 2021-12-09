@@ -31,6 +31,7 @@ namespace funscript {
         class Stack;
 
         VM(const VM &vm) = delete;
+        VM &operator=(const VM &vm) = delete;
 
         using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
@@ -66,7 +67,7 @@ namespace funscript {
             void gc_track(Allocation *alloc);
 
             template<class T, typename... A>
-            T *gc_new(A&&... args) {
+            T *gc_new(A &&... args) {
                 T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
                 gc_track(ptr);
                 return ptr;
@@ -87,6 +88,7 @@ namespace funscript {
             VM &vm;
 
             Stack &operator=(const Stack &s) = delete;
+            Stack(const Stack &s) = delete;
 
             explicit Stack(VM &vm);
 
@@ -125,8 +127,10 @@ namespace funscript {
 
         size_t new_stack();
 
+        ~VM();
+
     private:
-        std::vector<Stack, AllocatorWrapper<Stack>> stacks;
+        std::vector<Stack *, AllocatorWrapper<Stack *>> stacks;
     };
 
     struct Function : public VM::Allocation {

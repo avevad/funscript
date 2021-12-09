@@ -58,7 +58,7 @@ namespace funscript {
         fun->def(this, new_frame, fun->data, fun->scope);
     }
 
-    VM::Stack::~Stack() {}
+    VM::Stack::~Stack() = default;
 
     void VM::Stack::push(const Value &e) { stack.push_back(e); }
 
@@ -170,13 +170,20 @@ namespace funscript {
         push({.type = Value::TAB, .data = {.tab = table}});
     }
 
-    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack>(config.alloc)), mem(*this) {}
+    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.alloc)), mem(*this) {}
 
-    VM::Stack &VM::stack(size_t id) { return stacks[id]; }
+    VM::Stack &VM::stack(size_t id) { return *stacks[id]; }
 
     size_t VM::new_stack() {
-        stacks.emplace_back(*this);
+        stacks.push_back(new(mem.allocate<Stack>()) Stack(*this));
         return stacks.size() - 1;
+    }
+
+    VM::~VM() {
+        for (Stack *stack: stacks) {
+            stack->~Stack();
+            mem.free(stack);
+        }
     }
 
     void VM::Stack::exec_bytecode(Frame *frame, const void *data, Scope *scope) {
