@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <set>
 
 namespace funscript {
 
@@ -29,17 +30,28 @@ namespace funscript {
     public:
         class Stack;
 
+        VM(const VM &vm) = delete;
+
         using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
         struct Config {
             Allocator *alloc = nullptr;
         };
 
+        class MemoryManager;
+
+        class Allocation {
+            friend MemoryManager;
+        public:
+            virtual ~Allocation() = default;
+        };
+
         class MemoryManager {
         public:
             VM &vm;
+            std::set<Allocation *, std::less<>, AllocatorWrapper<Allocation *>> gc_tracked;
 
-            explicit MemoryManager(VM &vm) : vm(vm) {}
+            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()) {}
 
             template<typename T>
             AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.alloc); }
@@ -47,9 +59,20 @@ namespace funscript {
             AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
 
             template<typename T>
-            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.alloc->allocate(n * sizeof(T))); }
+            T *allocate() { return reinterpret_cast<T *>(vm.config.alloc->allocate(sizeof(T))); }
 
             void free(void *ptr) { vm.config.alloc->free(ptr); }
+
+            void gc_track(Allocation *alloc);
+
+            template<class T, typename... A>
+            T *gc_new(A&&... args) {
+                T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
+                gc_track(ptr);
+                return ptr;
+            }
+
+            ~MemoryManager();
         };
 
         const Config config;
@@ -106,10 +129,12 @@ namespace funscript {
         std::vector<Stack, AllocatorWrapper<Stack>> stacks;
     };
 
-    struct Function {
+    struct Function : public VM::Allocation {
         VM::fun_def def;
         const void *data;
         Scope *scope;
+
+        Function(VM::fun_def def, const void *data, Scope *scope) : def(def), data(data), scope(scope) {}
     };
 
     struct Value {
@@ -126,13 +151,15 @@ namespace funscript {
         Data data = {.tab = nullptr};
     };
 
-    class Frame {
+    class Frame : public VM::Allocation {
         Frame *prev_frame;
     public:
         explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
+
+        ~Frame() = default;
     };
 
-    class Table {
+    class Table : public VM::Allocation {
     private:
         friend VM;
 
@@ -143,9 +170,10 @@ namespace funscript {
         explicit Table(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
         bool contains(const fstring &key);
         Value &var(const fstring &key);
+        ~Table() = default;
     };
 
-    class Scope {
+    class Scope : public VM::Allocation {
     public:
         Table *const vars;
         Scope *const prev_scope;

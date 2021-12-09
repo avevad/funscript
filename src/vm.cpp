@@ -54,7 +54,7 @@ namespace funscript {
     }
 
     void VM::Stack::call(Function *fun, Frame *frame) {
-        auto *new_frame = new(vm.mem.allocate<Frame>())Frame(frame);
+        auto *new_frame = vm.mem.gc_new<Frame>(frame);
         fun->def(this, new_frame, fun->data, fun->scope);
     }
 
@@ -162,7 +162,7 @@ namespace funscript {
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
     void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
-        auto *fun = new(vm.mem.allocate<Function>())Function{.def = std::move(def), .data = data, .scope = scope};
+        auto *fun = vm.mem.gc_new<Function>(std::move(def), data, scope);
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
@@ -242,8 +242,8 @@ namespace funscript {
                 }
                 case Opcode::NS: {
                     ip++;
-                    auto *vars = new(vm.mem.allocate<Table>()) Table(vm);
-                    scope = new(vm.mem.allocate<Scope>()) Scope(vars, scope);
+                    auto *vars = vm.mem.gc_new<Table>(vm);
+                    scope = vm.mem.gc_new<Scope>(vars, scope);
                     break;
                 }
                 case Opcode::DS: {
@@ -274,6 +274,18 @@ namespace funscript {
                 default:
                     throw std::runtime_error("unknown opcode"); // TODO
             }
+        }
+    }
+
+    void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
+        if (gc_tracked.contains(alloc)) throw std::runtime_error("allocation is already tracked");
+        gc_tracked.insert(alloc);
+    }
+
+    VM::MemoryManager::~MemoryManager() {
+        for (Allocation *alloc: gc_tracked) {
+            (*alloc).~Allocation();
+            free(alloc);
         }
     }
 }
