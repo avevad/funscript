@@ -32,7 +32,7 @@ int main() {
                 continue;
             }
 
-            funscript::AST *ast;
+            funscript::ast_ptr ast;
             try {
                 ast = funscript::parse(tokens);
             } catch (const funscript::CompilationError &err) {
@@ -42,7 +42,7 @@ int main() {
 
             funscript::Assembler as;
             try {
-                as.compile_expression(ast);
+                as.compile_expression(ast.get());
             } catch (const funscript::CompilationError &err) {
                 std::cerr << "compilation error: " << err.what() << std::endl;
                 continue;

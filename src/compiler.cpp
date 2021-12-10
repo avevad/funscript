@@ -19,8 +19,8 @@ namespace funscript {
     }
 
 
-    AST *parse(const std::vector<Token> &tokens) {
-        if (tokens.empty()) return new VoidAST;
+    ast_ptr parse(const std::vector<Token> &tokens) {
+        if (tokens.empty()) return ast_ptr(new VoidAST);
         std::vector<Token> stack, queue;
         for (size_t pos = 0; pos < tokens.size(); pos++) {
             const auto &token = tokens[pos];
@@ -124,7 +124,7 @@ namespace funscript {
             }
         }
         if (ast.size() != 1) throw CompilationError("missing operator");
-        return ast[0];
+        return ast_ptr(ast[0]);
     }
 
     size_t Assembler::new_chunk() {

@@ -8,6 +8,7 @@
 #include "common.h"
 
 #include <vector>
+#include <memory>
 
 namespace funscript {
 
@@ -20,7 +21,9 @@ namespace funscript {
         virtual void compile_ref(Assembler &as, size_t cid) = 0;
     };
 
-    AST *parse(const std::vector<Token> &tokens);
+    using ast_ptr = std::unique_ptr<AST>;
+
+    ast_ptr parse(const std::vector<Token> &tokens);
 
     class Assembler {
         struct Relocation {
@@ -76,7 +79,7 @@ namespace funscript {
     };
 
     class OperatorAST : public AST {
-        AST *left{}, *right{};
+        ast_ptr left{}, right{};
         Operator op;
 
         void compile_val(Assembler &as, size_t cid) override;
@@ -100,7 +103,7 @@ namespace funscript {
 
     class BracketAST : public AST {
         Bracket type;
-        AST *child;
+        ast_ptr child;
         void compile_val(Assembler &as, size_t cid) override;
         void compile_ref(Assembler &as, size_t cid) override;
     public:
