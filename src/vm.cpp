@@ -147,6 +147,7 @@ namespace funscript {
             }
             pop(-4);
             push_int(result);
+            return;
         }
         assert_failed("invalid number of values"); // TODO
     }
