@@ -55,7 +55,7 @@ namespace funscript {
 
     void VM::Stack::call(Function *fun, Frame *frame) {
         auto *new_frame = vm.mem.gc_new<Frame>(frame);
-        fun->def(this, new_frame, fun->data, fun->scope);
+        (*fun)(*this, frame);
     }
 
     VM::Stack::~Stack() = default;
@@ -161,8 +161,7 @@ namespace funscript {
 
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
-    void VM::Stack::push_fun(fun_def def, const void *data, Scope *scope) {
-        auto *fun = vm.mem.gc_new<Function>(std::move(def), data, scope);
+    void VM::Stack::push_fun(Function *fun) {
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
@@ -186,8 +185,8 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::exec_bytecode(Frame *frame, const void *data, Scope *scope) {
-        const char *bytecode = reinterpret_cast<const char *>(data);
+    void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Holder<char> *bytecode_hld, size_t offset) {
+        const char *bytecode = bytecode_hld->data + offset;
         size_t ip = 0;
         while (true) {
             auto opcode = (Opcode) bytecode[ip];
@@ -265,7 +264,7 @@ namespace funscript {
                     ssize_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(ssize_t));
                     ip += sizeof(ssize_t);
-                    push_fun(&VM::Stack::exec_bytecode, bytecode + pos, scope);
+                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_hld, offset + pos));
                     break;
                 }
                 case Opcode::MVD: {

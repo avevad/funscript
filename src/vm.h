@@ -24,6 +24,9 @@ namespace funscript {
 
     class Function;
 
+    template<typename E>
+    class Holder;
+
     typedef ssize_t stack_pos_t;
 
     class VM {
@@ -32,8 +35,6 @@ namespace funscript {
 
         VM(const VM &vm) = delete;
         VM &operator=(const VM &vm) = delete;
-
-        using fun_def = std::function<void(Stack *, Frame *, const void *data, Scope *scope)>;
 
         struct Config {
             Allocator *alloc = nullptr;
@@ -60,7 +61,7 @@ namespace funscript {
             AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
 
             template<typename T>
-            T *allocate() { return reinterpret_cast<T *>(vm.config.alloc->allocate(sizeof(T))); }
+            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.alloc->allocate(n * sizeof(T))); }
 
             void free(void *ptr) { vm.config.alloc->free(ptr); }
 
@@ -102,9 +103,9 @@ namespace funscript {
             void push_tab(Table *table);
             void push_ref(Scope *scope, const fstring &key);
             void push_val(Scope *scope, const fstring &key);
-            void push_fun(fun_def def, const void *data, Scope *scope);
+            void push_fun(Function *fun);
 
-            void exec_bytecode(Frame *, const void *data, Scope *scope);
+            void exec_bytecode(Frame *, Scope *scope, Holder<char> *bytecode, size_t offset = 0);
             void mov(bool discard = false);
             void dis();
             void op(Frame *frame, Operator op);
@@ -133,12 +134,65 @@ namespace funscript {
         std::vector<Stack *, AllocatorWrapper<Stack *>> stacks;
     };
 
-    struct Function : public VM::Allocation {
-        VM::fun_def def;
-        const void *data;
-        Scope *scope;
+    class Table : public VM::Allocation {
+    private:
+        friend VM;
 
-        Function(VM::fun_def def, const void *data, Scope *scope) : def(def), data(data), scope(scope) {}
+        fmap<fstring, Value> str_map;
+    public:
+        VM &vm;
+
+    public:
+        explicit Table(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
+        bool contains(const fstring &key);
+        Value &var(const fstring &key);
+        ~Table() = default;
+    };
+
+    class Scope : public VM::Allocation {
+    public:
+        Table *const vars;
+        Scope *const prev_scope;
+
+        Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+
+        [[nodiscard]] bool contains(const fstring &key) const;
+        [[nodiscard]] Value &resolve(const fstring &key) const;
+    };
+
+    class Function : public VM::Allocation {
+    public:
+        VM &vm;
+
+        explicit Function(VM &vm) : vm(vm) {}
+
+        virtual void operator()(VM::Stack &stack, Frame *frame) = 0;
+    };
+
+    template<typename E>
+    class Holder : public VM::Allocation {
+        Allocator *alloc;
+    public:
+        E *const data;
+
+        Holder(E *data, Allocator *alloc) : data(data), alloc(alloc) {}
+
+        ~Holder() override { alloc->free(data); }
+    };
+
+    class CompiledFunction : public Function {
+        Holder<char> *bytecode;
+        size_t offset;
+        Scope *scope;
+    public:
+        CompiledFunction(Scope *scope, Holder<char> *bytecode, size_t offset) : Function(scope->vars->vm),
+                                                                                bytecode(bytecode), scope(scope),
+                                                                                offset(offset) {}
+
+        void operator()(VM::Stack &stack, Frame *frame) override {
+            stack.exec_bytecode(frame, scope, bytecode, offset);
+        }
+
     };
 
     struct Value {
@@ -160,32 +214,7 @@ namespace funscript {
     public:
         explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
 
-        ~Frame() = default;
-    };
-
-    class Table : public VM::Allocation {
-    private:
-        friend VM;
-
-        fmap<fstring, Value> str_map;
-        VM &vm;
-
-    public:
-        explicit Table(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
-        bool contains(const fstring &key);
-        Value &var(const fstring &key);
-        ~Table() = default;
-    };
-
-    class Scope : public VM::Allocation {
-    public:
-        Table *const vars;
-        Scope *const prev_scope;
-
-        Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
-
-        [[nodiscard]] bool contains(const fstring &key) const;
-        [[nodiscard]] Value &resolve(const fstring &key) const;
+        ~Frame() override = default;
     };
 }
 
