@@ -114,7 +114,7 @@ namespace funscript {
         DS,  // pop current scope
         FUN, // create function
         MVD, // move and discard
-        TAB, // push current scope table
+        OBJ, // push current scope variables map
     };
 
 

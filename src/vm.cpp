@@ -11,11 +11,11 @@
 
 namespace funscript {
 
-    bool Table::contains(const fstring &key) {
+    bool Object::contains(const fstring &key) {
         return str_map.contains(key);
     }
 
-    Value &Table::var(const fstring &key) {
+    Value &Object::var(const fstring &key) {
         return str_map[key];
     }
 
@@ -165,8 +165,8 @@ namespace funscript {
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
-    void VM::Stack::push_tab(Table *table) {
-        push({.type = Value::TAB, .data = {.tab = table}});
+    void VM::Stack::push_object(Object *object) {
+        push({.type = Value::OBJ, .data = {.obj = object}});
     }
 
     VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.alloc)), mem(*this) {}
@@ -248,7 +248,7 @@ namespace funscript {
                 }
                 case Opcode::NS: {
                     ip++;
-                    auto *vars = vm.mem.gc_new<Table>(vm);
+                    auto *vars = vm.mem.gc_new<Object>(vm);
                     scope = vm.mem.gc_new<Scope>(vars, scope);
                     break;
                 }
@@ -272,9 +272,9 @@ namespace funscript {
                     mov(true);
                     break;
                 }
-                case Opcode::TAB: {
+                case Opcode::OBJ: {
                     ip++;
-                    push_tab(scope->vars);
+                    push_object(scope->vars);
                     break;
                 }
                 default:

@@ -14,7 +14,7 @@
 
 namespace funscript {
 
-    class Table;
+    class Object;
 
     class Scope;
 
@@ -100,7 +100,7 @@ namespace funscript {
             void push_sep();
             void push_nul();
             void push_int(int64_t num);
-            void push_tab(Table *table);
+            void push_object(Object *object);
             void push_ref(Scope *scope, const fstring &key);
             void push_val(Scope *scope, const fstring &key);
             void push_fun(Function *fun);
@@ -134,7 +134,7 @@ namespace funscript {
         std::vector<Stack *, AllocatorWrapper<Stack *>> stacks;
     };
 
-    class Table : public VM::Allocation {
+    class Object : public VM::Allocation {
     private:
         friend VM;
 
@@ -143,18 +143,18 @@ namespace funscript {
         VM &vm;
 
     public:
-        explicit Table(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
+        explicit Object(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
         bool contains(const fstring &key);
         Value &var(const fstring &key);
-        ~Table() = default;
+        ~Object() = default;
     };
 
     class Scope : public VM::Allocation {
     public:
-        Table *const vars;
+        Object *const vars;
         Scope *const prev_scope;
 
-        Scope(Table *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+        Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
         [[nodiscard]] bool contains(const fstring &key) const;
         [[nodiscard]] Value &resolve(const fstring &key) const;
@@ -197,16 +197,16 @@ namespace funscript {
 
     struct Value {
         enum Type {
-            NUL, SEP, INT, TAB, REF, FUN
+            NUL, SEP, INT, OBJ, REF, FUN
         };
         union Data {
             int64_t num;
-            Table *tab;
+            Object *obj;
             Value *ref;
             Function *fun;
         };
         Type type = NUL;
-        Data data = {.tab = nullptr};
+        Data data = {.obj = nullptr};
     };
 
     class Frame : public VM::Allocation {

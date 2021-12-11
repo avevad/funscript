@@ -306,7 +306,7 @@ namespace funscript {
                 as.put_opcode(cid, Opcode::SEP); // to discard values returned by child
                 child->compile_val(as, cid);
                 as.put_opcode(cid, Opcode::DIS); // discarding child values
-                as.put_opcode(cid, Opcode::TAB);
+                as.put_opcode(cid, Opcode::OBJ);
                 as.put_opcode(cid, Opcode::DS);
                 break;
             default:

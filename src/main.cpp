@@ -16,7 +16,7 @@ int main() {
     {
         funscript::VM vm({.alloc = allocator});
         const size_t sid = vm.new_stack();
-        auto *globals = vm.mem.gc_new<funscript::Table>(vm);
+        auto *globals = vm.mem.gc_new<funscript::Object>(vm);
         auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
 
         while (true) {
@@ -63,8 +63,8 @@ int main() {
                     case funscript::Value::INT:
                         std::wcout << val.data.num;
                         break;
-                    case funscript::Value::TAB:
-                        std::wcout << L"table(" << val.data.tab << ")";
+                    case funscript::Value::OBJ:
+                        std::wcout << L"object(" << val.data.obj << ")";
                         break;
                     case funscript::Value::FUN:
                         std::wcout << L"function(" << val.data.fun << ")";
