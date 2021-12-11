@@ -19,6 +19,7 @@ namespace funscript {
     public:
         virtual void compile_val(Assembler &as, size_t cid) = 0;
         virtual void compile_ref(Assembler &as, size_t cid) = 0;
+        virtual ~AST() = default;
     };
 
     using ast_ptr = std::unique_ptr<AST>;
