@@ -95,60 +95,60 @@ namespace funscript {
         stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
         size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
         if (op == Operator::CALL) {
-            if (cnt_b != 1) throw std::runtime_error(""); // TODO
-            if (get(-1).type != Value::FUN) throw std::runtime_error(""); // TODO
+            FS_ASSERT(cnt_b == 1); // TODO
+            FS_ASSERT(get(-1).type == Value::FUN); // TODO
             Function *fun = pop().data.fun;
             pop();
             call(fun, frame);
             return;
         }
         if (cnt_a == 0) {
-            if (cnt_b != 1) throw std::runtime_error(""); // TODO
-            if (get(pos_b).type == Value::INT) {
-                int64_t val = get(-1).data.num;
-                int64_t result;
-                switch (op) {
-                    case Operator::PLUS:
-                        result = val;
-                        break;
-                    case Operator::MINUS:
-                        result = -val;
-                        break;
-                    default:
-                        throw std::runtime_error(""); // TODO
-                }
-                pop(-3);
-                push_int(result);
-            } else throw std::runtime_error(""); // TODO
-        } else if (cnt_a == 1) {
-            if (get(pos_a).type == Value::INT) {
-                if (cnt_b != 1 || get(pos_b).type != Value::INT) throw std::runtime_error(""); // TODO
-                int64_t left = get(-3).data.num, right = get(-1).data.num;
-                int64_t result;
-                switch (op) {
-                    case Operator::TIMES:
-                        result = left * right;
-                        break;
-                    case Operator::DIVIDE:
-                        result = left / right;
-                        break;
-                    case Operator::PLUS:
-                        result = left + right;
-                        break;
-                    case Operator::MINUS:
-                        result = left - right;
-                        break;
-                    case Operator::MODULO:
-                        result = left % right;
-                        break;
-                    default:
-                        throw std::runtime_error(""); // TODO
-                }
-                pop(-4);
-                push_int(result);
-            } else throw std::runtime_error(""); // TODO
-        } else throw std::runtime_error(""); // TODO
-
+            FS_ASSERT(cnt_b == 1); // TODO
+            FS_ASSERT(get(pos_b).type == Value::INT); // TODO
+            int64_t val = get(-1).data.num;
+            int64_t result;
+            switch (op) {
+                case Operator::PLUS:
+                    result = val;
+                    break;
+                case Operator::MINUS:
+                    result = -val;
+                    break;
+                default:
+                    assert_failed("invalid operator"); // TODO
+            }
+            pop(-3);
+            push_int(result);
+            return;
+        }
+        if (cnt_a == 1) {
+            FS_ASSERT(get(pos_a).type == Value::INT); // TODO
+            FS_ASSERT(cnt_b == 1 && get(pos_b).type == Value::INT); // TODO
+            int64_t left = get(-3).data.num, right = get(-1).data.num;
+            int64_t result;
+            switch (op) {
+                case Operator::TIMES:
+                    result = left * right;
+                    break;
+                case Operator::DIVIDE:
+                    result = left / right;
+                    break;
+                case Operator::PLUS:
+                    result = left + right;
+                    break;
+                case Operator::MINUS:
+                    result = left - right;
+                    break;
+                case Operator::MODULO:
+                    result = left % right;
+                    break;
+                default:
+                    assert_failed("invalid operator");
+            }
+            pop(-4);
+            push_int(result);
+        }
+        assert_failed("invalid number of values"); // TODO
     }
 
     void VM::Stack::push_ref(Scope *scope, const fstring &key) {
@@ -278,7 +278,7 @@ namespace funscript {
                     break;
                 }
                 default:
-                    throw std::runtime_error("unknown opcode"); // TODO
+                    throw std::runtime_error("unknown opcode");
             }
         }
     }

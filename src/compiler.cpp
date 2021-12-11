@@ -70,7 +70,6 @@ namespace funscript {
                     break;
                 }
                 case Token::VOID:
-                    throw std::runtime_error(""); // TODO
                 case Token::UNKNOWN:
                     throw CompilationError("unknown token");
             }
@@ -107,7 +106,7 @@ namespace funscript {
                     break;
                 }
                 case Token::LEFT_BRACKET:
-                    throw std::runtime_error(""); // TODO
+                    assert_failed("left bracket in output queue");
                 case Token::RIGHT_BRACKET: {
                     AST *child = ast.back();
                     ast.pop_back();
@@ -309,8 +308,6 @@ namespace funscript {
                 as.put_opcode(cid, Opcode::OBJ);
                 as.put_opcode(cid, Opcode::DS);
                 break;
-            default:
-                throw std::runtime_error(""); // TODO
         }
     }
 
@@ -321,8 +318,6 @@ namespace funscript {
                 break;
             case Bracket::CURLY:
                 throw CompilationError("expression is not assignable");
-            default:
-                throw std::runtime_error(""); // TODO
         }
     }
 }

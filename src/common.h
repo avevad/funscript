@@ -9,17 +9,19 @@
 #include <variant>
 #include <string>
 #include <map>
+#include <stdexcept>
+#include <source_location>
 
 namespace funscript {
 
-#define M_VERSION_MAJOR 0
-#define M_VERSION_MINOR 1
-#define M_STR(S) #S
-#define M_TO_STR(X) M_STR(X)
+#define FS_VERSION_MAJOR 0
+#define FS_VERSION_MINOR 1
+#define FS_STR(S) #S
+#define FS_TO_STR(X) FS_STR(X)
 
-    const static constexpr size_t VERSION_MAJOR = M_VERSION_MAJOR;
-    const static constexpr size_t VERSION_MINOR = M_VERSION_MINOR;
-    const static constexpr char *VERSION = "Funscript " M_TO_STR(M_VERSION_MAJOR) "." M_TO_STR(M_VERSION_MINOR);
+    const static constexpr size_t VERSION_MAJOR = FS_VERSION_MAJOR;
+    const static constexpr size_t VERSION_MINOR = FS_VERSION_MINOR;
+    const static constexpr char *VERSION = "Funscript " FS_TO_STR(FS_VERSION_MAJOR) "." FS_TO_STR(FS_VERSION_MINOR);
 
 #undef M_VERSION_MAJOR
 #undef M_VERSION_MINOR
@@ -118,13 +120,23 @@ namespace funscript {
     };
 
 
-    class CompilationError : public std::exception {
-        const std::string msg;
+    class CompilationError : public std::runtime_error {
     public:
-        explicit CompilationError(std::string msg) : msg(std::move(msg)) {}
-
-        [[nodiscard]] const char *what() const noexcept override { return msg.c_str(); }
+        explicit CompilationError(const std::string &msg) : std::runtime_error(msg) {}
     };
+
+    class AssertionError : public std::runtime_error {
+    public:
+        explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
+    };
+
+    static void assert_failed(const std::string &what, std::source_location where = std::source_location::current()) {
+        throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
+                             std::to_string(where.column()) + ": function ‘" + where.function_name() +
+                             "’: assertion failed: " + what);
+    }
+
+#define FS_ASSERT(A) do {if(!(A)) assert_failed(#A); } while(0)
 
     class Allocator {
     public:
