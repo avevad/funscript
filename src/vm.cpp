@@ -187,7 +187,8 @@ namespace funscript {
     }
 
     void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Holder<char> *bytecode_hld, size_t offset) {
-        const char *bytecode = bytecode_hld->data + offset;
+        const char *bytecode_start = bytecode_hld->data;
+        const char *bytecode = bytecode_start + offset;
         size_t ip = 0;
         while (true) {
             auto opcode = (Opcode) bytecode[ip];
@@ -221,19 +222,19 @@ namespace funscript {
                 }
                 case Opcode::REF: {
                     ip++;
-                    ssize_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
-                    ip += sizeof(ssize_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
                     push_ref(scope, key);
                     break;
                 }
                 case Opcode::VAL: {
                     ip++;
-                    ssize_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
-                    ip += sizeof(ssize_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring key(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
                     push_val(scope, key);
                     break;
                 }
@@ -262,10 +263,10 @@ namespace funscript {
                     return;
                 case Opcode::FUN: {
                     ip++;
-                    ssize_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(ssize_t));
-                    ip += sizeof(ssize_t);
-                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_hld, offset + pos));
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_hld, pos));
                     break;
                 }
                 case Opcode::MVD: {

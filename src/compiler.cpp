@@ -171,8 +171,8 @@ namespace funscript {
             if (pos % align != 0) pos += align - (pos % align);
         }
         for (Relocation reloc: relocs) {
-            ssize_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos - chunks_pos[reloc.src_cid];
-            memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(ssize_t));
+            size_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos;
+            memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(size_t));
         }
     }
 
