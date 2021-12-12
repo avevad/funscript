@@ -55,7 +55,7 @@ namespace funscript {
 
     void VM::Stack::call(Function *fun, Frame *frame) {
         auto *new_frame = vm.mem.gc_new<Frame>(frame);
-        (*fun)(*this, frame);
+        (*fun)(*this, new_frame);
     }
 
     VM::Stack::~Stack() = default;

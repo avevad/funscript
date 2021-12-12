@@ -146,7 +146,7 @@ namespace funscript {
         explicit Object(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
         bool contains(const fstring &key);
         Value &var(const fstring &key);
-        ~Object() = default;
+        ~Object() override = default;
     };
 
     class Scope : public VM::Allocation {
