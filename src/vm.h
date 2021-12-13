@@ -11,6 +11,8 @@
 #include <vector>
 #include <functional>
 #include <set>
+#include <queue>
+#include <iostream>
 
 namespace funscript {
 
@@ -37,13 +39,14 @@ namespace funscript {
         VM &operator=(const VM &vm) = delete;
 
         struct Config {
-            Allocator *alloc = nullptr;
+            Allocator *allocator = nullptr;
         };
 
         class MemoryManager;
 
         class Allocation {
             friend MemoryManager;
+            virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
         public:
             virtual ~Allocation() = default;
         };
@@ -51,19 +54,19 @@ namespace funscript {
         class MemoryManager {
         public:
             VM &vm;
-            std::set<Allocation *, std::less<>, AllocatorWrapper<Allocation *>> gc_tracked;
+            std::set<Allocation *, std::less<>, AllocatorWrapper<Allocation *>> gc_tracked, gc_pinned;
 
-            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()) {}
+            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()), gc_pinned(gc_tracked) {}
 
             template<typename T>
-            AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.alloc); }
+            AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.allocator); }
 
             AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
 
             template<typename T>
-            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.alloc->allocate(n * sizeof(T))); }
+            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.allocator->allocate(n * sizeof(T))); }
 
-            void free(void *ptr) { vm.config.alloc->free(ptr); }
+            void free(void *ptr) { vm.config.allocator->free(ptr); }
 
             void gc_track(Allocation *alloc);
 
@@ -73,6 +76,8 @@ namespace funscript {
                 gc_track(ptr);
                 return ptr;
             }
+
+            void gc_cycle();
 
             ~MemoryManager();
         };
@@ -139,6 +144,8 @@ namespace funscript {
         friend VM;
 
         fmap<fstring, Value> str_map;
+
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         VM &vm;
 
@@ -150,6 +157,7 @@ namespace funscript {
     };
 
     class Scope : public VM::Allocation {
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         Object *const vars;
         Scope *const prev_scope;
@@ -172,6 +180,9 @@ namespace funscript {
     template<typename E>
     class Holder : public VM::Allocation {
         Allocator *alloc;
+
+        void get_refs(const std::function<void(Allocation * )> &callback) override {}
+
     public:
         E *const data;
 
@@ -184,6 +195,8 @@ namespace funscript {
         Holder<char> *bytecode;
         size_t offset;
         Scope *scope;
+
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         CompiledFunction(Scope *scope, Holder<char> *bytecode, size_t offset) : Function(scope->vars->vm),
                                                                                 bytecode(bytecode), scope(scope),
@@ -192,7 +205,6 @@ namespace funscript {
         void operator()(VM::Stack &stack, Frame *frame) override {
             stack.exec_bytecode(frame, scope, bytecode, offset);
         }
-
     };
 
     struct Value {
@@ -211,6 +223,8 @@ namespace funscript {
 
     class Frame : public VM::Allocation {
         Frame *prev_frame;
+
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
 

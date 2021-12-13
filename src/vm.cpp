@@ -19,6 +19,13 @@ namespace funscript {
         return str_map[key];
     }
 
+    void Object::get_refs(const std::function<void(Allocation * )> &callback) {
+        for (const auto &[key, val]: str_map) {
+            if (val.type == Value::OBJ) callback(val.data.obj);
+            if (val.type == Value::FUN) callback(val.data.fun);
+        }
+    }
+
     Value &Scope::resolve(const fstring &key) const {
         if (!contains(key)) return vars->var(key);
         if (!vars->contains(key) && prev_scope != nullptr) return prev_scope->resolve(key);
@@ -30,9 +37,14 @@ namespace funscript {
         return prev_scope != nullptr && prev_scope->contains(key);
     }
 
+    void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
+        callback(vars);
+        callback(prev_scope);
+    }
+
     stack_pos_t VM::Stack::size() const { return stack.size(); }
 
-    VM::Stack::Stack(VM &vm) : vm(vm), stack(AllocatorWrapper<Value>(vm.config.alloc)) {}
+    VM::Stack::Stack(VM &vm) : vm(vm), stack(AllocatorWrapper<Value>(vm.config.allocator)) {}
 
     const Value &VM::Stack::operator[](stack_pos_t pos) { return get(pos); }
 
@@ -170,7 +182,7 @@ namespace funscript {
         push({.type = Value::OBJ, .data = {.obj = object}});
     }
 
-    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.alloc)), mem(*this) {}
+    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.allocator)), mem(*this) {}
 
     VM::Stack &VM::stack(size_t id) { return *stacks[id]; }
 
@@ -288,6 +300,7 @@ namespace funscript {
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
         if (gc_tracked.contains(alloc)) throw std::runtime_error("allocation is already tracked");
         gc_tracked.insert(alloc);
+        gc_pinned.insert(alloc);
     }
 
     VM::MemoryManager::~MemoryManager() {
@@ -295,5 +308,37 @@ namespace funscript {
             (*alloc).~Allocation();
             free(alloc);
         }
+    }
+
+    void VM::MemoryManager::gc_cycle() {
+        std::queue<Allocation *, std::deque<Allocation *, AllocatorWrapper<Allocation *>>>
+                queue(std_alloc<Allocation *>());
+        auto marked = gc_pinned;
+        for (auto *a: gc_pinned) queue.push(a);
+        while (!queue.empty()) {
+            auto *alloc = queue.front();
+            queue.pop();
+            alloc->get_refs([&marked, &queue](Allocation *ref) {
+                if (ref && !marked.contains(ref)) queue.push(ref), marked.insert(ref);
+            });
+        }
+        for (auto iter = gc_tracked.begin(); iter != gc_tracked.end();) {
+            if (marked.contains(*iter)) iter++;
+            else {
+                Allocation *alloc = *iter;
+                alloc->~Allocation();
+                free(alloc);
+                iter = gc_tracked.erase(iter);
+            }
+        }
+    }
+
+    void Frame::get_refs(const std::function<void(Allocation * )> &callback) {
+        callback(prev_frame);
+    }
+
+    void CompiledFunction::get_refs(const std::function<void(Allocation * )> &callback) {
+        callback(bytecode);
+        callback(scope);
     }
 }

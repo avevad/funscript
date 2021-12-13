@@ -14,7 +14,7 @@ int main() {
     std::cout << funscript::VERSION << std::endl;
     auto *allocator = new funscript::DefaultAllocator();
     {
-        funscript::VM vm({.alloc = allocator});
+        funscript::VM vm({.allocator = allocator});
         const size_t sid = vm.new_stack();
         auto *globals = vm.mem.gc_new<funscript::Object>(vm);
         auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
@@ -76,6 +76,7 @@ int main() {
                 else std::wcout << std::endl;
             }
             vm.stack(sid).pop(0);
+            vm.mem.gc_cycle();
         }
     }
     delete allocator;
