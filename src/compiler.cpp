@@ -209,11 +209,7 @@ namespace funscript {
 
     void OperatorAST::compile_val(Assembler &as, size_t cid) {
         if (op == Operator::ASSIGN) {
-            as.put_opcode(cid, Opcode::SEP);
-            right->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::SEP);
-            left->compile_ref(as, cid);
-            as.put_opcode(cid, Opcode::MOV);
+            throw CompilationError("not implemented"); // TODO assignment implementation
         } else if (op == Operator::APPEND) {
             left->compile_val(as, cid);
             right->compile_val(as, cid);
@@ -223,16 +219,7 @@ namespace funscript {
             as.put_opcode(cid, Opcode::DIS);
             right->compile_val(as, cid);
         } else if (op == Operator::LAMBDA) {
-            auto f_cid = as.new_chunk();
-            as.put_opcode(f_cid, Opcode::NS); // lambda's new scope
-            as.put_opcode(f_cid, Opcode::SEP); // to assign arguments
-            left->compile_ref(as, f_cid); // arguments destination
-            as.put_opcode(f_cid, Opcode::MVD); // assigning arguments to the destination
-            right->compile_val(as, f_cid); // executing function body
-            as.put_opcode(f_cid, Opcode::DS); // discard lambda's scope (unnecessary, but still)
-            as.put_opcode(f_cid, Opcode::END);
-            as.put_opcode(cid, Opcode::FUN);
-            as.put_reloc(cid, f_cid, 0);
+            throw CompilationError("not implemented"); // TODO assignment implementation
         } else if (op == Operator::CALL) {
             as.put_opcode(cid, Opcode::SEP);
             right->compile_val(as, cid);
@@ -263,13 +250,11 @@ namespace funscript {
     }
 
     void IdentifierAST::compile_val(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::VAL);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+        throw CompilationError("not implemented"); // TODO assignment implementation
     }
 
     void IdentifierAST::compile_ref(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::REF);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+        throw CompilationError("not implemented"); // TODO assignment implementation
     }
 
     void IntegerAST::compile_val(Assembler &as, size_t cid) {

@@ -11,12 +11,12 @@
 
 namespace funscript {
 
-    bool Object::contains(const fstring &key) {
+    bool Object::contains(const fstring &key) const {
         return str_map.contains(key);
     }
 
-    Value &Object::var(const fstring &key) {
-        return str_map[key];
+    Value Object::get_val(const fstring &key) const {
+        return str_map.at(key);
     }
 
     void Object::get_refs(const std::function<void(Allocation * )> &callback) {
@@ -24,17 +24,6 @@ namespace funscript {
             if (val.type == Value::OBJ) callback(val.data.obj);
             if (val.type == Value::FUN) callback(val.data.fun);
         }
-    }
-
-    Value &Scope::resolve(const fstring &key) const {
-        if (!contains(key)) return vars->var(key);
-        if (!vars->contains(key) && prev_scope != nullptr) return prev_scope->resolve(key);
-        return vars->var(key);
-    }
-
-    bool Scope::contains(const fstring &key) const {
-        if (vars->contains(key)) return true;
-        return prev_scope != nullptr && prev_scope->contains(key);
     }
 
     void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
@@ -83,19 +72,6 @@ namespace funscript {
         stack_pos_t pos = before - 1;
         while (get(pos).type != Value::SEP) pos--;
         return pos;
-    }
-
-    void VM::Stack::mov(bool discard) {
-        stack_pos_t ref_sep = abs(find_sep(0)), val_sep = abs(find_sep(ref_sep));
-        stack_pos_t ref_pos = ref_sep + 1, val_pos = val_sep + 1;
-        while (get(val_pos).type != Value::SEP && ref_pos != size()) *get(ref_pos++).data.ref = get(val_pos++);
-        if (discard) {
-            pop(val_sep);
-        } else {
-            pop(ref_sep);
-            memmove(stack.data() + val_sep, stack.data() + val_sep + 1, sizeof(Value) * (size() - val_sep - 1));
-            stack.pop_back();
-        }
     }
 
     void VM::Stack::dis() {
@@ -164,14 +140,6 @@ namespace funscript {
         assert_failed("invalid number of values"); // TODO
     }
 
-    void VM::Stack::push_ref(Scope *scope, const fstring &key) {
-        push({.type = Value::REF, .data = {.ref = &scope->resolve(key)}});
-    }
-
-    void VM::Stack::push_val(Scope *scope, const fstring &key) {
-        push(scope->resolve(key));
-    }
-
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
 
     void VM::Stack::push_fun(Function *fun) {
@@ -232,29 +200,6 @@ namespace funscript {
                     op(frame, oper);
                     break;
                 }
-                case Opcode::REF: {
-                    ip++;
-                    size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
-                    ip += sizeof(size_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
-                    push_ref(scope, key);
-                    break;
-                }
-                case Opcode::VAL: {
-                    ip++;
-                    size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
-                    ip += sizeof(size_t);
-                    fstring key(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
-                    push_val(scope, key);
-                    break;
-                }
-                case Opcode::MOV: {
-                    ip++;
-                    mov();
-                    break;
-                }
                 case Opcode::DIS: {
                     ip++;
                     dis();
@@ -279,11 +224,6 @@ namespace funscript {
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
                     push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_hld, pos));
-                    break;
-                }
-                case Opcode::MVD: {
-                    ip++;
-                    mov(true);
                     break;
                 }
                 case Opcode::OBJ: {

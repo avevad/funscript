@@ -107,15 +107,11 @@ namespace funscript {
         NUL, // push NUL
         INT, // push an integer
         OP,  // make an operator call
-        REF, // push a variable reference
-        VAL, // push a variable value
-        MOV, // assign values
         DIS, // discard values until the separator
         END, // finish execution
         NS,  // push new scope
         DS,  // pop current scope
         FUN, // create function
-        MVD, // move and discard
         OBJ, // push current scope variables map
     };
 

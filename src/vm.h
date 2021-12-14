@@ -106,12 +106,9 @@ namespace funscript {
             void push_nul();
             void push_int(int64_t num);
             void push_object(Object *object);
-            void push_ref(Scope *scope, const fstring &key);
-            void push_val(Scope *scope, const fstring &key);
             void push_fun(Function *fun);
 
             void exec_bytecode(Frame *, Scope *scope, Holder<char> *bytecode, size_t offset = 0);
-            void mov(bool discard = false);
             void dis();
             void op(Frame *frame, Operator op);
 
@@ -151,8 +148,8 @@ namespace funscript {
 
     public:
         explicit Object(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
-        bool contains(const fstring &key);
-        Value &var(const fstring &key);
+        bool contains(const fstring &key) const;
+        Value get_val(const fstring &key) const;
         ~Object() override = default;
     };
 
@@ -163,9 +160,6 @@ namespace funscript {
         Scope *const prev_scope;
 
         Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
-
-        [[nodiscard]] bool contains(const fstring &key) const;
-        [[nodiscard]] Value &resolve(const fstring &key) const;
     };
 
     class Function : public VM::Allocation {
@@ -209,12 +203,11 @@ namespace funscript {
 
     struct Value {
         enum Type {
-            NUL, SEP, INT, OBJ, REF, FUN
+            NUL, SEP, INT, OBJ, FUN
         };
         union Data {
             int64_t num;
             Object *obj;
-            Value *ref;
             Function *fun;
         };
         Type type = NUL;
