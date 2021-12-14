@@ -105,7 +105,7 @@ namespace funscript {
             void push_sep();
             void push_nul();
             void push_int(int64_t num);
-            void push_object(Object *object);
+            void push_obj(Object *obj);
             void push_fun(Function *fun);
 
             void exec_bytecode(Frame *, Scope *scope, Holder<char> *bytecode, size_t offset = 0);

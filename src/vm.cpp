@@ -146,8 +146,8 @@ namespace funscript {
         push({.type=Value::FUN, .data = {.fun = fun}});
     }
 
-    void VM::Stack::push_object(Object *object) {
-        push({.type = Value::OBJ, .data = {.obj = object}});
+    void VM::Stack::push_obj(Object *obj) {
+        push({.type = Value::OBJ, .data = {.obj = obj}});
     }
 
     VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.allocator)), mem(*this) {}
@@ -228,7 +228,7 @@ namespace funscript {
                 }
                 case Opcode::OBJ: {
                     ip++;
-                    push_object(scope->vars);
+                    push_obj(scope->vars);
                     break;
                 }
                 default:
