@@ -166,8 +166,8 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Holder<char> *bytecode_hld, size_t offset) {
-        const char *bytecode_start = bytecode_hld->data;
+    void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Bytecode *bytecode_obj, size_t offset) {
+        const char *bytecode_start = bytecode_obj->get_data();
         const char *bytecode = bytecode_start + offset;
         size_t ip = 0;
         while (true) {
@@ -223,7 +223,7 @@ namespace funscript {
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_hld, pos));
+                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_obj, pos));
                     break;
                 }
                 case Opcode::OBJ: {
@@ -280,5 +280,13 @@ namespace funscript {
     void CompiledFunction::get_refs(const std::function<void(Allocation * )> &callback) {
         callback(bytecode);
         callback(scope);
+    }
+
+    const char *Bytecode::get_data() {
+        return data;
+    }
+
+    Bytecode::~Bytecode() {
+        allocator->free(data);
     }
 }

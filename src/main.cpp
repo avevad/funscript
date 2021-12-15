@@ -50,8 +50,8 @@ int main() {
             char *bytecode = vm.mem.allocate<char>(as.total_size());
             as.assemble(bytecode);
 
-            auto *bytecode_hld = vm.mem.gc_new<funscript::Holder<char>>(bytecode, allocator);
-            vm.stack(sid).exec_bytecode(nullptr, scope, bytecode_hld);
+            auto *bytecode_obj = vm.mem.gc_new<funscript::Bytecode>(bytecode, allocator);
+            vm.stack(sid).exec_bytecode(nullptr, scope, bytecode_obj);
             if (vm.stack(sid).size() == 0) continue;
             std::wcout << L"= ";
             for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).size(); pos++) {

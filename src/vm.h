@@ -26,8 +26,7 @@ namespace funscript {
 
     class Function;
 
-    template<typename E>
-    class Holder;
+    class Bytecode;
 
     typedef ssize_t stack_pos_t;
 
@@ -108,7 +107,7 @@ namespace funscript {
             void push_obj(Object *obj);
             void push_fun(Function *fun);
 
-            void exec_bytecode(Frame *, Scope *scope, Holder<char> *bytecode, size_t offset = 0);
+            void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
             void dis();
             void op(Frame *frame, Operator op);
 
@@ -171,30 +170,29 @@ namespace funscript {
         virtual void operator()(VM::Stack &stack, Frame *frame) = 0;
     };
 
-    template<typename E>
-    class Holder : public VM::Allocation {
-        Allocator *alloc;
+    class Bytecode : public VM::Allocation {
+        char *const data;
+        Allocator *const allocator;
 
         void get_refs(const std::function<void(Allocation * )> &callback) override {}
 
     public:
-        E *const data;
+        Bytecode(char *data, Allocator *allocator) : data(data), allocator(allocator) {}
 
-        Holder(E *data, Allocator *alloc) : data(data), alloc(alloc) {}
-
-        ~Holder() override { alloc->free(data); }
+        const char *get_data();
+        ~Bytecode();
     };
 
     class CompiledFunction : public Function {
-        Holder<char> *bytecode;
+        Bytecode *bytecode;
         size_t offset;
         Scope *scope;
 
         void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
-        CompiledFunction(Scope *scope, Holder<char> *bytecode, size_t offset) : Function(scope->vars->vm),
-                                                                                bytecode(bytecode), scope(scope),
-                                                                                offset(offset) {}
+        CompiledFunction(Scope *scope, Bytecode *bytecode, size_t offset) : Function(scope->vars->vm),
+                                                                            bytecode(bytecode), scope(scope),
+                                                                            offset(offset) {}
 
         void operator()(VM::Stack &stack, Frame *frame) override {
             stack.exec_bytecode(frame, scope, bytecode, offset);
