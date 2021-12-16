@@ -74,12 +74,12 @@ namespace funscript {
         return pos;
     }
 
-    void VM::Stack::dis() {
+    void VM::Stack::discard() {
         stack_pos_t sep_pos = find_sep(0);
         pop(sep_pos);
     }
 
-    void VM::Stack::op(Frame *frame, Operator op) {
+    void VM::Stack::call_op(Frame *frame, Operator op) {
         stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
         size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
         if (op == Operator::CALL) {
@@ -197,12 +197,12 @@ namespace funscript {
                     ip++;
                     auto oper = (Operator) bytecode[ip];
                     ip++;
-                    op(frame, oper);
+                    call_op(frame, oper);
                     break;
                 }
                 case Opcode::DIS: {
                     ip++;
-                    dis();
+                    discard();
                     break;
                 }
                 case Opcode::NS: {

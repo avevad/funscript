@@ -108,8 +108,8 @@ namespace funscript {
             void push_fun(Function *fun);
 
             void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
-            void dis();
-            void op(Frame *frame, Operator op);
+            void discard();
+            void call_op(Frame *frame, Operator op);
 
             Value pop();
             void pop(stack_pos_t pos);
