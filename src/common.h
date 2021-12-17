@@ -97,7 +97,7 @@ namespace funscript {
             {Operator::MINUS,   {2,  true}},
             {Operator::LAMBDA,  {8,  false}}, // special
             {Operator::APPEND,  {9,  false}}, // special
-            {Operator::ASSIGN,  {10, false}}, // special
+            {Operator::ASSIGN,  {10, true}}, // special
             {Operator::DISCARD, {11, false}}, // special
     };
 
@@ -113,6 +113,9 @@ namespace funscript {
         DS,  // pop current scope
         FUN, // create function
         OBJ, // push current scope variables map
+        SET, // move value to the variable
+        GET, // push value of the variable
+        REV, // reverse
     };
 
 

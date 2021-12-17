@@ -26,9 +26,29 @@ namespace funscript {
         }
     }
 
+    void Object::set_val(const fstring &key, Value val) {
+        str_map[key] = val;
+    }
+
     void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
         callback(vars);
         callback(prev_scope);
+    }
+
+    Value Scope::get_var(const fstring &name) const {
+        if (vars->contains(name)) return vars->get_val(name);
+        if (prev_scope == nullptr) return {.type = Value::NUL};
+        return prev_scope->get_var(name);
+    }
+
+    void Scope::set_var(const fstring &name, Value val) {
+        set_var(name, val, *this);
+    }
+
+    void Scope::set_var(const fstring &name, Value val, Scope &first) {
+        if (vars->contains(name)) vars->set_val(name, val);
+        if (prev_scope) prev_scope->set_var(name, val, first);
+        else first.vars->set_val(name, val);
     }
 
     stack_pos_t VM::Stack::size() const { return stack.size(); }
@@ -231,10 +251,38 @@ namespace funscript {
                     push_obj(scope->vars);
                     break;
                 }
+                case Opcode::GET: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    push(scope->get_var(name));
+                    break;
+                }
+                case Opcode::REV: {
+                    ip++;
+                    reverse();
+                    break;
+                }
+                case Opcode::SET: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    if (get(-1).type != Value::SEP) scope->set_var(name, pop());
+                    break;
+                }
                 default:
                     throw std::runtime_error("unknown opcode");
             }
         }
+    }
+
+    void VM::Stack::reverse() {
+        stack_pos_t i = find_sep() + 1, j = -1;
+        while (i < j) std::swap(get(i++), get(j--));
     }
 
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {

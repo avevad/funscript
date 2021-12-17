@@ -17,8 +17,8 @@ namespace funscript {
     class AST {
         friend Assembler;
     public:
-        virtual void compile_val(Assembler &as, size_t cid) = 0;
-        virtual void compile_ref(Assembler &as, size_t cid) = 0;
+        virtual void compile_eval(Assembler &as, size_t cid) = 0;
+        virtual void compile_move(Assembler &as, size_t cid) = 0;
         virtual ~AST() = default;
     };
 
@@ -28,7 +28,8 @@ namespace funscript {
 
     class Assembler {
         struct Relocation {
-            size_t src_cid, src_pos, dst_cid, dst_pos;
+            size_t src_cid, src_pos; // where the relocation will point to
+            size_t dst_cid, dst_pos; // where the relocation will be written to
         };
 
         std::vector<std::string> chunks;
@@ -62,8 +63,9 @@ namespace funscript {
     class IntegerAST : public AST {
         int64_t num;
 
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     public:
         explicit IntegerAST(int64_t num) : num(num) {}
 
@@ -72,8 +74,9 @@ namespace funscript {
     class IdentifierAST : public AST {
         std::wstring name;
 
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     public:
         explicit IdentifierAST(std::wstring name) : name(std::move(name)) {}
 
@@ -83,30 +86,34 @@ namespace funscript {
         ast_ptr left{}, right{};
         Operator op;
 
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     public:
         OperatorAST(AST *left, AST *right, Operator op) : left(left), right(right), op(op) {}
 
     };
 
     class NulAST : public AST {
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     public:
         NulAST() = default;
     };
 
     class VoidAST : public AST {
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     };
 
     class BracketAST : public AST {
         Bracket type;
         ast_ptr child;
-        void compile_val(Assembler &as, size_t cid) override;
-        void compile_ref(Assembler &as, size_t cid) override;
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
     public:
         BracketAST(Bracket type, AST *child) : type(type), child(child) {}
     };

@@ -109,6 +109,7 @@ namespace funscript {
 
             void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
             void discard();
+            void reverse();
             void call_op(Frame *frame, Operator op);
 
             Value pop();
@@ -135,6 +136,19 @@ namespace funscript {
         std::vector<Stack *, AllocatorWrapper<Stack *>> stacks;
     };
 
+    struct Value {
+        enum Type {
+            NUL, SEP, INT, OBJ, FUN
+        };
+        union Data {
+            int64_t num;
+            Object *obj;
+            Function *fun;
+        };
+        Type type = NUL;
+        Data data = {.obj = nullptr};
+    };
+
     class Object : public VM::Allocation {
     private:
         friend VM;
@@ -147,18 +161,26 @@ namespace funscript {
 
     public:
         explicit Object(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
-        bool contains(const fstring &key) const;
-        Value get_val(const fstring &key) const;
+        [[nodiscard]] bool contains(const fstring &key) const;
+        [[nodiscard]] Value get_val(const fstring &key) const;
+        void set_val(const fstring &key, Value val);
         ~Object() override = default;
     };
 
     class Scope : public VM::Allocation {
         void get_refs(const std::function<void(Allocation * )> &callback) override;
+
+        void set_var(const fstring &name, Value val, Scope &first);
+
     public:
         Object *const vars;
         Scope *const prev_scope;
 
         Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+
+        [[nodiscard]] Value get_var(const fstring &name) const;
+
+        void set_var(const fstring &name, Value val);
     };
 
     class Function : public VM::Allocation {
@@ -197,19 +219,6 @@ namespace funscript {
         void operator()(VM::Stack &stack, Frame *frame) override {
             stack.exec_bytecode(frame, scope, bytecode, offset);
         }
-    };
-
-    struct Value {
-        enum Type {
-            NUL, SEP, INT, OBJ, FUN
-        };
-        union Data {
-            int64_t num;
-            Object *obj;
-            Function *fun;
-        };
-        Type type = NUL;
-        Data data = {.obj = nullptr};
     };
 
     class Frame : public VM::Allocation {

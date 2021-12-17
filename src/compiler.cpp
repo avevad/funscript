@@ -203,92 +203,96 @@ namespace funscript {
 
     void Assembler::compile_expression(AST *ast) {
         size_t cid = new_chunk();
-        ast->compile_val(*this, cid);
+        ast->compile_eval(*this, cid);
         put_opcode(cid, Opcode::END);
     }
 
-    void OperatorAST::compile_val(Assembler &as, size_t cid) {
-        if (op == Operator::ASSIGN) {
-            throw CompilationError("not implemented"); // TODO assignment implementation
-        } else if (op == Operator::APPEND) {
-            left->compile_val(as, cid);
-            right->compile_val(as, cid);
-        } else if (op == Operator::DISCARD) {
-            as.put_opcode(cid, Opcode::SEP);
-            left->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::DIS);
-            right->compile_val(as, cid);
-        } else if (op == Operator::LAMBDA) {
-            throw CompilationError("not implemented"); // TODO assignment implementation
-        } else if (op == Operator::CALL) {
-            as.put_opcode(cid, Opcode::SEP);
-            right->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::SEP);
-            left->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::OP);
-            as.put_byte(cid, (char) op);
-        } else {
-            as.put_opcode(cid, Opcode::SEP);
-            left->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::SEP);
-            right->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::OP);
-            as.put_byte(cid, (char) op);
+    void OperatorAST::compile_eval(Assembler &as, size_t cid) {
+        switch (op) {
+            case Operator::ASSIGN:
+                as.put_opcode(cid, Opcode::SEP);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::REV);
+                left->compile_move(as, cid);
+                as.put_opcode(cid, Opcode::DIS);
+                break;
+            case Operator::APPEND:
+                left->compile_eval(as, cid);
+                right->compile_eval(as, cid);
+                break;
+            case Operator::DISCARD:
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::DIS);
+                right->compile_eval(as, cid);
+                break;
+            case Operator::LAMBDA:
+                throw CompilationError("not implemented"); // TODO assignment implementation
+            default:
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::SEP);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::OP);
+                as.put_byte(cid, (char) op);
         }
     }
 
-    void OperatorAST::compile_ref(Assembler &as, size_t cid) {
-        if (op == Operator::APPEND) {
-            left->compile_ref(as, cid);
-            right->compile_ref(as, cid);
-        } else if (op == Operator::DISCARD) {
-            as.put_opcode(cid, Opcode::SEP);
-            left->compile_val(as, cid);
-            as.put_opcode(cid, Opcode::DIS);
-            right->compile_ref(as, cid);
-        } else throw CompilationError("expression is not assignable");
+    void OperatorAST::compile_move(Assembler &as, size_t cid) {
+        switch (op) {
+            case Operator::APPEND:
+                left->compile_move(as, cid);
+                right->compile_move(as, cid);
+                break;
+            default:
+                throw CompilationError("expression is not assignable");
+        }
     }
 
-    void IdentifierAST::compile_val(Assembler &as, size_t cid) {
-        throw CompilationError("not implemented"); // TODO assignment implementation
+    void IdentifierAST::compile_eval(Assembler &as, size_t cid) {
+        as.put_opcode(cid, Opcode::GET);
+        as.put_reloc(cid, 0, as.put_string(0, name));
     }
 
-    void IdentifierAST::compile_ref(Assembler &as, size_t cid) {
-        throw CompilationError("not implemented"); // TODO assignment implementation
+    void IdentifierAST::compile_move(Assembler &as, size_t cid) {
+        as.put_opcode(cid, Opcode::SET);
+        as.put_reloc(cid, 0, as.put_string(0, name));
     }
 
-    void IntegerAST::compile_val(Assembler &as, size_t cid) {
+    void IntegerAST::compile_eval(Assembler &as, size_t cid) {
         as.put_opcode(cid, Opcode::INT);
         as.put_int(cid, num);
     }
 
-    void IntegerAST::compile_ref(Assembler &as, size_t cid) {
+    void IntegerAST::compile_move(Assembler &as, size_t cid) {
         throw CompilationError("expression is not assignable");
     }
 
-    void NulAST::compile_val(Assembler &as, size_t cid) {
+    void NulAST::compile_eval(Assembler &as, size_t cid) {
         as.put_opcode(cid, Opcode::NUL);
     }
 
-    void NulAST::compile_ref(Assembler &as, size_t cid) {
+    void NulAST::compile_move(Assembler &as, size_t cid) {
         throw CompilationError("expression is not assignable");
     }
 
-    void VoidAST::compile_val(Assembler &as, size_t cid) {}
+    void VoidAST::compile_eval(Assembler &as, size_t cid) {}
 
-    void VoidAST::compile_ref(Assembler &as, size_t cid) {}
+    void VoidAST::compile_move(Assembler &as, size_t cid) {
 
-    void BracketAST::compile_val(Assembler &as, size_t cid) {
+    }
+
+    void BracketAST::compile_eval(Assembler &as, size_t cid) {
         switch (type) {
             case Bracket::PLAIN:
                 as.put_opcode(cid, Opcode::NS);
-                child->compile_val(as, cid);
+                child->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::DS);
                 break;
             case Bracket::CURLY:
                 as.put_opcode(cid, Opcode::NS);
                 as.put_opcode(cid, Opcode::SEP); // to discard values returned by child
-                child->compile_val(as, cid);
+                child->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::DIS); // discarding child values
                 as.put_opcode(cid, Opcode::OBJ);
                 as.put_opcode(cid, Opcode::DS);
@@ -296,10 +300,10 @@ namespace funscript {
         }
     }
 
-    void BracketAST::compile_ref(Assembler &as, size_t cid) {
+    void BracketAST::compile_move(Assembler &as, size_t cid) {
         switch (type) {
             case Bracket::PLAIN:
-                child->compile_ref(as, cid);
+                child->compile_move(as, cid);
                 break;
             case Bracket::CURLY:
                 throw CompilationError("expression is not assignable");
