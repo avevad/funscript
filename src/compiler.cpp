@@ -226,8 +226,27 @@ namespace funscript {
                 as.put_opcode(cid, Opcode::DIS);
                 right->compile_eval(as, cid);
                 break;
-            case Operator::LAMBDA:
-                throw CompilationError("not implemented"); // TODO assignment implementation
+            case Operator::LAMBDA: {
+                as.put_opcode(cid, Opcode::FUN);
+                size_t new_cid = as.new_chunk(); // create new function chunk
+                as.put_reloc(cid, new_cid, 0); // write pointer to the new chunk
+                // bytecode of the lambda function:
+                as.put_opcode(new_cid, Opcode::NS); // create lambda scope
+                as.put_opcode(new_cid, Opcode::REV); // revert arguments
+                left->compile_move(as, new_cid); // move them to their destination
+                as.put_opcode(new_cid, Opcode::DIS); // discard preceding separator
+                right->compile_eval(as, new_cid); // evaluate the lambda body
+                as.put_opcode(new_cid, Opcode::END); // return from function
+                break;
+            }
+            case Operator::CALL:
+                as.put_opcode(cid, Opcode::SEP);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::OP);
+                as.put_byte(cid, (char) op);
+                break;
             default:
                 as.put_opcode(cid, Opcode::SEP);
                 left->compile_eval(as, cid);

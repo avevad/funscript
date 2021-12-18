@@ -194,6 +194,7 @@ namespace funscript {
             auto opcode = (Opcode) bytecode[ip];
             switch (opcode) {
                 case Opcode::NOP:
+                    ip++;
                     break;
                 case Opcode::NUL: {
                     ip++;
@@ -256,7 +257,7 @@ namespace funscript {
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
                     push(scope->get_var(name));
                     break;
                 }
@@ -270,7 +271,7 @@ namespace funscript {
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
                     if (get(-1).type != Value::SEP) scope->set_var(name, pop());
                     break;
                 }
