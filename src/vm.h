@@ -115,6 +115,7 @@ namespace funscript {
             void push_int(int64_t num);
             void push_obj(Object *obj);
             void push_fun(Function *fun);
+            void push_bln(bool bln);
 
             void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
             void discard();
@@ -146,12 +147,13 @@ namespace funscript {
 
     struct Value {
         enum Type {
-            NUL, SEP, INT, OBJ, FUN
+            NUL, SEP, INT, OBJ, FUN, BLN
         };
         union Data {
             int64_t num;
             Object *obj;
             Function *fun;
+            bool bln;
         };
         Type type = NUL;
         Data data = {.obj = nullptr};

@@ -70,6 +70,9 @@ int main() {
                         case funscript::Value::FUN:
                             std::wcout << L"function(" << val.data.fun << ")";
                             break;
+                        case funscript::Value::BLN:
+                            std::wcout << (val.data.bln ? L"yes" : L"no");
+                            break;
                         default:
                             throw std::runtime_error("unknown value");
                     }

@@ -130,6 +130,7 @@ namespace funscript {
             FS_ASSERT(get(pos_a).type == Value::INT); // TODO
             FS_ASSERT(cnt_b == 1 && get(pos_b).type == Value::INT); // TODO
             int64_t left = get(-3).data.num, right = get(-1).data.num;
+            pop(-4);
             int64_t result;
             switch (op) {
                 case Operator::TIMES:
@@ -147,10 +148,15 @@ namespace funscript {
                 case Operator::MODULO:
                     result = left % right;
                     break;
+                case Operator::EQUALS:
+                    push_bln(left == right);
+                    return;
+                case Operator::DIFFERS:
+                    push_bln(left != right);
+                    return;
                 default:
                     assert_failed("invalid operator");
             }
-            pop(-4);
             push_int(result);
             return;
         }
@@ -326,6 +332,10 @@ namespace funscript {
             if (val.type == Value::OBJ) callback(val.data.obj);
             if (val.type == Value::FUN) callback(val.data.fun);
         }
+    }
+
+    void VM::Stack::push_bln(bool bln) {
+        push({.type = Value::BLN, .data={.bln=bln}});
     }
 
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
