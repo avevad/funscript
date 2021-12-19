@@ -63,12 +63,6 @@ namespace funscript {
 
     void VM::Stack::push_int(int64_t num) { push({Value::INT, {.num = num}}); }
 
-    Value VM::Stack::pop() {
-        Value val = stack.back();
-        stack.pop_back();
-        return val;
-    }
-
     void VM::Stack::pop(stack_pos_t pos) {
         if (pos < 0) pos += size();
         stack.resize(pos);
@@ -77,6 +71,7 @@ namespace funscript {
     void VM::Stack::call(Function *fun, Frame *frame) {
         auto *new_frame = vm.mem.gc_new<Frame>(frame);
         (*fun)(*this, new_frame);
+        vm.mem.gc_unpin(new_frame);
     }
 
     VM::Stack::~Stack() = default;
@@ -105,9 +100,11 @@ namespace funscript {
         if (op == Operator::CALL) {
             FS_ASSERT(cnt_b == 1); // TODO
             FS_ASSERT(get(-1).type == Value::FUN); // TODO
-            Function *fun = pop().data.fun;
-            pop();
+            Function *fun = get(-1).data.fun;
+            vm.mem.gc_pin(fun);
+            pop(-2);
             call(fun, frame);
+            vm.mem.gc_unpin(fun);
             return;
         }
         if (cnt_a == 0) {
@@ -175,16 +172,11 @@ namespace funscript {
     VM::Stack &VM::stack(size_t id) { return *stacks[id]; }
 
     size_t VM::new_stack() {
-        stacks.push_back(new(mem.allocate<Stack>()) Stack(*this));
+        stacks.push_back(mem.gc_new<Stack>(*this));
         return stacks.size() - 1;
     }
 
-    VM::~VM() {
-        for (Stack *stack: stacks) {
-            stack->~Stack();
-            mem.free(stack);
-        }
-    }
+    VM::~VM() = default;
 
     void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Bytecode *bytecode_obj, size_t offset) {
         const char *bytecode_start = bytecode_obj->get_data();
@@ -230,11 +222,14 @@ namespace funscript {
                     ip++;
                     auto *vars = vm.mem.gc_new<Object>(vm);
                     scope = vm.mem.gc_new<Scope>(vars, scope);
+                    vm.mem.gc_unpin(vars);
                     break;
                 }
                 case Opcode::DS: {
                     ip++;
-                    scope = scope->prev_scope;
+                    Scope *prev = scope->prev_scope;
+                    vm.mem.gc_unpin(scope);
+                    scope = prev;
                     break;
                 }
                 case Opcode::END:
@@ -244,7 +239,9 @@ namespace funscript {
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    push_fun(vm.mem.gc_new<CompiledFunction>(scope, bytecode_obj, pos));
+                    Function *fun = vm.mem.gc_new<CompiledFunction>(scope, bytecode_obj, pos);
+                    push_fun(fun);
+                    vm.mem.gc_unpin(fun);
                     break;
                 }
                 case Opcode::OBJ: {
@@ -272,7 +269,10 @@ namespace funscript {
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
                     ip += sizeof(size_t);
                     fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
-                    if (get(-1).type != Value::SEP) scope->set_var(name, pop());
+                    if (get(-1).type != Value::SEP) {
+                        scope->set_var(name, get(-1));
+                        pop();
+                    }
                     break;
                 }
                 default:
@@ -286,10 +286,17 @@ namespace funscript {
         while (i < j) std::swap(get(i++), get(j--));
     }
 
+    void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
+        for (const Value &val: stack) {
+            if (val.type == Value::OBJ) callback(val.data.obj);
+            if (val.type == Value::FUN) callback(val.data.fun);
+        }
+    }
+
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
-        if (gc_tracked.contains(alloc)) throw std::runtime_error("allocation is already tracked");
+        if (gc_tracked.contains(alloc)) throw AssertionError("allocation is already tracked");
         gc_tracked.insert(alloc);
-        gc_pinned.insert(alloc);
+        gc_pins[alloc] = 1;
     }
 
     VM::MemoryManager::~MemoryManager() {
@@ -302,8 +309,17 @@ namespace funscript {
     void VM::MemoryManager::gc_cycle() {
         std::queue<Allocation *, std::deque<Allocation *, AllocatorWrapper<Allocation *>>>
                 queue(std_alloc<Allocation *>());
-        auto marked = gc_pinned;
-        for (auto *a: gc_pinned) queue.push(a);
+        fset<Allocation *> marked(std_alloc<Allocation *>());
+        fset<Allocation *> unpinned(std_alloc<Allocation *>());
+        for (const auto&[alloc, cnt]: gc_pins) {
+            if (cnt == 0) {
+                unpinned.insert(alloc);
+                continue;
+            }
+            marked.insert(alloc);
+            queue.push(alloc);
+        }
+        for (auto *alloc: unpinned) gc_pins.erase(alloc);
         while (!queue.empty()) {
             auto *alloc = queue.front();
             queue.pop();
@@ -320,6 +336,17 @@ namespace funscript {
                 iter = gc_tracked.erase(iter);
             }
         }
+    }
+
+    void VM::MemoryManager::gc_pin(VM::Allocation *alloc) {
+        if (!gc_tracked.contains(alloc)) [[unlikely]] throw AssertionError("allocation is not tracked");
+        gc_pins[alloc]++;
+    }
+
+    void VM::MemoryManager::gc_unpin(VM::Allocation *alloc) {
+        if (!gc_tracked.contains(alloc)) [[unlikely]] throw AssertionError("allocation is not tracked");
+        if (!gc_pins[alloc]) [[unlikely]] throw AssertionError("unpin mismatch");
+        gc_pins[alloc]--;
     }
 
     void Frame::get_refs(const std::function<void(Allocation * )> &callback) {

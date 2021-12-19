@@ -53,9 +53,13 @@ namespace funscript {
         class MemoryManager {
         public:
             VM &vm;
-            std::set<Allocation *, std::less<>, AllocatorWrapper<Allocation *>> gc_tracked, gc_pinned;
+        private:
+            fset<Allocation *> gc_tracked;
+            fmap<Allocation *, size_t> gc_pins;
+        public:
 
-            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()), gc_pinned(gc_tracked) {}
+            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()),
+                                             gc_pins(std_alloc<std::pair<Allocation *const, size_t>>()) {}
 
             template<typename T>
             AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.allocator); }
@@ -68,6 +72,10 @@ namespace funscript {
             void free(void *ptr) { vm.config.allocator->free(ptr); }
 
             void gc_track(Allocation *alloc);
+
+            void gc_pin(Allocation *alloc);
+
+            void gc_unpin(Allocation *alloc);
 
             template<class T, typename... A>
             T *gc_new(A &&... args) {
@@ -88,7 +96,8 @@ namespace funscript {
 
         friend MemoryManager;
 
-        class Stack {
+        class Stack : public Allocation{
+            void get_refs(const std::function<void (Allocation *)> &callback) override;
         public:
             VM &vm;
 
@@ -112,8 +121,7 @@ namespace funscript {
             void reverse();
             void call_op(Frame *frame, Operator op);
 
-            Value pop();
-            void pop(stack_pos_t pos);
+            void pop(stack_pos_t pos = -1);
 
             ~Stack();
 

@@ -52,30 +52,32 @@ int main() {
 
             auto *bytecode_obj = vm.mem.gc_new<funscript::Bytecode>(bytecode, allocator);
             vm.stack(sid).exec_bytecode(nullptr, scope, bytecode_obj);
-            if (vm.stack(sid).size() == 0) continue;
-            std::wcout << L"= ";
-            for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).size(); pos++) {
-                funscript::Value val = vm.stack(sid)[pos];
-                switch (val.type) {
-                    case funscript::Value::NUL:
-                        std::wcout << L"nul";
-                        break;
-                    case funscript::Value::INT:
-                        std::wcout << val.data.num;
-                        break;
-                    case funscript::Value::OBJ:
-                        std::wcout << L"object(" << val.data.obj << ")";
-                        break;
-                    case funscript::Value::FUN:
-                        std::wcout << L"function(" << val.data.fun << ")";
-                        break;
-                    default:
-                        throw std::runtime_error("unknown value");
+            if (vm.stack(sid).size() > 0) {
+                std::wcout << L"= ";
+                for (funscript::stack_pos_t pos = 0; pos < vm.stack(sid).size(); pos++) {
+                    funscript::Value val = vm.stack(sid)[pos];
+                    switch (val.type) {
+                        case funscript::Value::NUL:
+                            std::wcout << L"nul";
+                            break;
+                        case funscript::Value::INT:
+                            std::wcout << val.data.num;
+                            break;
+                        case funscript::Value::OBJ:
+                            std::wcout << L"object(" << val.data.obj << ")";
+                            break;
+                        case funscript::Value::FUN:
+                            std::wcout << L"function(" << val.data.fun << ")";
+                            break;
+                        default:
+                            throw std::runtime_error("unknown value");
+                    }
+                    if (pos != vm.stack(sid).size() - 1) std::wcout << L", ";
+                    else std::wcout << std::endl;
                 }
-                if (pos != vm.stack(sid).size() - 1) std::wcout << L", ";
-                else std::wcout << std::endl;
             }
             vm.stack(sid).pop(0);
+            vm.mem.gc_unpin(bytecode_obj);
             vm.mem.gc_cycle();
         }
     }

@@ -236,6 +236,7 @@ namespace funscript {
                 left->compile_move(as, new_cid); // move them to their destination
                 as.put_opcode(new_cid, Opcode::DIS); // discard preceding separator
                 right->compile_eval(as, new_cid); // evaluate the lambda body
+                as.put_opcode(new_cid, Opcode::DS);
                 as.put_opcode(new_cid, Opcode::END); // return from function
                 break;
             }

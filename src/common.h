@@ -11,6 +11,7 @@
 #include <map>
 #include <stdexcept>
 #include <source_location>
+#include <set>
 
 namespace funscript {
 
@@ -175,8 +176,12 @@ namespace funscript {
 
     using fchar = wchar_t;
     using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
+
     template<typename K, typename V>
     using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
+
+    template<typename K>
+    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
 }
 
 #endif //FUNSCRIPT_COMMON_H
