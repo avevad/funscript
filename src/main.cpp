@@ -18,6 +18,7 @@ int main() {
         const size_t sid = vm.new_stack();
         auto *globals = vm.mem.gc_new<funscript::Object>(vm);
         auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
+        vm.mem.gc_unpin(globals);
 
         while (true) {
             std::wstring code;
@@ -80,6 +81,7 @@ int main() {
             vm.mem.gc_unpin(bytecode_obj);
             vm.mem.gc_cycle();
         }
+        vm.mem.gc_unpin(scope);
     }
     delete allocator;
 }

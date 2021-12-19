@@ -29,6 +29,10 @@ namespace funscript {
                 case Token::INTEGER:
                 case Token::ID: {
                     if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
+                        while (!stack.empty() && stack.back().type == Token::INDEX) {
+                            queue.push_back(stack.back());
+                            stack.pop_back();
+                        }
                         stack.push_back({Token::OPERATOR, Operator::CALL});
                     }
                     queue.push_back(token);
@@ -39,6 +43,11 @@ namespace funscript {
                     OperatorMeta op1 = OPERATORS.at(std::get<Operator>(token.data));
                     while (!stack.empty()) {
                         Token top = stack.back();
+                        if (top.type == Token::INDEX) {
+                            stack.pop_back();
+                            queue.push_back(top);
+                            continue;
+                        }
                         if (top.type != Token::OPERATOR) break;
                         OperatorMeta op2 = OPERATORS.at(std::get<Operator>(top.data));
                         if (op2.order < op1.order || (op2.order == op1.order && op1.left)) {
@@ -51,6 +60,10 @@ namespace funscript {
                 }
                 case Token::LEFT_BRACKET: {
                     if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
+                        while (!stack.empty() && stack.back().type == Token::INDEX) {
+                            queue.push_back(stack.back());
+                            stack.pop_back();
+                        }
                         stack.push_back({Token::OPERATOR, Operator::CALL});
                     }
                     stack.push_back(token);
@@ -72,6 +85,16 @@ namespace funscript {
                 case Token::VOID:
                 case Token::UNKNOWN:
                     throw CompilationError("unknown token");
+                case Token::INDEX:
+                    if (pos == 0 || insert_void_after(tokens[pos - 1].type)) queue.push_back({Token::VOID, 0});
+                    while (!stack.empty()) {
+                        Token top = stack.back();
+                        if (top.type != Token::INDEX) break;
+                        stack.pop_back();
+                        queue.push_back(top);
+                    }
+                    stack.push_back(token);
+                    break;
             }
         }
         if (insert_void_after(tokens.back().type)) queue.push_back({Token::VOID, 0});
@@ -110,7 +133,7 @@ namespace funscript {
                 case Token::RIGHT_BRACKET: {
                     AST *child = ast.back();
                     ast.pop_back();
-                    ast.push_back(new BracketAST(std::get<Bracket>(token.data), child));
+                    ast.push_back(new BracketAST(child, std::get<Bracket>(token.data)));
                     break;
                 }
                 case Token::VOID: {
@@ -120,6 +143,11 @@ namespace funscript {
                 case Token::UNKNOWN: {
                     throw std::runtime_error("unknown token");
                 }
+                case Token::INDEX:
+                    AST *child = ast.back();
+                    ast.pop_back();
+                    ast.push_back(new IndexAST(child, get<std::wstring>(token.data)));
+                    break;
             }
         }
         if (ast.size() != 1) throw CompilationError("missing operator");
@@ -270,12 +298,12 @@ namespace funscript {
     }
 
     void IdentifierAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::GET);
+        as.put_opcode(cid, Opcode::VGT);
         as.put_reloc(cid, 0, as.put_string(0, name));
     }
 
     void IdentifierAST::compile_move(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::SET);
+        as.put_opcode(cid, Opcode::VST);
         as.put_reloc(cid, 0, as.put_string(0, name));
     }
 
@@ -328,5 +356,19 @@ namespace funscript {
             case Bracket::CURLY:
                 throw CompilationError("expression is not assignable");
         }
+    }
+
+    void IndexAST::compile_eval(Assembler &as, size_t cid) {
+        as.put_opcode(cid, Opcode::SEP);
+        child->compile_eval(as, cid);
+        as.put_opcode(cid, Opcode::GET);
+        as.put_reloc(cid, 0, as.put_string(0, name));
+    }
+
+    void IndexAST::compile_move(Assembler &as, size_t cid) {
+        as.put_opcode(cid, Opcode::SEP);
+        child->compile_eval(as, cid);
+        as.put_opcode(cid, Opcode::SET);
+        as.put_reloc(cid, 0, as.put_string(0, name));
     }
 }

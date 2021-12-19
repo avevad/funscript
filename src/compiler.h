@@ -7,6 +7,7 @@
 
 #include "common.h"
 
+#include <utility>
 #include <vector>
 #include <memory>
 
@@ -115,7 +116,18 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        BracketAST(Bracket type, AST *child) : type(type), child(child) {}
+        BracketAST(AST *child, Bracket type) : type(type), child(child) {}
+    };
+
+    class IndexAST : public AST {
+        ast_ptr child;
+        std::wstring name;
+
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
+    public:
+        IndexAST(AST *child, std::wstring name) : child(child), name(std::move(name)) {}
     };
 }
 

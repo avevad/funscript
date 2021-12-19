@@ -56,6 +56,7 @@ namespace funscript {
             RIGHT_BRACKET,
             NUL,
             VOID, // special
+            INDEX
         };
         using Data = std::variant<Operator, Bracket, int64_t, std::wstring>;
         Type type;
@@ -114,8 +115,10 @@ namespace funscript {
         DS,  // pop current scope
         FUN, // create function
         OBJ, // push current scope variables map
-        SET, // move value to the variable
-        GET, // push value of the variable
+        VST, // move value to the variable
+        VGT, // push value of the variable
+        SET, // move value to object's field
+        GET, // push
         REV, // reverse
     };
 

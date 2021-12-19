@@ -16,7 +16,7 @@ namespace funscript {
     }
 
     Value Object::get_val(const fstring &key) const {
-        return str_map.at(key);
+        return str_map.contains(key) ? str_map.at(key) : Value{.type=Value::NUL};
     }
 
     void Object::get_refs(const std::function<void(Allocation * )> &callback) {
@@ -249,7 +249,7 @@ namespace funscript {
                     push_obj(scope->vars);
                     break;
                 }
-                case Opcode::GET: {
+                case Opcode::VGT: {
                     ip++;
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
@@ -263,7 +263,7 @@ namespace funscript {
                     reverse();
                     break;
                 }
-                case Opcode::SET: {
+                case Opcode::VST: {
                     ip++;
                     size_t pos = 0;
                     memcpy(&pos, bytecode + ip, sizeof(size_t));
@@ -273,6 +273,41 @@ namespace funscript {
                         scope->set_var(name, get(-1));
                         pop();
                     }
+                    break;
+                }
+                case Opcode::GET: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    FS_ASSERT(get(-1).type == Value::OBJ); // TODO
+                    FS_ASSERT(get(-2).type == Value::SEP); // TODO
+                    Object *obj = get(-1).data.obj;
+                    vm.mem.gc_pin(obj);
+                    pop();
+                    pop();
+                    push(obj->get_val(name));
+                    vm.mem.gc_unpin(obj);
+                    break;
+                }
+                case Opcode::SET: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    FS_ASSERT(get(-1).type == Value::OBJ); // TODO
+                    FS_ASSERT(get(-2).type == Value::SEP); // TODO
+                    Object *obj = get(-1).data.obj;
+                    vm.mem.gc_pin(obj);
+                    pop();
+                    pop();
+                    if (get(-1).type != Value::SEP) {
+                        obj->set_val(name, get(-1));
+                        pop();
+                    }
+                    vm.mem.gc_unpin(obj);
                     break;
                 }
                 default:

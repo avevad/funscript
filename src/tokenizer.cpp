@@ -25,6 +25,8 @@ namespace funscript {
             return {Token::INTEGER, std::stoll(token)};
         }
         if (is_valid_id(token)) return {Token::ID, token};
+        if (token == L"." || token[0] == '.' && is_valid_id(token.substr(1)))
+            return {Token::INDEX, token.substr(1)};
         return {Token::UNKNOWN};
     }
 
