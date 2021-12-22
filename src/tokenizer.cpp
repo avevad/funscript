@@ -18,6 +18,8 @@ namespace funscript {
 
     Token get_token(const std::wstring &token) {
         if (token == L"nul") return {Token::NUL, 0};
+        if (token == L"yes") return {Token::BOOLEAN, true};
+        if (token == L"no") return {Token::BOOLEAN, false};
         if (OPERATOR_KEYWORDS.contains(token)) return {Token::OPERATOR, OPERATOR_KEYWORDS.at(token)};
         if (LEFT_BRACKET_KEYWORDS.contains(token)) return {Token::LEFT_BRACKET, LEFT_BRACKET_KEYWORDS.at(token)};
         if (RIGHT_BRACKET_KEYWORDS.contains(token)) return {Token::RIGHT_BRACKET, RIGHT_BRACKET_KEYWORDS.at(token)};

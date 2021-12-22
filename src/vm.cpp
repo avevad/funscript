@@ -316,6 +316,16 @@ namespace funscript {
                     vm.mem.gc_unpin(obj);
                     break;
                 }
+                case Opcode::PBY: {
+                    ip++;
+                    push_bln(true);
+                    break;
+                }
+                case Opcode::PBN: {
+                    ip++;
+                    push_bln(false);
+                    break;
+                }
                 default:
                     throw std::runtime_error("unknown opcode");
             }

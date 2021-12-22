@@ -129,6 +129,17 @@ namespace funscript {
     public:
         IndexAST(AST *child, std::wstring name) : child(child), name(std::move(name)) {}
     };
+
+    class BooleanAST : public AST {
+        bool bln;
+
+        void compile_eval(Assembler &as, size_t cid) override;
+
+        void compile_move(Assembler &as, size_t cid) override;
+    public:
+        explicit BooleanAST(bool bln) : bln(bln) {}
+
+    };
 }
 
 #endif //FUNSCRIPT_COMPILER_H

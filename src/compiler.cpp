@@ -27,6 +27,7 @@ namespace funscript {
             switch (token.type) {
                 case Token::NUL:
                 case Token::INTEGER:
+                case Token::BOOLEAN:
                 case Token::ID: {
                     if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
                         while (!stack.empty() && stack.back().type == Token::INDEX) {
@@ -143,11 +144,16 @@ namespace funscript {
                 case Token::UNKNOWN: {
                     throw std::runtime_error("unknown token");
                 }
-                case Token::INDEX:
+                case Token::INDEX: {
                     AST *child = ast.back();
                     ast.pop_back();
                     ast.push_back(new IndexAST(child, get<std::wstring>(token.data)));
                     break;
+                }
+                case Token::BOOLEAN: {
+                    ast.push_back(new BooleanAST(get<bool>(token.data)));
+                    break;
+                }
             }
         }
         if (ast.size() != 1) throw CompilationError("missing operator");
@@ -370,5 +376,13 @@ namespace funscript {
         child->compile_eval(as, cid);
         as.put_opcode(cid, Opcode::SET);
         as.put_reloc(cid, 0, as.put_string(0, name));
+    }
+
+    void BooleanAST::compile_eval(Assembler &as, size_t cid) {
+        as.put_opcode(cid, bln ? Opcode::PBY : Opcode::PBN);
+    }
+
+    void BooleanAST::compile_move(Assembler &as, size_t cid) {
+        throw CompilationError("expression is not assignable");
     }
 }

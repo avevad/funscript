@@ -59,9 +59,10 @@ namespace funscript {
             RIGHT_BRACKET,
             NUL,
             VOID, // special
-            INDEX
+            INDEX,
+            BOOLEAN
         };
-        using Data = std::variant<Operator, Bracket, int64_t, std::wstring>;
+        using Data = std::variant<Operator, Bracket, int64_t, std::wstring, bool>;
         Type type;
         Data data;
     };
@@ -129,6 +130,8 @@ namespace funscript {
         SET, // move value to object's field
         GET, // push
         REV, // reverse
+        PBY, // push boolean "yes"
+        PBN, // push boolean "no"
     };
 
 
