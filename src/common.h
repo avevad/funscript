@@ -41,7 +41,8 @@ namespace funscript {
         LAMBDA,
         MODULO,
         EQUALS,
-        DIFFERS
+        DIFFERS,
+        NOT
     };
 
     enum class Bracket {
@@ -66,17 +67,18 @@ namespace funscript {
     };
 
     static const std::map<std::wstring, Operator> OPERATOR_KEYWORDS{
-            {L"*", Operator::TIMES},
-            {L"/", Operator::DIVIDE},
-            {L"+", Operator::PLUS},
-            {L"-", Operator::MINUS},
-            {L"=", Operator::ASSIGN},
-            {L",", Operator::APPEND},
-            {L";", Operator::DISCARD},
-            {L":", Operator::LAMBDA},
-            {L"%", Operator::MODULO},
+            {L"*",  Operator::TIMES},
+            {L"/",  Operator::DIVIDE},
+            {L"+",  Operator::PLUS},
+            {L"-",  Operator::MINUS},
+            {L"=",  Operator::ASSIGN},
+            {L",",  Operator::APPEND},
+            {L";",  Operator::DISCARD},
+            {L":",  Operator::LAMBDA},
+            {L"%",  Operator::MODULO},
             {L"==", Operator::EQUALS},
             {L"!=", Operator::DIFFERS},
+            {L"!",  Operator::NOT},
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -96,14 +98,15 @@ namespace funscript {
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
             {Operator::CALL,    {0,  false}}, // special
-            {Operator::TIMES,   {1,  true}},
-            {Operator::DIVIDE,  {1,  true}},
-            {Operator::MODULO,  {2,  true}},
-            {Operator::PLUS,    {2,  true}},
-            {Operator::MINUS,   {2,  true}},
+            {Operator::NOT,     {1,  false}},
+            {Operator::TIMES,   {3,  true}},
+            {Operator::DIVIDE,  {4,  true}},
+            {Operator::MODULO,  {4,  true}},
+            {Operator::PLUS,    {4,  true}},
+            {Operator::MINUS,   {4,  true}},
             {Operator::LAMBDA,  {7,  false}}, // special
-            {Operator::EQUALS, {8, true}},
-            {Operator::DIFFERS, {8, true}},
+            {Operator::EQUALS,  {8,  true}},
+            {Operator::DIFFERS, {8,  true}},
             {Operator::APPEND,  {9,  false}}, // special
             {Operator::ASSIGN,  {10, true}}, // special
             {Operator::DISCARD, {11, false}}, // special
