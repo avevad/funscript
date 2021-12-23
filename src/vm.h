@@ -120,7 +120,7 @@ namespace funscript {
             void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
             void discard();
             void reverse();
-            void call_op(Frame *frame, Operator op);
+            void call_operator(Frame *frame, Operator op);
 
             void pop(stack_pos_t pos = -1);
 

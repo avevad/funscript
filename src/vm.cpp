@@ -94,73 +94,102 @@ namespace funscript {
         pop(sep_pos);
     }
 
-    void VM::Stack::call_op(Frame *frame, Operator op) {
+    void VM::Stack::call_operator(Frame *frame, Operator op) {
         stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
         size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
-        if (op == Operator::CALL) {
-            FS_ASSERT(cnt_b == 1); // TODO
-            FS_ASSERT(get(-1).type == Value::FUN); // TODO
-            Function *fun = get(-1).data.fun;
-            vm.mem.gc_pin(fun);
-            pop(-2);
-            call(fun, frame);
-            vm.mem.gc_unpin(fun);
-            return;
-        }
-        if (cnt_a == 0) {
-            FS_ASSERT(cnt_b == 1); // TODO
-            FS_ASSERT(get(pos_b).type == Value::INT); // TODO
-            int64_t val = get(-1).data.num;
-            int64_t result;
-            switch (op) {
-                case Operator::PLUS:
-                    result = val;
-                    break;
-                case Operator::MINUS:
-                    result = -val;
-                    break;
-                default:
-                    assert_failed("invalid operator"); // TODO
+        switch (op) {
+            case Operator::CALL: {
+                FS_ASSERT(cnt_b == 1 && get(-1).type == Value::FUN); // TODO
+                Function *fun = get(-1).data.fun;
+                vm.mem.gc_pin(fun);
+                pop(-2);
+                call(fun, frame);
+                vm.mem.gc_unpin(fun);
+                break;
             }
-            pop(-3);
-            push_int(result);
-            return;
-        }
-        if (cnt_a == 1) {
-            FS_ASSERT(get(pos_a).type == Value::INT); // TODO
-            FS_ASSERT(cnt_b == 1 && get(pos_b).type == Value::INT); // TODO
-            int64_t left = get(-3).data.num, right = get(-1).data.num;
-            pop(-4);
-            int64_t result;
-            switch (op) {
-                case Operator::TIMES:
-                    result = left * right;
-                    break;
-                case Operator::DIVIDE:
-                    result = left / right;
-                    break;
-                case Operator::PLUS:
-                    result = left + right;
-                    break;
-                case Operator::MINUS:
-                    result = left - right;
-                    break;
-                case Operator::MODULO:
-                    result = left % right;
-                    break;
-                case Operator::EQUALS:
-                    push_bln(left == right);
-                    return;
-                case Operator::DIFFERS:
-                    push_bln(left != right);
-                    return;
-                default:
-                    assert_failed("invalid operator");
+            case Operator::TIMES: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                int64_t res = get(-3).data.num * get(-1).data.num;
+                pop(-4);
+                push_int(res);
+                break;
             }
-            push_int(result);
-            return;
+            case Operator::DIVIDE: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                int64_t res = get(-3).data.num / get(-1).data.num;
+                pop(-4);
+                push_int(res);
+                break;
+            }
+            case Operator::PLUS: {
+                if (cnt_a == 0) { // unary plus
+                    FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
+                    int64_t res = get(-1).data.num;
+                    pop(-3);
+                    push_int(res);
+                    break;
+                }
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                int64_t res = get(-3).data.num + get(-1).data.num;
+                pop(-4);
+                push_int(res);
+                break;
+            }
+            case Operator::MINUS: {
+                if (cnt_a == 0) { // unary minus
+                    FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
+                    int64_t res = -get(-1).data.num;
+                    pop(-3);
+                    push_int(res);
+                    break;
+                }
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                int64_t res = get(-3).data.num - get(-1).data.num;
+                pop(-4);
+                push_int(res);
+                break;
+            }
+            case Operator::MODULO: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                int64_t res = get(-3).data.num % get(-1).data.num;
+                pop(-4);
+                push_int(res);
+                break;
+            }
+            case Operator::DIFFERS:
+            case Operator::EQUALS: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1); // TODO
+                bool result;
+                Value a = get(-3), b = get(-1);
+                if (a.type != b.type) result = false;
+                else {
+                    switch (get(-1).type) {
+                        case Value::NUL:
+                            result = true;
+                            break;
+                        case Value::INT:
+                            result = a.data.num == b.data.num;
+                            break;
+                        case Value::OBJ:
+                            result = a.data.obj == b.data.obj;
+                            break;
+                        case Value::FUN:
+                            result = a.data.fun == b.data.fun;
+                            break;
+                        case Value::BLN:
+                            result = a.data.bln == b.data.bln;
+                            break;
+                        default:
+                            assert_failed("invalid type");
+                    }
+                }
+                pop(-4);
+                push_bln((op == Operator::DIFFERS) == !result);
+                break;
+            }
+            default:
+                assert_failed("invalid operator");
         }
-        assert_failed("invalid number of values"); // TODO
     }
 
     stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
@@ -216,7 +245,7 @@ namespace funscript {
                     ip++;
                     auto oper = (Operator) bytecode[ip];
                     ip++;
-                    call_op(frame, oper);
+                    call_operator(frame, oper);
                     break;
                 }
                 case Opcode::DIS: {
