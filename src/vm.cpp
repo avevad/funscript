@@ -109,51 +109,51 @@ namespace funscript {
             }
             case Operator::TIMES: {
                 FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t res = get(-3).data.num * get(-1).data.num;
+                int64_t result = get(-3).data.num * get(-1).data.num;
                 pop(-4);
-                push_int(res);
+                push_int(result);
                 break;
             }
             case Operator::DIVIDE: {
                 FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t res = get(-3).data.num / get(-1).data.num;
+                int64_t result = get(-3).data.num / get(-1).data.num;
                 pop(-4);
-                push_int(res);
+                push_int(result);
                 break;
             }
             case Operator::PLUS: {
                 if (cnt_a == 0) { // unary plus
                     FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
-                    int64_t res = get(-1).data.num;
+                    int64_t result = get(-1).data.num;
                     pop(-3);
-                    push_int(res);
+                    push_int(result);
                     break;
                 }
                 FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t res = get(-3).data.num + get(-1).data.num;
+                int64_t result = get(-3).data.num + get(-1).data.num;
                 pop(-4);
-                push_int(res);
+                push_int(result);
                 break;
             }
             case Operator::MINUS: {
                 if (cnt_a == 0) { // unary minus
                     FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
-                    int64_t res = -get(-1).data.num;
+                    int64_t result = -get(-1).data.num;
                     pop(-3);
-                    push_int(res);
+                    push_int(result);
                     break;
                 }
                 FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t res = get(-3).data.num - get(-1).data.num;
+                int64_t result = get(-3).data.num - get(-1).data.num;
                 pop(-4);
-                push_int(res);
+                push_int(result);
                 break;
             }
             case Operator::MODULO: {
                 FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t res = get(-3).data.num % get(-1).data.num;
+                int64_t result = get(-3).data.num % get(-1).data.num;
                 pop(-4);
-                push_int(res);
+                push_int(result);
                 break;
             }
             case Operator::DIFFERS:
@@ -185,6 +185,13 @@ namespace funscript {
                 }
                 pop(-4);
                 push_bln((op == Operator::DIFFERS) == !result);
+                break;
+            }
+            case Operator::NOT: {
+                FS_ASSERT(cnt_a == 0 && cnt_b == 1 && get(-1).type == Value::BLN); // TODO
+                bool result = !get(-1).data.bln;
+                pop(-3);
+                push_bln(result);
                 break;
             }
             default:
