@@ -45,6 +45,8 @@ namespace funscript {
         NOT,
         LESS,
         GREATER,
+        LESS_EQUAL,
+        GREATER_EQUAL
     };
 
     enum class Bracket {
@@ -83,7 +85,9 @@ namespace funscript {
             {L"!=", Operator::DIFFERS},
             {L"!",  Operator::NOT},
             {L"<",  Operator::LESS},
-            {L">",  Operator::GREATER}
+            {L">",  Operator::GREATER},
+            {L"<=", Operator::LESS_EQUAL},
+            {L">=", Operator::GREATER_EQUAL}
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -102,21 +106,23 @@ namespace funscript {
     };
 
     static const std::map<Operator, OperatorMeta> OPERATORS{
-            {Operator::CALL,    {0,  false}}, // special
-            {Operator::NOT,     {1,  false}},
-            {Operator::TIMES,   {3,  true}},
-            {Operator::DIVIDE,  {4,  true}},
-            {Operator::MODULO,  {4,  true}},
-            {Operator::PLUS,    {4,  true}},
-            {Operator::MINUS,   {4,  true}},
-            {Operator::LAMBDA,  {7,  false}}, // special
-            {Operator::EQUALS,  {8,  true}},
-            {Operator::DIFFERS, {8,  true}},
-            {Operator::LESS,    {8,  true}},
-            {Operator::GREATER, {8,  true}},
-            {Operator::APPEND,  {9,  false}}, // special
-            {Operator::ASSIGN,  {10, true}}, // special
-            {Operator::DISCARD, {11, false}}, // special
+            {Operator::CALL,          {0,  false}}, // special
+            {Operator::NOT,           {1,  false}},
+            {Operator::TIMES,         {3,  true}},
+            {Operator::DIVIDE,        {4,  true}},
+            {Operator::MODULO,        {4,  true}},
+            {Operator::PLUS,          {4,  true}},
+            {Operator::MINUS,         {4,  true}},
+            {Operator::LAMBDA,        {7,  false}}, // special
+            {Operator::EQUALS,        {8,  true}},
+            {Operator::DIFFERS,       {8,  true}},
+            {Operator::LESS,          {8,  true}},
+            {Operator::GREATER,       {8,  true}},
+            {Operator::LESS_EQUAL,    {8,  true}},
+            {Operator::GREATER_EQUAL, {8,  true}},
+            {Operator::APPEND,        {9,  false}}, // special
+            {Operator::ASSIGN,        {10, true}}, // special
+            {Operator::DISCARD,       {11, false}}, // special
     };
 
     enum class Opcode : char {
