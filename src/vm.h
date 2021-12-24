@@ -175,6 +175,7 @@ namespace funscript {
         [[nodiscard]] Value get_val(const fstring &key) const;
         void set_val(const fstring &key, Value val);
         ~Object() override = default;
+        bool equals(Object &obj) const;
     };
 
     class Scope : public VM::Allocation {

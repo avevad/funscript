@@ -194,6 +194,20 @@ namespace funscript {
                 push_bln(result);
                 break;
             }
+            case Operator::GREATER: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                bool result = get(-3).data.num > get(-1).data.num;
+                pop(-4);
+                push_bln(result);
+                break;
+            }
+            case Operator::LESS: {
+                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
+                bool result = get(-3).data.num < get(-1).data.num;
+                pop(-4);
+                push_bln(result);
+                break;
+            }
             default:
                 assert_failed("invalid operator");
         }

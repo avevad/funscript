@@ -42,7 +42,9 @@ namespace funscript {
         MODULO,
         EQUALS,
         DIFFERS,
-        NOT
+        NOT,
+        LESS,
+        GREATER,
     };
 
     enum class Bracket {
@@ -80,6 +82,8 @@ namespace funscript {
             {L"==", Operator::EQUALS},
             {L"!=", Operator::DIFFERS},
             {L"!",  Operator::NOT},
+            {L"<",  Operator::LESS},
+            {L">",  Operator::GREATER}
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -108,6 +112,8 @@ namespace funscript {
             {Operator::LAMBDA,  {7,  false}}, // special
             {Operator::EQUALS,  {8,  true}},
             {Operator::DIFFERS, {8,  true}},
+            {Operator::LESS,    {8,  true}},
+            {Operator::GREATER, {8,  true}},
             {Operator::APPEND,  {9,  false}}, // special
             {Operator::ASSIGN,  {10, true}}, // special
             {Operator::DISCARD, {11, false}}, // special
