@@ -113,13 +113,13 @@ namespace funscript {
             {Operator::MODULO,        {4,  true}},
             {Operator::PLUS,          {4,  true}},
             {Operator::MINUS,         {4,  true}},
+            {Operator::EQUALS,        {6,  true}},
+            {Operator::DIFFERS,       {6,  true}},
+            {Operator::LESS,          {6,  true}},
+            {Operator::GREATER,       {6,  true}},
+            {Operator::LESS_EQUAL,    {6,  true}},
+            {Operator::GREATER_EQUAL, {6,  true}},
             {Operator::LAMBDA,        {7,  false}}, // special
-            {Operator::EQUALS,        {8,  true}},
-            {Operator::DIFFERS,       {8,  true}},
-            {Operator::LESS,          {8,  true}},
-            {Operator::GREATER,       {8,  true}},
-            {Operator::LESS_EQUAL,    {8,  true}},
-            {Operator::GREATER_EQUAL, {8,  true}},
             {Operator::APPEND,        {9,  false}}, // special
             {Operator::ASSIGN,        {10, true}}, // special
             {Operator::DISCARD,       {11, false}}, // special
@@ -143,7 +143,9 @@ namespace funscript {
         GET, // push
         REV, // reverse
         PBY, // push boolean "yes"
-        PBN, // push boolean "no"
+        PBN, // push boolean "no",
+        JZ,  // jump if "yes"
+        JN,  // jump if "no"
     };
 
 
