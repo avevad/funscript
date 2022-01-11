@@ -272,19 +272,11 @@ namespace funscript {
                 as.put_opcode(new_cid, Opcode::END); // return from function
                 break;
             }
-            case Operator::CALL:
-                as.put_opcode(cid, Opcode::SEP);
-                right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::OP);
-                as.put_byte(cid, (char) op);
-                break;
             default:
                 as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::OP);
                 as.put_byte(cid, (char) op);
         }

@@ -95,135 +95,162 @@ namespace funscript {
     }
 
     void VM::Stack::call_operator(Frame *frame, Operator op) {
-        stack_pos_t pos_b = find_sep() + 1, pos_a = find_sep(pos_b - 1) + 1;
-        size_t cnt_b = 0 - pos_b, cnt_a = pos_b - pos_a - 1;
-        switch (op) {
-            case Operator::CALL: {
-                FS_ASSERT(cnt_b == 1 && get(-1).type == Value::FUN); // TODO
-                Function *fun = get(-1).data.fun;
-                vm.mem.gc_pin(fun);
-                pop(-2);
-                call(fun, frame);
-                vm.mem.gc_unpin(fun);
+        stack_pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
+        size_t cnt_a = 0 - pos_a, cnt_b = pos_a - pos_b - 1;
+        if (cnt_a > 1) assert_failed("first operand is multiple values");
+        switch (get(pos_a).type) {
+            case Value::NUL: {
+                assert_failed("invalid operation on nul"); // TODO
                 break;
             }
-            case Operator::TIMES: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t result = get(-3).data.num * get(-1).data.num;
-                pop(-4);
-                push_int(result);
-                break;
-            }
-            case Operator::DIVIDE: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t result = get(-3).data.num / get(-1).data.num;
-                pop(-4);
-                push_int(result);
-                break;
-            }
-            case Operator::PLUS: {
-                if (cnt_a == 0) { // unary plus
-                    FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
-                    int64_t result = get(-1).data.num;
-                    pop(-3);
-                    push_int(result);
-                    break;
-                }
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t result = get(-3).data.num + get(-1).data.num;
-                pop(-4);
-                push_int(result);
-                break;
-            }
-            case Operator::MINUS: {
-                if (cnt_a == 0) { // unary minus
-                    FS_ASSERT(cnt_b == 1 && get(-1).type == Value::INT); // TODO
-                    int64_t result = -get(-1).data.num;
-                    pop(-3);
-                    push_int(result);
-                    break;
-                }
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t result = get(-3).data.num - get(-1).data.num;
-                pop(-4);
-                push_int(result);
-                break;
-            }
-            case Operator::MODULO: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                int64_t result = get(-3).data.num % get(-1).data.num;
-                pop(-4);
-                push_int(result);
-                break;
-            }
-            case Operator::DIFFERS:
-            case Operator::EQUALS: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1); // TODO
-                bool result;
-                Value a = get(-3), b = get(-1);
-                if (a.type != b.type) result = false;
-                else {
-                    switch (get(-1).type) {
-                        case Value::NUL:
-                            result = true;
-                            break;
-                        case Value::INT:
-                            result = a.data.num == b.data.num;
-                            break;
-                        case Value::OBJ:
-                            result = a.data.obj == b.data.obj;
-                            break;
-                        case Value::FUN:
-                            result = a.data.fun == b.data.fun;
-                            break;
-                        case Value::BLN:
-                            result = a.data.bln == b.data.bln;
-                            break;
-                        default:
-                            assert_failed("invalid type");
+            case Value::SEP:
+                switch (op) {
+                    case Operator::PLUS: {
+                        FS_ASSERT(cnt_b == 1 && get(-2).type == Value::INT); // TODO
+                        int64_t result = get(-2).data.num;
+                        pop(-3);
+                        push_int(result);
+                        break;
                     }
+                    case Operator::MINUS: {
+                        FS_ASSERT(cnt_b == 1 && get(-2).type == Value::INT); // TODO
+                        int64_t result = -get(-2).data.num;
+                        pop(-3);
+                        push_int(result);
+                        break;
+                    }
+                    default:
+                        assert_failed("invalid unary operator"); // TODO
+                }
+                break;
+            case Value::INT: {
+                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::INT);
+                int64_t left = get(-1).data.num, right = get(-3).data.num;
+                switch (op) {
+                    case Operator::TIMES: {
+                        int64_t result = left * right;
+                        pop(-4);
+                        push_int(result);
+                        break;
+                    }
+                    case Operator::DIVIDE: {
+                        int64_t result = left / right;
+                        pop(-4);
+                        push_int(result);
+                        break;
+                    }
+                    case Operator::PLUS: {
+                        int64_t result = left + right;
+                        pop(-4);
+                        push_int(result);
+                        break;
+                    }
+                    case Operator::MINUS: {
+                        int64_t result = left - right;
+                        pop(-4);
+                        push_int(result);
+                        break;
+                    }
+                    case Operator::MODULO: {
+                        int64_t result = left % right;
+                        pop(-4);
+                        push_int(result);
+                        break;
+                    }
+                    case Operator::GREATER: {
+                        bool result = left > right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    case Operator::LESS: {
+                        bool result = left < right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    case Operator::LESS_EQUAL: {
+                        bool result = left <= right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    case Operator::GREATER_EQUAL: {
+                        bool result = left >= right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    case Operator::DIFFERS: {
+                        bool result = left != right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    case Operator::EQUALS: {
+                        bool result = left == right;
+                        pop(-4);
+                        push_bln(result);
+                        break;
+                    }
+                    default:
+                        assert_failed("invalid operation on integer"); // TODO
+                }
+                break;
+            }
+            case Value::OBJ: {
+                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::OBJ);
+                Object *left = get(-1).data.obj, *right = get(-3).data.obj;
+                bool result;
+                switch (op) {
+                    case Operator::EQUALS:
+                        result = left == right;
+                        break;
+                    case Operator::DIFFERS:
+                        result = left != right;
+                        break;
+                    default:
+                        assert_failed("invalid operation on object"); // TODO
                 }
                 pop(-4);
-                push_bln((op == Operator::DIFFERS) == !result);
-                break;
-            }
-            case Operator::NOT: {
-                FS_ASSERT(cnt_a == 0 && cnt_b == 1 && get(-1).type == Value::BLN); // TODO
-                bool result = !get(-1).data.bln;
-                pop(-3);
                 push_bln(result);
                 break;
             }
-            case Operator::GREATER: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                bool result = get(-3).data.num > get(-1).data.num;
-                pop(-4);
-                push_bln(result);
+            case Value::FUN:
+                switch (op) {
+                    case Operator::CALL: {
+                        Function *fun = get(-1).data.fun;
+                        vm.mem.gc_pin(fun);
+                        pop(-2);
+                        call(fun, frame);
+                        vm.mem.gc_unpin(fun);
+                        break;
+                    }
+                    default:
+                        assert_failed("invalid operation on function"); // TODO
+
+                }
                 break;
-            }
-            case Operator::LESS: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                bool result = get(-3).data.num < get(-1).data.num;
-                pop(-4);
-                push_bln(result);
-                break;
-            }
-            case Operator::LESS_EQUAL: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                bool result = get(-3).data.num <= get(-1).data.num;
-                pop(-4);
-                push_bln(result);
-                break;
-            }
-            case Operator::GREATER_EQUAL: {
-                FS_ASSERT(cnt_a == 1 && cnt_b == 1 && get(-1).type == Value::INT && get(-3).type == Value::INT); // TODO
-                bool result = get(-3).data.num >= get(-1).data.num;
+            case Value::BLN: {
+                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::BLN);
+                bool left = get(-1).data.bln, right = get(-3).data.bln;
+                bool result;
+                switch (op) {
+                    case Operator::EQUALS:
+                        result = left == right;
+                        break;
+                    case Operator::DIFFERS:
+                        result = left != right;
+                        break;
+                    default:
+                        assert_failed("invalid operation on boolean"); // TODO
+                }
                 pop(-4);
                 push_bln(result);
                 break;
             }
             default:
-                assert_failed("invalid operator");
+                assert_failed("unknown value type"); // TODO
         }
     }
 
