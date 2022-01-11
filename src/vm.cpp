@@ -97,32 +97,38 @@ namespace funscript {
     void VM::Stack::call_operator(Frame *frame, Operator op) {
         stack_pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
         size_t cnt_a = 0 - pos_a, cnt_b = pos_a - pos_b - 1;
-        if (cnt_a > 1) assert_failed("first operand is multiple values");
+        if (cnt_a == 0) { // unary operators
+            if (cnt_b != 1) assert_failed("unary operator on multiple values"); // TODO
+            switch (get(-2).type) {
+                case Value::INT: {
+                    int64_t result;
+                    switch (op) {
+                        case Operator::PLUS: {
+                            result = +get(-2).data.num;
+                            break;
+                        }
+                        case Operator::MINUS: {
+                            result = -get(-2).data.num;
+                            break;
+                        }
+                        default:
+                            assert_failed("invalid unary operator"); // TODO
+                    }
+                    pop(-3);
+                    push_int(result);
+                    break;
+                }
+                default:
+                    assert_failed("invalid operand for unary operator"); // TODO
+            }
+            return;
+        }
+        if (cnt_a != 1) assert_failed("first operand is multiple values");
         switch (get(pos_a).type) {
             case Value::NUL: {
                 assert_failed("invalid operation on nul"); // TODO
                 break;
             }
-            case Value::SEP:
-                switch (op) {
-                    case Operator::PLUS: {
-                        FS_ASSERT(cnt_b == 1 && get(-2).type == Value::INT); // TODO
-                        int64_t result = get(-2).data.num;
-                        pop(-3);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::MINUS: {
-                        FS_ASSERT(cnt_b == 1 && get(-2).type == Value::INT); // TODO
-                        int64_t result = -get(-2).data.num;
-                        pop(-3);
-                        push_int(result);
-                        break;
-                    }
-                    default:
-                        assert_failed("invalid unary operator"); // TODO
-                }
-                break;
             case Value::INT: {
                 FS_ASSERT(cnt_b == 1 && get(-3).type == Value::INT);
                 int64_t left = get(-1).data.num, right = get(-3).data.num;
