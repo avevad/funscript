@@ -180,6 +180,7 @@ namespace funscript {
 
     void Assembler::put_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos) {
         relocs.push_back({cid, pos, dst_cid, dst_pos});
+        chunks[cid].append(sizeof(size_t), '\0');
     }
 
     size_t Assembler::total_size() const {
@@ -239,6 +240,12 @@ namespace funscript {
         size_t cid = new_chunk();
         ast->compile_eval(*this, cid);
         put_opcode(cid, Opcode::END);
+    }
+
+    size_t Assembler::put_stub(size_t cid) {
+        size_t pos = chunks[cid].size();
+        chunks[cid].append(sizeof(size_t), '\0');
+        return pos;
     }
 
     void OperatorAST::compile_eval(Assembler &as, size_t cid) {

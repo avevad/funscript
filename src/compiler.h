@@ -43,6 +43,7 @@ namespace funscript {
         void put_int(size_t cid, int64_t num);
         void put_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos);
         void put_reloc(size_t cid, size_t dst_cid, size_t dst_pos);
+        size_t put_stub(size_t cid);
         void put_data(size_t cid, const char *data, size_t size);
         size_t put_string(size_t cid, const std::wstring &str);
         void put_byte(size_t cid, char c);
