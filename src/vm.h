@@ -117,6 +117,8 @@ namespace funscript {
             void push_fun(Function *fun);
             void push_bln(bool bln);
 
+            bool as_boolean();
+
             void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
             void discard();
             void call_operator(Frame *frame, Operator op);

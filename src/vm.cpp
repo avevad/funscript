@@ -112,10 +112,18 @@ namespace funscript {
                             break;
                         }
                         default:
-                            assert_failed("invalid unary operator"); // TODO
+                            assert_failed("invalid unary operator for integer"); // TODO
                     }
                     pop(-3);
                     push_int(result);
+                    break;
+                }
+                case Value::BLN: {
+                    if (op != Operator::NOT) assert_failed("invalid unary operator for boolean"); // TODO
+                    pop(-1);
+                    bool result = !as_boolean();
+                    pop(-2);
+                    push_bln(result);
                     break;
                 }
                 default:
@@ -433,6 +441,11 @@ namespace funscript {
 
     void VM::Stack::push_bln(bool bln) {
         push({.type = Value::BLN, .data={.bln=bln}});
+    }
+
+    bool VM::Stack::as_boolean() {
+        if (get(-1).type != Value::BLN) assert_failed("no implicit conversion to boolean");
+        return get(-1).data.bln;
     }
 
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
