@@ -246,7 +246,6 @@ namespace funscript {
             case Operator::ASSIGN:
                 as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::REV);
                 left->compile_move(as, cid);
                 as.put_opcode(cid, Opcode::DIS);
                 break;
@@ -266,11 +265,10 @@ namespace funscript {
                 as.put_reloc(cid, new_cid, 0); // write pointer to the new chunk
                 // bytecode of the lambda function:
                 as.put_opcode(new_cid, Opcode::NS); // create lambda scope
-                as.put_opcode(new_cid, Opcode::REV); // revert arguments
-                left->compile_move(as, new_cid); // move them to their destination
+                left->compile_move(as, new_cid); // move arguments to their destination
                 as.put_opcode(new_cid, Opcode::DIS); // discard preceding separator
                 right->compile_eval(as, new_cid); // evaluate the lambda body
-                as.put_opcode(new_cid, Opcode::DS);
+                as.put_opcode(new_cid, Opcode::DS); // discard lambda scope
                 as.put_opcode(new_cid, Opcode::END); // return from function
                 break;
             }
@@ -295,8 +293,8 @@ namespace funscript {
     void OperatorAST::compile_move(Assembler &as, size_t cid) {
         switch (op) {
             case Operator::APPEND:
-                left->compile_move(as, cid);
                 right->compile_move(as, cid);
+                left->compile_move(as, cid);
                 break;
             default:
                 throw CompilationError("expression is not assignable");

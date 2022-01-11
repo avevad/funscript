@@ -141,7 +141,6 @@ namespace funscript {
         VGT, // push value of the variable
         SET, // move value to object's field
         GET, // push
-        REV, // reverse
         PBY, // push boolean "yes"
         PBN, // push boolean "no",
         JZ,  // jump if "yes"

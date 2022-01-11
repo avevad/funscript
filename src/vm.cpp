@@ -328,11 +328,6 @@ namespace funscript {
                     push(scope->get_var(name));
                     break;
                 }
-                case Opcode::REV: {
-                    ip++;
-                    reverse();
-                    break;
-                }
                 case Opcode::VST: {
                     ip++;
                     size_t pos = 0;
@@ -394,11 +389,6 @@ namespace funscript {
                     throw std::runtime_error("unknown opcode");
             }
         }
-    }
-
-    void VM::Stack::reverse() {
-        stack_pos_t i = find_sep() + 1, j = -1;
-        while (i < j) std::swap(get(i++), get(j--));
     }
 
     void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
