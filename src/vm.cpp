@@ -290,11 +290,10 @@ namespace funscript {
     VM::~VM() = default;
 
     void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Bytecode *bytecode_obj, size_t offset) {
-        const char *bytecode_start = bytecode_obj->get_data();
-        const char *bytecode = bytecode_start + offset;
-        size_t ip = 0;
+        const char *bytecode = bytecode_obj->get_data();
+        const char *ip = bytecode + offset;
         while (true) {
-            auto opcode = (Opcode) bytecode[ip];
+            auto opcode = (Opcode) *ip;
             switch (opcode) {
                 case Opcode::NOP:
                     ip++;
@@ -312,14 +311,14 @@ namespace funscript {
                 case Opcode::INT: {
                     ip++;
                     int64_t num;
-                    memcpy(&num, bytecode + ip, sizeof(int64_t));
+                    memcpy(&num, ip, sizeof(int64_t));
                     ip += sizeof(int64_t);
                     push_int(num);
                     break;
                 }
                 case Opcode::OP: {
                     ip++;
-                    auto oper = (Operator) bytecode[ip];
+                    auto oper = (Operator) *ip;
                     ip++;
                     call_operator(frame, oper);
                     break;
@@ -348,7 +347,7 @@ namespace funscript {
                 case Opcode::FUN: {
                     ip++;
                     size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    memcpy(&pos, ip, sizeof(size_t));
                     ip += sizeof(size_t);
                     Function *fun = vm.mem.gc_new<CompiledFunction>(scope, bytecode_obj, pos);
                     push_fun(fun);
@@ -363,18 +362,18 @@ namespace funscript {
                 case Opcode::VGT: {
                     ip++;
                     size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    memcpy(&pos, ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     push(scope->get_var(name));
                     break;
                 }
                 case Opcode::VST: {
                     ip++;
                     size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    memcpy(&pos, ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     if (get(-1).type != Value::SEP) {
                         scope->set_var(name, get(-1));
                         pop();
@@ -384,9 +383,9 @@ namespace funscript {
                 case Opcode::GET: {
                     ip++;
                     size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    memcpy(&pos, ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     FS_ASSERT(get(-1).type == Value::OBJ); // TODO
                     FS_ASSERT(get(-2).type == Value::SEP); // TODO
                     Object *obj = get(-1).data.obj;
@@ -400,9 +399,9 @@ namespace funscript {
                 case Opcode::SET: {
                     ip++;
                     size_t pos = 0;
-                    memcpy(&pos, bytecode + ip, sizeof(size_t));
+                    memcpy(&pos, ip, sizeof(size_t));
                     ip += sizeof(size_t);
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode_start + pos), vm.mem.str_alloc());
+                    fstring name(reinterpret_cast<const wchar_t *>(bytecode + pos), vm.mem.str_alloc());
                     FS_ASSERT(get(-1).type == Value::OBJ); // TODO
                     FS_ASSERT(get(-2).type == Value::SEP); // TODO
                     Object *obj = get(-1).data.obj;
@@ -424,6 +423,21 @@ namespace funscript {
                 case Opcode::PBN: {
                     ip++;
                     push_bln(false);
+                    break;
+                }
+                case Opcode::JMP: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, ip, sizeof(size_t));
+                    ip = bytecode + pos;
+                    break;
+                }
+                case Opcode::JN: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    if (!as_boolean()) ip = bytecode + pos;
                     break;
                 }
                 default:

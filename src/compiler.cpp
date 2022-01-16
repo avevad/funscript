@@ -279,6 +279,22 @@ namespace funscript {
                 as.put_opcode(new_cid, Opcode::END); // return from function
                 break;
             }
+            case Operator::THEN: {
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JN);
+                auto pos1 = as.put_stub(cid);
+                as.put_opcode(cid, Opcode::DIS);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::PBY);
+                as.put_opcode(cid, Opcode::JMP);
+                auto pos2 = as.put_stub(cid);
+                as.put_reloc(cid, pos1, cid, as.chunk_size(cid));
+                as.put_opcode(cid, Opcode::DIS);
+                as.put_opcode(cid, Opcode::PBN);
+                as.put_reloc(cid, pos2, cid, as.chunk_size(cid));
+                break;
+            }
             default:
                 as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);
