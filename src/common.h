@@ -149,7 +149,6 @@ namespace funscript {
         GET, // push
         PBY, // push boolean "yes"
         PBN, // push boolean "no",
-        JY,  // jump if "yes"
         JN,  // jump if "no"
         JMP, // jump unconditionally
         POP, // pop one value from stack
