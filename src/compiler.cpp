@@ -295,6 +295,22 @@ namespace funscript {
                 as.put_reloc(cid, pos2, cid, as.chunk_size(cid));
                 break;
             }
+            case Operator::ELSE: {
+                auto[cond, then] = left->get_then_operator();
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JN);
+                auto pos1 = as.put_stub(cid);
+                as.put_opcode(cid, Opcode::DIS);
+                then->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JMP);
+                auto pos2 = as.put_stub(cid);
+                as.put_reloc(cid, pos1, cid, as.chunk_size(cid));
+                as.put_opcode(cid, Opcode::DIS);
+                right->compile_eval(as, cid);
+                as.put_reloc(cid, pos2, cid, as.chunk_size(cid));
+                break;
+            }
             default:
                 as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);

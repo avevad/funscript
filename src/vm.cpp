@@ -440,6 +440,19 @@ namespace funscript {
                     if (!as_boolean()) ip = bytecode + pos;
                     break;
                 }
+                case Opcode::JY: {
+                    ip++;
+                    size_t pos = 0;
+                    memcpy(&pos, ip, sizeof(size_t));
+                    ip += sizeof(size_t);
+                    if (as_boolean()) ip = bytecode + pos;
+                    break;
+                }
+                case Opcode::POP: {
+                    ip++;
+                    pop();
+                    break;
+                }
                 default:
                     throw std::runtime_error("unknown opcode");
             }

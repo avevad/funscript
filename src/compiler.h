@@ -20,6 +20,12 @@ namespace funscript {
     public:
         virtual void compile_eval(Assembler &as, size_t cid) = 0;
         virtual void compile_move(Assembler &as, size_t cid) = 0;
+
+        virtual std::pair<AST *, AST *> get_then_operator() {
+            assert_failed("not a 'then' operator"); // TODO
+            return {};
+        }
+
         virtual ~AST() = default;
     };
 
@@ -91,6 +97,12 @@ namespace funscript {
         void compile_eval(Assembler &as, size_t cid) override;
 
         void compile_move(Assembler &as, size_t cid) override;
+
+        std::pair<AST *, AST *> get_then_operator() override {
+            if (op != Operator::THEN) return AST::get_then_operator();
+            return {left.get(), right.get()};
+        }
+
     public:
         OperatorAST(AST *left, AST *right, Operator op) : left(left), right(right), op(op) {}
 

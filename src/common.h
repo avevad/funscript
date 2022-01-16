@@ -47,7 +47,8 @@ namespace funscript {
         GREATER,
         LESS_EQUAL,
         GREATER_EQUAL,
-        THEN
+        THEN,
+        ELSE
     };
 
     enum class Bracket {
@@ -89,7 +90,8 @@ namespace funscript {
             {L">",  Operator::GREATER},
             {L"<=", Operator::LESS_EQUAL},
             {L">=", Operator::GREATER_EQUAL},
-            {L"=>", Operator::THEN}
+            {L"=>", Operator::THEN},
+            {L"?",  Operator::ELSE}
     };
 
     static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -123,9 +125,10 @@ namespace funscript {
             {Operator::GREATER_EQUAL, {6,  true}},
             {Operator::LAMBDA,        {7,  false}}, // special
             {Operator::APPEND,        {9,  false}}, // special
-            {Operator::ASSIGN,        {10, true}}, // special
+            {Operator::ASSIGN,        {10, true}},  // special
             {Operator::THEN,          {11, false}}, // special
-            {Operator::DISCARD,       {12, false}}, // special
+            {Operator::ELSE,          {12, false}}, // special
+            {Operator::DISCARD,       {13, false}}, // special
     };
 
     enum class Opcode : char {
@@ -146,8 +149,10 @@ namespace funscript {
         GET, // push
         PBY, // push boolean "yes"
         PBN, // push boolean "no",
+        JY,  // jump if "yes"
         JN,  // jump if "no"
         JMP, // jump unconditionally
+        POP, // pop one value from stack
     };
 
 
