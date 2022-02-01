@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <source_location>
 #include <set>
+#include <cstring>
+#include <sstream>
 
 namespace funscript {
 
@@ -209,14 +211,175 @@ namespace funscript {
         }
     };
 
-    using fchar = wchar_t;
-    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
+    template<typename T>
+    static std::string addr_to_string(const T *ptr) {
+        std::ostringstream str;
+        str.imbue(std::locale("C"));
+        str << (const void *)ptr;
+        return str.str();
+    }
 
+    using fchar = wchar_t;
+
+    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
     template<typename K, typename V>
     using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
 
     template<typename K>
     using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
+
+    static std::string dump_bytecode(const char *bytecode, const char *end) {
+        std::string result;
+        const char *ptr = bytecode;
+        while (ptr != end) {
+            auto opcode = (Opcode) *ptr;
+            result += addr_to_string(ptr);
+            result += ": ";
+            switch (opcode) {
+                case Opcode::NOP:
+                    ptr++;
+                    result += "NOP";
+                    break;
+                case Opcode::NUL: {
+                    ptr++;
+                    result += "NUL";
+                    break;
+                }
+                case Opcode::SEP: {
+                    ptr++;
+                    result += "SEP";
+                    break;
+                }
+                case Opcode::INT: {
+                    ptr++;
+                    result += "INT ";
+                    int64_t num;
+                    memcpy(&num, ptr, sizeof(int64_t));
+                    ptr += sizeof(int64_t);
+                    result += std::to_string(num);
+                    break;
+                }
+                case Opcode::OP: {
+                    ptr++;
+                    result += "OP ";
+                    auto oper = (Operator) *ptr;
+                    ptr++;
+                    result += std::to_string(int(oper));
+                    break;
+                }
+                case Opcode::DIS: {
+                    ptr++;
+                    result += "DIS";
+                    break;
+                }
+                case Opcode::NS: {
+                    ptr++;
+                    result += "NS";
+                    break;
+                }
+                case Opcode::DS: {
+                    ptr++;
+                    result += "DS";
+                    break;
+                }
+                case Opcode::END:
+                    ptr++;
+                    result += "END";
+                    break;
+                case Opcode::FUN: {
+                    ptr++;
+                    result += "FUN ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    result += addr_to_string(bytecode + pos);
+                    break;
+                }
+                case Opcode::OBJ: {
+                    ptr++;
+                    result += "OBJ";
+                    break;
+                }
+                case Opcode::VGT: {
+                    ptr++;
+                    result += "VGT ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    std::string name(reinterpret_cast<const char *>(bytecode + pos));
+                    result += name;
+                    break;
+                }
+                case Opcode::VST: {
+                    ptr++;
+                    result += "VST ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    std::string name(reinterpret_cast<const char *>(bytecode + pos));
+                    result += name;
+                    break;
+                }
+                case Opcode::GET: {
+                    ptr++;
+                    result += "GET ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    std::string name(reinterpret_cast<const char *>(bytecode + pos));
+                    result += name;
+                    break;
+                }
+                case Opcode::SET: {
+                    ptr++;
+                    result += "SET ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    std::string name(reinterpret_cast<const char *>(bytecode + pos));
+                    result += name;
+                    break;
+                }
+                case Opcode::PBY: {
+                    ptr++;
+                    result += "PBY";
+                    break;
+                }
+                case Opcode::PBN: {
+                    ptr++;
+                    result += "PBN";
+                    break;
+                }
+                case Opcode::JMP: {
+                    ptr++;
+                    result += "JMP ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    result += addr_to_string(bytecode + pos);
+                    break;
+                }
+                case Opcode::JN: {
+                    ptr++;
+                    result += "JN ";
+                    size_t pos = 0;
+                    memcpy(&pos, ptr, sizeof(size_t));
+                    ptr += sizeof(size_t);
+                    result += addr_to_string(bytecode + pos);
+                    break;
+                }
+                case Opcode::POP: {
+                    ptr++;
+                    result += "POP";
+                    break;
+                }
+                default:
+                    throw std::runtime_error("unknown opcode");
+            }
+            result += '\n';
+        }
+        return result;
+    }
 }
 
 #endif //FUNSCRIPT_COMMON_H
