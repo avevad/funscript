@@ -15,9 +15,15 @@ namespace funscript {
 
     class Assembler;
 
+    struct eval_opt_info {
+        bool no_scope = false;
+    };
+
     class AST {
         friend Assembler;
     public:
+        const eval_opt_info eval_opt;
+
         virtual void compile_eval(Assembler &as, size_t cid) = 0;
         virtual void compile_move(Assembler &as, size_t cid) = 0;
 
@@ -25,6 +31,8 @@ namespace funscript {
             assert_failed("not a 'then' operator"); // TODO
             return {};
         }
+
+        explicit AST(const eval_opt_info &eval_opt) : eval_opt(eval_opt) {};
 
         virtual ~AST() = default;
     };
@@ -75,7 +83,7 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        explicit IntegerAST(int64_t num) : num(num) {}
+        explicit IntegerAST(int64_t num) : AST({.no_scope = true}), num(num) {}
 
     };
 
@@ -86,7 +94,7 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        explicit IdentifierAST(std::wstring name) : name(std::move(name)) {}
+        explicit IdentifierAST(std::wstring name) : AST({.no_scope = true}), name(std::move(name)) {}
 
     };
 
@@ -104,7 +112,7 @@ namespace funscript {
         }
 
     public:
-        OperatorAST(AST *left, AST *right, Operator op) : left(left), right(right), op(op) {}
+        OperatorAST(AST *left, AST *right, Operator op);
 
     };
 
@@ -112,14 +120,18 @@ namespace funscript {
         void compile_eval(Assembler &as, size_t cid) override;
 
         void compile_move(Assembler &as, size_t cid) override;
+
     public:
-        NulAST() = default;
+        NulAST() : AST({.no_scope = true}) {}
     };
 
     class VoidAST : public AST {
         void compile_eval(Assembler &as, size_t cid) override;
 
         void compile_move(Assembler &as, size_t cid) override;
+
+    public:
+        VoidAST() : AST({.no_scope = true}) {}
     };
 
     class BracketAST : public AST {
@@ -129,7 +141,7 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        BracketAST(AST *child, Bracket type) : type(type), child(child) {}
+        BracketAST(AST *child, Bracket type) : AST({.no_scope = true}), type(type), child(child) {}
     };
 
     class IndexAST : public AST {
@@ -140,7 +152,7 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        IndexAST(AST *child, std::wstring name) : child(child), name(std::move(name)) {}
+        IndexAST(AST *child, std::wstring name) : AST({.no_scope = true}), child(child), name(std::move(name)) {}
     };
 
     class BooleanAST : public AST {
@@ -150,7 +162,7 @@ namespace funscript {
 
         void compile_move(Assembler &as, size_t cid) override;
     public:
-        explicit BooleanAST(bool bln) : bln(bln) {}
+        explicit BooleanAST(bool bln) : AST({.no_scope = true}), bln(bln) {}
 
     };
 }

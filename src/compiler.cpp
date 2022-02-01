@@ -331,6 +331,21 @@ namespace funscript {
         }
     }
 
+    static eval_opt_info merge_opt_info(Operator op, const eval_opt_info &a, const eval_opt_info &b) {
+        switch (op) {
+            case Operator::LAMBDA:
+                return {.no_scope = true};
+            case Operator::ASSIGN:
+                return {.no_scope = false};
+        }
+        return {.no_scope = a.no_scope && b.no_scope};
+    }
+
+    OperatorAST::OperatorAST(AST *left, AST *right, Operator op) :
+            AST(merge_opt_info(op, left->eval_opt, right->eval_opt)), left(left), right(right), op(op) {
+
+    }
+
     void IdentifierAST::compile_eval(Assembler &as, size_t cid) {
         as.put_opcode(cid, Opcode::VGT);
         as.put_reloc(cid, 0, as.put_string(0, name));
@@ -367,9 +382,9 @@ namespace funscript {
     void BracketAST::compile_eval(Assembler &as, size_t cid) {
         switch (type) {
             case Bracket::PLAIN:
-                as.put_opcode(cid, Opcode::NS);
+                if (!child->eval_opt.no_scope) as.put_opcode(cid, Opcode::NS);
                 child->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::DS);
+                if (!child->eval_opt.no_scope) as.put_opcode(cid, Opcode::DS);
                 break;
             case Bracket::CURLY:
                 as.put_opcode(cid, Opcode::NS);
