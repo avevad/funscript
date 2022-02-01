@@ -521,6 +521,7 @@ namespace funscript {
         if (!gc_tracked.contains(alloc)) [[unlikely]] throw AssertionError("allocation is not tracked");
         if (!gc_pins[alloc]) [[unlikely]] throw AssertionError("unpin mismatch");
         gc_pins[alloc]--;
+        if (gc_pins[alloc] == 0) gc_pins.erase(alloc);
     }
 
     void Frame::get_refs(const std::function<void(Allocation * )> &callback) {
