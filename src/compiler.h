@@ -47,7 +47,7 @@ namespace funscript {
 
         void put_opcode(size_t cid, Opcode op);
         void put_int(size_t cid, int64_t num);
-        void put_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos);
+        void set_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos);
         void put_reloc(size_t cid, size_t dst_cid, size_t dst_pos);
         size_t put_stub(size_t cid);
         void put_data(size_t cid, const char *data, size_t size);
@@ -65,7 +65,7 @@ namespace funscript {
         }
 
         void compile_expression(AST *ast);
-        void assemble(char *buffer);
+        char *assemble(char *buffer);
     };
 
     class IntegerAST : public AST {

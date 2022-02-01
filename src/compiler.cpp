@@ -178,9 +178,8 @@ namespace funscript {
         chunks[cid].append(sizeof(size_t), '\0');
     }
 
-    void Assembler::put_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos) {
+    void Assembler::set_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos) {
         relocs.push_back({cid, pos, dst_cid, dst_pos});
-        chunks[cid].append(sizeof(size_t), '\0');
     }
 
     size_t Assembler::total_size() const {
@@ -194,7 +193,8 @@ namespace funscript {
         return pos;
     }
 
-    void Assembler::assemble(char *buffer) {
+    char *Assembler::assemble(char *buffer) {
+        memset(buffer, 0, total_size());
         std::vector<size_t> chunks_pos(chunks.size());
         size_t pos = 0;
         size_t align = sizeof(max_align_t);
@@ -209,6 +209,7 @@ namespace funscript {
             size_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos;
             memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(size_t));
         }
+        return buffer + chunks_pos[0];
     }
 
     void Assembler::put_data(size_t cid, const char *data, size_t size) {
@@ -288,25 +289,25 @@ namespace funscript {
                 right->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::JMP);
                 auto pos2 = as.put_stub(cid);
-                as.put_reloc(cid, pos1, cid, as.chunk_size(cid));
+                as.set_reloc(cid, pos1, cid, as.chunk_size(cid));
                 as.put_opcode(cid, Opcode::DIS);
-                as.put_reloc(cid, pos2, cid, as.chunk_size(cid));
+                as.set_reloc(cid, pos2, cid, as.chunk_size(cid));
                 break;
             }
             case Operator::ELSE: {
                 auto[cond, then] = left->get_then_operator();
                 as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
+                cond->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::JN);
                 auto pos1 = as.put_stub(cid);
                 as.put_opcode(cid, Opcode::DIS);
                 then->compile_eval(as, cid);
                 as.put_opcode(cid, Opcode::JMP);
                 auto pos2 = as.put_stub(cid);
-                as.put_reloc(cid, pos1, cid, as.chunk_size(cid));
+                as.set_reloc(cid, pos1, cid, as.chunk_size(cid));
                 as.put_opcode(cid, Opcode::DIS);
                 right->compile_eval(as, cid);
-                as.put_reloc(cid, pos2, cid, as.chunk_size(cid));
+                as.set_reloc(cid, pos2, cid, as.chunk_size(cid));
                 break;
             }
             default:
