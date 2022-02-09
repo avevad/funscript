@@ -96,14 +96,14 @@ namespace funscript {
             {L"?",  Operator::ELSE}
     };
 
-    static const std::map<std::wstring, Bracket> LEFT_BRACKET_KEYWORDS{
-            {L"(", Bracket::PLAIN},
-            {L"{", Bracket::CURLY},
+    static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
+            {L'(', Bracket::PLAIN},
+            {L'{', Bracket::CURLY},
     };
 
-    static const std::map<std::wstring, Bracket> RIGHT_BRACKET_KEYWORDS{
-            {L")", Bracket::PLAIN},
-            {L"}", Bracket::CURLY},
+    static const std::map<wchar_t, Bracket> RIGHT_BRACKET_KEYWORDS{
+            {L')', Bracket::PLAIN},
+            {L'}', Bracket::CURLY},
     };
 
     struct OperatorMeta {
@@ -215,7 +215,7 @@ namespace funscript {
     static std::string addr_to_string(const T *ptr) {
         std::ostringstream str;
         str.imbue(std::locale("C"));
-        str << (const void *)ptr;
+        str << (const void *) ptr;
         return str.str();
     }
 
