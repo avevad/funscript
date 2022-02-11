@@ -93,7 +93,9 @@ namespace funscript {
             {L"<=", Operator::LESS_EQUAL},
             {L">=", Operator::GREATER_EQUAL},
             {L"=>", Operator::THEN},
-            {L"?",  Operator::ELSE}
+            {L"then", Operator::THEN},
+            {L"?",  Operator::ELSE},
+            {L"else",  Operator::ELSE}
     };
 
     static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
