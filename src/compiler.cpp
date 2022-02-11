@@ -310,6 +310,18 @@ namespace funscript {
                 as.set_reloc(cid, pos2, cid, as.chunk_size(cid));
                 break;
             }
+            case Operator::UNTIL: {
+                as.put_opcode(cid, Opcode::SEP);
+                auto pos = as.chunk_size(cid);
+                as.put_opcode(cid, Opcode::DIS);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::SEP);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JN);
+                as.put_reloc(cid, cid, pos);
+                as.put_opcode(cid, Opcode::DIS);
+                break;
+            }
             default:
                 as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);

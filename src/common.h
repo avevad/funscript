@@ -50,7 +50,8 @@ namespace funscript {
         LESS_EQUAL,
         GREATER_EQUAL,
         THEN,
-        ELSE
+        ELSE,
+        UNTIL
     };
 
     enum class Bracket {
@@ -76,26 +77,27 @@ namespace funscript {
     };
 
     static const std::map<std::wstring, Operator> OPERATOR_KEYWORDS{
-            {L"*",  Operator::TIMES},
-            {L"/",  Operator::DIVIDE},
-            {L"+",  Operator::PLUS},
-            {L"-",  Operator::MINUS},
-            {L"=",  Operator::ASSIGN},
-            {L",",  Operator::APPEND},
-            {L";",  Operator::DISCARD},
-            {L":",  Operator::LAMBDA},
-            {L"%",  Operator::MODULO},
+            {L"*", Operator::TIMES},
+            {L"/", Operator::DIVIDE},
+            {L"+", Operator::PLUS},
+            {L"-", Operator::MINUS},
+            {L"=", Operator::ASSIGN},
+            {L",", Operator::APPEND},
+            {L";", Operator::DISCARD},
+            {L":", Operator::LAMBDA},
+            {L"%", Operator::MODULO},
             {L"==", Operator::EQUALS},
             {L"!=", Operator::DIFFERS},
-            {L"!",  Operator::NOT},
-            {L"<",  Operator::LESS},
-            {L">",  Operator::GREATER},
+            {L"!", Operator::NOT},
+            {L"<", Operator::LESS},
+            {L">", Operator::GREATER},
             {L"<=", Operator::LESS_EQUAL},
             {L">=", Operator::GREATER_EQUAL},
             {L"=>", Operator::THEN},
             {L"then", Operator::THEN},
-            {L"?",  Operator::ELSE},
-            {L"else",  Operator::ELSE}
+            {L"?", Operator::ELSE},
+            {L"else", Operator::ELSE},
+            {L"until", Operator::UNTIL}
     };
 
     static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -132,7 +134,8 @@ namespace funscript {
             {Operator::ASSIGN,        {10, true}},  // special
             {Operator::THEN,          {11, false}}, // special
             {Operator::ELSE,          {12, false}}, // special
-            {Operator::DISCARD,       {13, false}}, // special
+            {Operator::UNTIL,         {13, false}}, // special
+            {Operator::DISCARD,       {14, false}}, // special
     };
 
     enum class Opcode : char {
