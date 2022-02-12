@@ -322,6 +322,20 @@ namespace funscript {
                 as.put_opcode(cid, Opcode::DIS);
                 break;
             }
+            case Operator::DO: {
+                auto beg_pos = as.chunk_size(cid);
+                as.put_opcode(cid, Opcode::SEP);
+                left->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JN);
+                auto stub_pos = as.put_stub(cid);
+                as.put_opcode(cid, Opcode::DIS);
+                right->compile_eval(as, cid);
+                as.put_opcode(cid, Opcode::JMP);
+                as.put_reloc(cid, cid, beg_pos);
+                as.set_reloc(cid, stub_pos, cid, as.chunk_size(cid));
+                as.put_opcode(cid, Opcode::DIS);
+                break;
+            }
             default:
                 as.put_opcode(cid, Opcode::SEP);
                 right->compile_eval(as, cid);

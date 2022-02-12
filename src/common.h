@@ -51,7 +51,8 @@ namespace funscript {
         GREATER_EQUAL,
         THEN,
         ELSE,
-        UNTIL
+        UNTIL,
+        DO
     };
 
     enum class Bracket {
@@ -97,7 +98,8 @@ namespace funscript {
             {L"then", Operator::THEN},
             {L"?", Operator::ELSE},
             {L"else", Operator::ELSE},
-            {L"until", Operator::UNTIL}
+            {L"until", Operator::UNTIL},
+            {L"do", Operator::DO}
     };
 
     static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -135,6 +137,7 @@ namespace funscript {
             {Operator::THEN,          {11, false}}, // special
             {Operator::ELSE,          {12, false}}, // special
             {Operator::UNTIL,         {13, false}}, // special
+            {Operator::DO,         {13, false}}, // special
             {Operator::DISCARD,       {14, false}}, // special
     };
 
