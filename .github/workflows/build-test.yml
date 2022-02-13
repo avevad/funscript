@@ -9,4 +9,4 @@ jobs:
       - name: Generate CMake build files
         run: cd cmake-build-release; cmake -DCMAKE_BUILD_TYPE=Release ..
       - name: Build project
-        run: make
+        run: cd cmake-build-release; make
