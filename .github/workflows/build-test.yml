@@ -1,0 +1,12 @@
+name: Build test
+on: [push]
+jobs:
+  Build-Ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Generate CMake build files
+        run: cd cmake-build-release; cmake -DCMAKE_BUILD_TYPE=Release ..
+      - name: Build project
+        run: make
