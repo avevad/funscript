@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 #include <stdexcept>
-#include <source_location>
+#include <experimental/source_location>
 #include <set>
 #include <cstring>
 #include <sstream>
@@ -78,28 +78,28 @@ namespace funscript {
     };
 
     static const std::map<std::wstring, Operator> OPERATOR_KEYWORDS{
-            {L"*", Operator::TIMES},
-            {L"/", Operator::DIVIDE},
-            {L"+", Operator::PLUS},
-            {L"-", Operator::MINUS},
-            {L"=", Operator::ASSIGN},
-            {L",", Operator::APPEND},
-            {L";", Operator::DISCARD},
-            {L":", Operator::LAMBDA},
-            {L"%", Operator::MODULO},
-            {L"==", Operator::EQUALS},
-            {L"!=", Operator::DIFFERS},
-            {L"!", Operator::NOT},
-            {L"<", Operator::LESS},
-            {L">", Operator::GREATER},
-            {L"<=", Operator::LESS_EQUAL},
-            {L">=", Operator::GREATER_EQUAL},
-            {L"=>", Operator::THEN},
-            {L"then", Operator::THEN},
-            {L"?", Operator::ELSE},
-            {L"else", Operator::ELSE},
+            {L"*",     Operator::TIMES},
+            {L"/",     Operator::DIVIDE},
+            {L"+",     Operator::PLUS},
+            {L"-",     Operator::MINUS},
+            {L"=",     Operator::ASSIGN},
+            {L",",     Operator::APPEND},
+            {L";",     Operator::DISCARD},
+            {L":",     Operator::LAMBDA},
+            {L"%",     Operator::MODULO},
+            {L"==",    Operator::EQUALS},
+            {L"!=",    Operator::DIFFERS},
+            {L"!",     Operator::NOT},
+            {L"<",     Operator::LESS},
+            {L">",     Operator::GREATER},
+            {L"<=",    Operator::LESS_EQUAL},
+            {L">=",    Operator::GREATER_EQUAL},
+            {L"=>",    Operator::THEN},
+            {L"then",  Operator::THEN},
+            {L"?",     Operator::ELSE},
+            {L"else",  Operator::ELSE},
             {L"until", Operator::UNTIL},
-            {L"do", Operator::DO}
+            {L"do",    Operator::DO}
     };
 
     static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -137,7 +137,7 @@ namespace funscript {
             {Operator::THEN,          {11, false}}, // special
             {Operator::ELSE,          {12, false}}, // special
             {Operator::UNTIL,         {13, false}}, // special
-            {Operator::DO,         {13, false}}, // special
+            {Operator::DO,            {13, false}}, // special
             {Operator::DISCARD,       {14, false}}, // special
     };
 
@@ -175,7 +175,8 @@ namespace funscript {
         explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
     };
 
-    static void assert_failed(const std::string &what, std::source_location where = std::source_location::current()) {
+    static void assert_failed(const std::string &what,
+                              std::experimental::source_location where = std::experimental::source_location::current()) {
         throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
                              std::to_string(where.column()) + ": function ‘" + where.function_name() +
                              "’: assertion failed: " + what);
