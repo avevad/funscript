@@ -96,8 +96,8 @@ namespace funscript {
 
         friend MemoryManager;
 
-        class Stack : public Allocation{
-            void get_refs(const std::function<void (Allocation *)> &callback) override;
+        class Stack : public Allocation {
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             VM &vm;
 
@@ -197,9 +197,8 @@ namespace funscript {
 
     class Function : public VM::Allocation {
     public:
-        VM &vm;
 
-        explicit Function(VM &vm) : vm(vm) {}
+        explicit Function() {}
 
         virtual void operator()(VM::Stack &stack, Frame *frame) = 0;
     };
@@ -224,8 +223,7 @@ namespace funscript {
 
         void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
-        CompiledFunction(Scope *scope, Bytecode *bytecode, size_t offset) : Function(scope->vars->vm),
-                                                                            bytecode(bytecode), scope(scope),
+        CompiledFunction(Scope *scope, Bytecode *bytecode, size_t offset) : bytecode(bytecode), scope(scope),
                                                                             offset(offset) {}
 
         void operator()(VM::Stack &stack, Frame *frame) override {
