@@ -119,7 +119,7 @@ namespace funscript {
 
             bool as_boolean();
 
-            void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset = 0);
+            void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset);
             void discard();
             void call_operator(Frame *frame, Operator op);
 

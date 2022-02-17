@@ -160,197 +160,100 @@ namespace funscript {
         return ast_ptr(ast[0]);
     }
 
-    size_t Assembler::new_chunk() {
-        chunks.emplace_back();
-        return chunks.size() - 1;
-    }
-
-    void Assembler::put_opcode(size_t cid, Opcode op) {
-        chunks[cid] += char(op);
-    }
-
-    void Assembler::put_int(size_t cid, int64_t num) {
-        chunks[cid].append(reinterpret_cast<char *>(&num), sizeof(int64_t));
-    }
-
-    void Assembler::put_reloc(size_t cid, size_t dst_cid, size_t dst_pos) {
-        relocs.push_back({cid, chunks[cid].size(), dst_cid, dst_pos});
-        chunks[cid].append(sizeof(size_t), '\0');
-    }
-
-    void Assembler::set_reloc(size_t cid, size_t pos, size_t dst_cid, size_t dst_pos) {
-        relocs.push_back({cid, pos, dst_cid, dst_pos});
-    }
-
-    size_t Assembler::total_size() const {
-        size_t pos = 0;
-        size_t align = sizeof(max_align_t);
-        for (size_t i = 1; i <= chunks.size(); i++) {
-            size_t cid = i % chunks.size();
-            pos += chunks[cid].size();
-            if (pos % align != 0) pos += align - (pos % align);
-        }
-        return pos;
-    }
-
-    char *Assembler::assemble(char *buffer) {
-        memset(buffer, 0, total_size());
-        std::vector<size_t> chunks_pos(chunks.size());
-        size_t pos = 0;
-        size_t align = sizeof(max_align_t);
-        for (size_t i = 1; i <= chunks.size(); i++) {
-            size_t cid = i % chunks.size();
-            chunks_pos[cid] = pos;
-            memcpy(buffer + pos, chunks[cid].data(), chunks[cid].size());
-            pos += chunks[cid].size();
-            if (pos % align != 0) pos += align - (pos % align);
-        }
-        for (Relocation reloc: relocs) {
-            size_t result_pos = chunks_pos[reloc.dst_cid] + reloc.dst_pos;
-            memcpy(buffer + chunks_pos[reloc.src_cid] + reloc.src_pos, &result_pos, sizeof(size_t));
-        }
-        return buffer + chunks_pos[0];
-    }
-
-    void Assembler::put_data(size_t cid, const char *data, size_t size) {
-        chunks[cid].append(data, size);
-    }
-
-    size_t Assembler::chunk_size(size_t cid) const {
-        return chunks[cid].size();
-    }
-
-    size_t Assembler::put_string(size_t cid, const std::wstring &str) {
-        size_t align = sizeof(wchar_t);
-        size_t pos = chunks[cid].length();
-        if (pos % align != 0) chunks[cid].append(align - (pos % align), '\0');
-        pos = chunks[cid].length();
-        put_data(cid, reinterpret_cast<const char *>(str.c_str()), (str.size() + 1) * sizeof(wchar_t));
-        return pos;
-    }
-
-    void Assembler::put_byte(size_t cid, char c) {
-        chunks[cid].push_back(c);
-    }
-
-    Assembler::Assembler() {
-        new_chunk(); // data chunk
-    }
-
-    void Assembler::compile_expression(AST *ast) {
-        size_t cid = new_chunk();
-        ast->compile_eval(*this, cid);
-        put_opcode(cid, Opcode::END);
-    }
-
-    size_t Assembler::put_stub(size_t cid) {
-        size_t pos = chunks[cid].size();
-        chunks[cid].append(sizeof(size_t), '\0');
-        return pos;
-    }
-
-    void OperatorAST::compile_eval(Assembler &as, size_t cid) {
+    void OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         switch (op) {
             case Operator::ASSIGN:
-                as.put_opcode(cid, Opcode::SEP);
-                right->compile_eval(as, cid);
-                left->compile_move(as, cid);
-                as.put_opcode(cid, Opcode::DIS);
+                ch.put_instruction({.op = Opcode::SEP});
+                right->compile_eval(as, ch);
+                left->compile_move(as, ch);
+                ch.put_instruction({.op = Opcode::DIS});
                 break;
             case Operator::APPEND:
-                left->compile_eval(as, cid);
-                right->compile_eval(as, cid);
+                left->compile_eval(as, ch);
+                right->compile_eval(as, ch);
                 break;
             case Operator::DISCARD:
-                as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::DIS);
-                right->compile_eval(as, cid);
+                ch.put_instruction({.op = Opcode::SEP});
+                left->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::DIS});
+                right->compile_eval(as, ch);
                 break;
             case Operator::LAMBDA: {
-                as.put_opcode(cid, Opcode::FUN);
-                size_t new_cid = as.new_chunk(); // create new function chunk
-                as.put_reloc(cid, new_cid, 0); // write pointer to the new chunk
+                auto &new_ch = as.new_chunk(); // create new function chunk
+                auto ptr_const = as.add_pointer_constant(new_ch, 0);
+                ch.put_instruction({.op = Opcode::FUN, .u16 = ptr_const});
                 // bytecode of the lambda function:
-                as.put_opcode(new_cid, Opcode::NS); // create lambda scope
-                left->compile_move(as, new_cid); // move arguments to their destination
-                as.put_opcode(new_cid, Opcode::DIS); // discard preceding separator
-                right->compile_eval(as, new_cid); // evaluate the lambda body
-                as.put_opcode(new_cid, Opcode::DS); // discard lambda scope
-                as.put_opcode(new_cid, Opcode::END); // return from function
+                new_ch.put_instruction({.op = Opcode::NS}); // create lambda scope
+                left->compile_move(as, new_ch); // move arguments to their destination
+                new_ch.put_instruction({.op = Opcode::DIS}); // discard preceding separator
+                right->compile_eval(as, new_ch); // evaluate the lambda body
+                new_ch.put_instruction({.op = Opcode::DS});; // discard lambda scope
+                new_ch.put_instruction({.op = Opcode::END}); // return from new function
                 break;
             }
             case Operator::THEN: {
-                as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JN);
-                auto pos1 = as.put_stub(cid);
-                as.put_opcode(cid, Opcode::DIS);
-                right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JMP);
-                auto pos2 = as.put_stub(cid);
-                as.set_reloc(cid, pos1, cid, as.chunk_size(cid));
-                as.put_opcode(cid, Opcode::DIS);
-                as.set_reloc(cid, pos2, cid, as.chunk_size(cid));
+                ch.put_instruction({.op = Opcode::SEP});
+                left->compile_eval(as, ch);
+                auto pos1 = ch.put_instruction();
+                ch.put_instruction({.op = Opcode::DIS});
+                right->compile_eval(as, ch);
+                auto pos2 = ch.put_instruction();
+                ch.set_instruction(pos1, {.op = Opcode::JN, .u16 = as.add_pointer_constant(ch, ch.size())});
+                ch.put_instruction({.op = Opcode::DIS});
+                ch.set_instruction(pos2, {.op = Opcode::JMP, .u16 = as.add_pointer_constant(ch, ch.size())});
                 break;
             }
             case Operator::ELSE: {
                 auto[cond, then] = left->get_then_operator();
-                as.put_opcode(cid, Opcode::SEP);
-                cond->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JN);
-                auto pos1 = as.put_stub(cid);
-                as.put_opcode(cid, Opcode::DIS);
-                then->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JMP);
-                auto pos2 = as.put_stub(cid);
-                as.set_reloc(cid, pos1, cid, as.chunk_size(cid));
-                as.put_opcode(cid, Opcode::DIS);
-                right->compile_eval(as, cid);
-                as.set_reloc(cid, pos2, cid, as.chunk_size(cid));
+                ch.put_instruction({.op = Opcode::SEP});
+                cond->compile_eval(as, ch);
+                auto pos1 = ch.put_instruction();
+                ch.put_instruction({.op = Opcode::DIS});
+                then->compile_eval(as, ch);
+                auto pos2 = ch.put_instruction();
+                ch.set_instruction(pos1, {.op = Opcode::JN, .u16 = as.add_pointer_constant(ch, ch.size())});
+                ch.put_instruction({.op = Opcode::DIS});
+                right->compile_eval(as, ch);
+                ch.set_instruction(pos2, {.op = Opcode::JMP, .u16 = as.add_pointer_constant(ch, ch.size())});
                 break;
             }
             case Operator::UNTIL: {
-                as.put_opcode(cid, Opcode::SEP);
-                auto pos = as.chunk_size(cid);
-                as.put_opcode(cid, Opcode::DIS);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::SEP);
-                right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JN);
-                as.put_reloc(cid, cid, pos);
-                as.put_opcode(cid, Opcode::DIS);
+                ch.put_instruction({.op = Opcode::SEP});
+                auto pos = ch.size();
+                ch.put_instruction({.op = Opcode::DIS});
+                left->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::SEP});
+                right->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::JN, .u16 = as.add_pointer_constant(ch, pos)});
+                ch.put_instruction({.op = Opcode::DIS});
                 break;
             }
             case Operator::DO: {
-                auto beg_pos = as.chunk_size(cid);
-                as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JN);
-                auto stub_pos = as.put_stub(cid);
-                as.put_opcode(cid, Opcode::DIS);
-                right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::JMP);
-                as.put_reloc(cid, cid, beg_pos);
-                as.set_reloc(cid, stub_pos, cid, as.chunk_size(cid));
-                as.put_opcode(cid, Opcode::DIS);
+                auto beg_pos = ch.size();
+                ch.put_instruction({.op = Opcode::SEP});
+                left->compile_eval(as, ch);
+                auto stub_pos = ch.put_instruction();
+                ch.put_instruction({.op = Opcode::DIS});
+                right->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::JMP, .u16 = as.add_pointer_constant(ch, beg_pos)});
+                ch.set_instruction(stub_pos, {.op = Opcode::JN, .u16 = as.add_pointer_constant(ch, ch.size())});
+                ch.put_instruction({.op = Opcode::DIS});
                 break;
             }
             default:
-                as.put_opcode(cid, Opcode::SEP);
-                right->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::SEP);
-                left->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::OP);
-                as.put_byte(cid, (char) op);
+                ch.put_instruction({.op = Opcode::SEP});
+                right->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::SEP});
+                left->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::OP, .u8 = uint8_t(op)});
         }
     }
 
-    void OperatorAST::compile_move(Assembler &as, size_t cid) {
+    void OperatorAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         switch (op) {
             case Operator::APPEND:
-                right->compile_move(as, cid);
-                left->compile_move(as, cid);
+                right->compile_move(as, ch);
+                left->compile_move(as, ch);
                 break;
             default:
                 throw CompilationError("expression is not assignable");
@@ -372,86 +275,150 @@ namespace funscript {
 
     }
 
-    void IdentifierAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::VGT);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+    void IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::VGT, .u16 = as.add_string_constant(name)});
     }
 
-    void IdentifierAST::compile_move(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::VST);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+    void IdentifierAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::VST, .u16 = as.add_string_constant(name)});
     }
 
-    void IntegerAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::INT);
-        as.put_int(cid, num);
+    void IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::INT, .u16 = as.add_int_constant(num)});
     }
 
-    void IntegerAST::compile_move(Assembler &as, size_t cid) {
+    void IntegerAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         throw CompilationError("expression is not assignable");
     }
 
-    void NulAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::NUL);
+    void NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::NUL});
     }
 
-    void NulAST::compile_move(Assembler &as, size_t cid) {
+    void NulAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         throw CompilationError("expression is not assignable");
     }
 
-    void VoidAST::compile_eval(Assembler &as, size_t cid) {}
+    void VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {}
 
-    void VoidAST::compile_move(Assembler &as, size_t cid) {
+    void VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
 
     }
 
-    void BracketAST::compile_eval(Assembler &as, size_t cid) {
+    void BracketAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         switch (type) {
             case Bracket::PLAIN:
-                if (!child->eval_opt.no_scope) as.put_opcode(cid, Opcode::NS);
-                child->compile_eval(as, cid);
-                if (!child->eval_opt.no_scope) as.put_opcode(cid, Opcode::DS);
+                if (!child->eval_opt.no_scope) ch.put_instruction({.op = Opcode::NS});
+                child->compile_eval(as, ch);
+                if (!child->eval_opt.no_scope) ch.put_instruction({.op = Opcode::DS});
                 break;
             case Bracket::CURLY:
-                as.put_opcode(cid, Opcode::NS);
-                as.put_opcode(cid, Opcode::SEP); // to discard values returned by child
-                child->compile_eval(as, cid);
-                as.put_opcode(cid, Opcode::DIS); // discarding child values
-                as.put_opcode(cid, Opcode::OBJ);
-                as.put_opcode(cid, Opcode::DS);
+                ch.put_instruction({.op = Opcode::NS});
+                ch.put_instruction({.op = Opcode::SEP}); // to discard values returned by child
+                child->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::DIS}); // discarding child values
+                ch.put_instruction({.op = Opcode::OBJ});
+                ch.put_instruction({.op = Opcode::DS});
                 break;
         }
     }
 
-    void BracketAST::compile_move(Assembler &as, size_t cid) {
+    void BracketAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         switch (type) {
             case Bracket::PLAIN:
-                child->compile_move(as, cid);
+                child->compile_move(as, ch);
                 break;
             case Bracket::CURLY:
                 throw CompilationError("expression is not assignable");
         }
     }
 
-    void IndexAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::SEP);
-        child->compile_eval(as, cid);
-        as.put_opcode(cid, Opcode::GET);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+    void IndexAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::SEP});
+        child->compile_eval(as, ch);
+        ch.put_instruction({.op = Opcode::GET, .u16 = as.add_string_constant(name)});
     }
 
-    void IndexAST::compile_move(Assembler &as, size_t cid) {
-        as.put_opcode(cid, Opcode::SEP);
-        child->compile_eval(as, cid);
-        as.put_opcode(cid, Opcode::SET);
-        as.put_reloc(cid, 0, as.put_string(0, name));
+    void IndexAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = Opcode::SEP});
+        child->compile_eval(as, ch);
+        ch.put_instruction({.op = Opcode::SET, .u16 = as.add_string_constant(name)});
     }
 
-    void BooleanAST::compile_eval(Assembler &as, size_t cid) {
-        as.put_opcode(cid, bln ? Opcode::PBY : Opcode::PBN);
+    void BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({.op = bln ? Opcode::PBY : Opcode::PBN});
     }
 
-    void BooleanAST::compile_move(Assembler &as, size_t cid) {
+    void BooleanAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         throw CompilationError("expression is not assignable");
+    }
+
+    size_t Assembler::Chunk::put_instruction(Instruction ins) {
+        auto pos = size();
+        data.append(reinterpret_cast<char *>(&ins), sizeof(ins));
+        return pos;
+    }
+
+    void Assembler::Chunk::set_instruction(size_t pos, Instruction ins) {
+        memcpy(data.data() + pos, &ins, sizeof ins);
+    }
+
+
+    void Assembler::add_pointer(size_t from_chunk, size_t from_pos, size_t to_chunk, size_t to_pos) {
+        pointers.push_back({from_chunk, from_pos, to_chunk, to_pos});
+    }
+
+    uint16_t Assembler::add_pointer_constant(Assembler::Chunk &to_chunk, size_t to_pos) {
+        size_t const_id;
+        add_pointer(CONST, const_id = chunks[CONST]->put_aligned<size_t>(), to_chunk.id, to_pos);
+        const_id /= sizeof(size_t);
+        return const_id;
+    }
+
+    Assembler::Chunk &Assembler::new_chunk() {
+        auto *new_ch = new Chunk(chunks.size());
+        chunks.push_back(new_ch);
+        return *new_ch;
+    }
+
+    Assembler::~Assembler() {
+        delete_chunks();
+    }
+
+    uint16_t Assembler::add_int_constant(int64_t n) {
+        return chunks[CONST]->put_aligned(n) / sizeof(int64_t);
+    }
+
+    uint16_t Assembler::add_string_constant(const std::wstring &str) {
+        auto pos = chunks[DATA]->align<wchar_t>();
+        chunks[DATA]->data.append(reinterpret_cast<const char *>(str.data()), str.size() * sizeof(wchar_t));
+        chunks[DATA]->data += '\0';
+        size_t const_id;
+        add_pointer(CONST, const_id = chunks[CONST]->put_aligned<size_t>(), DATA, pos);
+        const_id /= sizeof(size_t);
+        return const_id;
+    }
+
+    void Assembler::delete_chunks() {
+        for (auto *ch: chunks) delete ch;
+    }
+
+    void Assembler::compile_expression(AST *ast) {
+        delete_chunks();
+        chunks.clear();
+        pointers.clear();
+        new_chunk(); // DATA
+        new_chunk(); // CONST
+        chunks[CONST]->put<size_t>(); // stub for CONST size
+        auto &ch = new_chunk(); // main chunk
+        ast->compile_eval(*this, ch);
+        ch.put_instruction({.op = Opcode::END});
+        *reinterpret_cast<size_t *>(chunks[CONST]->data.data()) = chunks[CONST]->size();
+    }
+
+    size_t Assembler::total_size() const {
+        size_t size = 0;
+        for (auto *ch: chunks) size += ch->size();
+        return size;
     }
 }

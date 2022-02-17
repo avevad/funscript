@@ -69,7 +69,7 @@ void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const st
     as.assemble(bytecode);
 
     auto *bytecode_obj = vm.mem.gc_new<funscript::Bytecode>(bytecode, allocator);
-    stack.exec_bytecode(nullptr, scope, bytecode_obj);
+    stack.exec_bytecode(nullptr, scope, bytecode_obj, reinterpret_cast<size_t *>(bytecode)[0]);
 
     print_stack_values(stack);
     stack.pop(0);
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
                 std::cout << ": ";
                 if (!std::getline(std::wcin, code)) break;
 
-                std::wcout << L"= ";
+                if(vm.stack(sid).size() != 0) std::wcout << L"= ";
                 execute_code(vm.stack(sid), scope, code, allocator);
             }
         }
