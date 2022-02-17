@@ -9,8 +9,9 @@
 #include <map>
 #include <fstream>
 
-void print_stack_values(funscript::VM::Stack &stack) {
+void print_stack_values(funscript::VM::Stack &stack, bool silent) {
     if (stack.size() > 0) {
+        if (!silent) std::wcout << L"= ";
         for (funscript::stack_pos_t pos = 0; pos < stack.size(); pos++) {
             funscript::Value val = stack[pos];
             switch (val.type) {
@@ -39,7 +40,7 @@ void print_stack_values(funscript::VM::Stack &stack) {
 }
 
 void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const std::wstring &code,
-                  funscript::Allocator *allocator = new funscript::DefaultAllocator) {
+                  funscript::Allocator *allocator = new funscript::DefaultAllocator, bool silent = true) {
     funscript::VM &vm = stack.vm;
 
     std::vector<funscript::Token> tokens;
@@ -71,7 +72,7 @@ void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const st
     auto *bytecode_obj = vm.mem.gc_new<funscript::Bytecode>(bytecode, allocator);
     stack.exec_bytecode(nullptr, scope, bytecode_obj, reinterpret_cast<size_t *>(bytecode)[0]);
 
-    print_stack_values(stack);
+    print_stack_values(stack, silent);
     stack.pop(0);
     vm.mem.gc_unpin(bytecode_obj);
     vm.mem.gc_cycle();
@@ -104,8 +105,7 @@ int main(int argc, char **argv) {
                 std::cout << ": ";
                 if (!std::getline(std::wcin, code)) break;
 
-                if(vm.stack(sid).size() != 0) std::wcout << L"= ";
-                execute_code(vm.stack(sid), scope, code, allocator);
+                execute_code(vm.stack(sid), scope, code, allocator, false);
             }
         }
         vm.mem.gc_unpin(scope);
