@@ -320,6 +320,11 @@ namespace funscript {
                 ch.put_instruction({.op = Opcode::OBJ});
                 ch.put_instruction({.op = Opcode::DS});
                 break;
+            case Bracket::SQUARE:
+                ch.put_instruction({.op = Opcode::SEP});
+                child->compile_eval(as, ch);
+                ch.put_instruction({.op = Opcode::ARR});
+                break;
         }
     }
 
@@ -329,6 +334,7 @@ namespace funscript {
                 child->compile_move(as, ch);
                 break;
             case Bracket::CURLY:
+            case Bracket::SQUARE:
                 throw CompilationError("expression is not assignable");
         }
     }

@@ -426,6 +426,11 @@ namespace funscript {
                     ip++;
                     break;
                 }
+                case Opcode::ARR: {
+                    push_arr();
+                    ip++;
+                    break;
+                }
                 default:
                     throw std::runtime_error("unknown opcode");
             }
@@ -446,6 +451,15 @@ namespace funscript {
     bool VM::Stack::as_boolean() {
         if (get(-1).type != Value::BLN) assert_failed("no implicit conversion to boolean");
         return get(-1).data.bln;
+    }
+
+    void VM::Stack::push_arr() {
+        auto pos = find_sep();
+        auto len = -pos - 1;
+        auto *array = vm.mem.gc_new<Array>(vm, len);
+        memcpy(array->data, stack.data() + abs(pos) + 1, len * sizeof(Value));
+        pop(pos);
+        push({Value::ARR, {.arr = array}});
     }
 
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
@@ -521,4 +535,14 @@ namespace funscript {
     Bytecode::~Bytecode() {
         allocator->free(data);
     }
+
+    void Array::get_refs(const std::function<void(Allocation * )> &callback) {
+        for (size_t pos = 0; pos < len; pos++) {
+            const Value &val = data[pos];
+            if (val.type == Value::OBJ) callback(val.data.obj);
+            if (val.type == Value::FUN) callback(val.data.fun);
+        }
+    }
+
+    Array::~Array() { vm.mem.free(data); }
 }
