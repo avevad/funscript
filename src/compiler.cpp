@@ -398,7 +398,7 @@ namespace funscript {
     uint16_t Assembler::add_string_constant(const std::wstring &str) {
         auto pos = chunks[DATA]->align<wchar_t>();
         chunks[DATA]->data.append(reinterpret_cast<const char *>(str.data()), str.size() * sizeof(wchar_t));
-        chunks[DATA]->data += '\0';
+        chunks[DATA]->data.append(sizeof(wchar_t), 0);
         size_t const_id;
         add_pointer(CONST, const_id = chunks[CONST]->put_aligned<size_t>(), DATA, pos);
         const_id /= sizeof(size_t);
