@@ -70,7 +70,8 @@ namespace funscript {
             NUL,
             VOID, // special
             INDEX,
-            BOOLEAN
+            BOOLEAN,
+            STRING
         };
         using Data = std::variant<Operator, Bracket, int64_t, std::wstring, bool>;
         Type type;
@@ -165,6 +166,7 @@ namespace funscript {
         JMP, // jump unconditionally
         POP, // pop one value from stack
         ARR, // create array
+        STR, // put string
     };
 
     struct Instruction {

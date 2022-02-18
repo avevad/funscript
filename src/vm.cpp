@@ -276,6 +276,22 @@ namespace funscript {
                 }
                 break;
             }
+            case Value::STR: {
+                FS_ASSERT(cnt_b == 1); // TODO
+                switch (op) {
+                    case Operator::PLUS: {
+                        FS_ASSERT(get(-3).type == Value::STR);
+                        fstring str(get(-1).data.str->data, get(-1).data.str->len, vm.mem.str_alloc());
+                        str.append(get(-3).data.str->data, get(-3).data.str->len);
+                        pop(-4);
+                        push_str(str.data(), str.length());
+                        break;
+                    }
+                    default:
+                        assert_failed("invalid operation on string"); // TODO
+                }
+                break;
+            }
             default:
                 assert_failed("unknown value type"); // TODO
         }
@@ -444,6 +460,12 @@ namespace funscript {
                     ip++;
                     break;
                 }
+                case Opcode::STR: {
+                    auto *str = reinterpret_cast<const wchar_t *>(bytecode->get_data() + size_const[inst.u16]);
+                    push_str(str);
+                    ip++;
+                    break;
+                }
                 default:
                     throw std::runtime_error("unknown opcode");
             }
@@ -473,6 +495,17 @@ namespace funscript {
         memcpy(array->data, stack.data() + abs(pos) + 1, len * sizeof(Value));
         pop(pos);
         push({Value::ARR, {.arr = array}});
+        vm.mem.gc_unpin(array);
+    }
+
+    void VM::Stack::push_str(const wchar_t *beg, size_t len) {
+        auto *str = vm.mem.gc_new<String>(beg, len, vm.config.allocator);
+        push({Value::STR, {.str = str}});
+        vm.mem.gc_unpin(str);
+    }
+
+    void VM::Stack::push_str(const wchar_t *str) {
+        push_str(str, wcslen(str));
     }
 
     void VM::MemoryManager::gc_track(VM::Allocation *alloc) {

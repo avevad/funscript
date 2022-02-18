@@ -38,6 +38,9 @@ std::wstring to_string(const funscript::Value &val) {
             result += L"]";
             return result;
         }
+        case funscript::Value::STR: {
+            return L"\"" + std::wstring(val.data.str->data, val.data.str->len) + L"\"";
+        }
         default:
             throw std::runtime_error("unknown value");
     }

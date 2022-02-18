@@ -22,9 +22,11 @@ namespace funscript {
             left_bracket_part = LEFT_BRACKET_KEYWORDS.contains(ch);
             right_bracket_part = RIGHT_BRACKET_KEYWORDS.contains(ch);
         } else left_bracket_part = right_bracket_part = false;
+
         nul_part &= len < NUL_KW.length() && NUL_KW[len] == ch;
         yes_part &= len < YES_KW.length() && YES_KW[len] == ch;
         no_part &= len < NO_KW.length() && NO_KW[len] == ch;
+
         if (len == 0) {
             if (id_part) id_part = iswalpha(ch) || ch == L'_';
             if (index_part) index_part = ch == '.';
@@ -35,13 +37,25 @@ namespace funscript {
             if (id_part) id_part = iswalnum(ch) || ch == L'_';
             if (index_part) index_part = iswalnum(ch) || ch == L'_';
         }
+
         int_part &= std::iswdigit(ch);
+
         std::vector<std::wstring> ops_part_new;
         ops_part_new.reserve(ops_part.size());
         for (const auto &op: ops_part) {
             if (len < op.length() && op[len] == ch) ops_part_new.push_back(op);
         }
         ops_part = ops_part_new;
+
+        if (len == 0) {
+            if (ch != DOUBLE_QUOTE) str_part = false;
+        } else {
+            if (str_part) {
+                if (str_end) str_part = false;
+                else str_end = ch == DOUBLE_QUOTE;
+            }
+        }
+
         len++;
     }
 
@@ -55,6 +69,7 @@ namespace funscript {
                 index_part ||
                 left_bracket_part ||
                 right_bracket_part ||
+                str_part ||
                 !ops_part.empty();
         return is_valid;
     }
@@ -78,6 +93,9 @@ namespace funscript {
         }
         if (std::all_of(token.begin(), token.end(), iswdigit)) {
             return {Token::INTEGER, std::stoll(token)};
+        }
+        if (token.length() > 1 && token[0] == DOUBLE_QUOTE && token.back() == DOUBLE_QUOTE) {
+            return {Token::STRING, token.substr(1, token.length() - 2)};
         }
         if (is_valid_id(token)) return {Token::ID, token};
         if (token == L"." || token[0] == '.' && is_valid_id(token.substr(1)))

@@ -14,6 +14,7 @@ namespace funscript {
     static const std::wstring NUL_KW = L"nul";
     static const std::wstring YES_KW = L"yes";
     static const std::wstring NO_KW = L"no";
+    static const wchar_t DOUBLE_QUOTE = L'\"';
 
     class TokenAutomaton {
         size_t len = 0;
@@ -25,6 +26,7 @@ namespace funscript {
         bool index_part = true;
         bool left_bracket_part = true;
         bool right_bracket_part = true;
+        bool str_part = true, str_end = false;
         std::vector<std::wstring> ops_part;
     public:
         TokenAutomaton();
