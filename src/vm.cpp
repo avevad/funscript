@@ -282,11 +282,27 @@ namespace funscript {
                 FS_ASSERT(cnt_b == 1); // TODO
                 switch (op) {
                     case Operator::PLUS: {
-                        FS_ASSERT(get(-3).type == Value::STR);
+                        FS_ASSERT(get(-3).type == Value::STR); // TODO
                         fstring str(get(-1).data.str->data, get(-1).data.str->len, vm.mem.str_alloc());
                         str.append(get(-3).data.str->data, get(-3).data.str->len);
                         pop(-4);
                         push_str(str.data(), str.length());
+                        break;
+                    }
+                    case Operator::CALL: {
+                        FS_ASSERT(get(-3).type == Value::ARR); // TODO
+                        fstring new_str(vm.mem.str_alloc());
+                        Array *ind = get(-3).data.arr;
+                        String *str = get(-1).data.str;
+                        new_str.reserve(ind->len);
+                        for (size_t pos = 0; pos < ind->len; pos++) {
+                            FS_ASSERT(ind->data[pos].type == Value::INT); // TODO
+                            auto i = ind->data[pos].data.num;
+                            FS_ASSERT(i >= 0 && i < str->len); // TODO
+                            new_str += str->data[i];
+                        }
+                        pop(-4);
+                        push_str(new_str.data(), new_str.length());
                         break;
                     }
                     default:
