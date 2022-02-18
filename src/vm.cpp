@@ -23,6 +23,8 @@ namespace funscript {
         for (const auto &[key, val]: str_map) {
             if (val.type == Value::OBJ) callback(val.data.obj);
             if (val.type == Value::FUN) callback(val.data.fun);
+            if (val.type == Value::ARR) callback(val.data.arr);
+            if (val.type == Value::STR) callback(val.data.str);
         }
     }
 
@@ -476,6 +478,8 @@ namespace funscript {
         for (const Value &val: stack) {
             if (val.type == Value::OBJ) callback(val.data.obj);
             if (val.type == Value::FUN) callback(val.data.fun);
+            if (val.type == Value::ARR) callback(val.data.arr);
+            if (val.type == Value::STR) callback(val.data.str);
         }
     }
 
@@ -587,6 +591,8 @@ namespace funscript {
             const Value &val = data[pos];
             if (val.type == Value::OBJ) callback(val.data.obj);
             if (val.type == Value::FUN) callback(val.data.fun);
+            if (val.type == Value::ARR) callback(val.data.arr);
+            if (val.type == Value::STR) callback(val.data.str);
         }
     }
 
