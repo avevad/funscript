@@ -246,7 +246,7 @@ namespace funscript {
                 }
                 break;
             case Value::BLN: {
-                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::BLN); // TODO
+                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::BLN);
                 bool left = get(-1).data.bln, right = get(-3).data.bln;
                 bool result;
                 switch (op) {
@@ -261,19 +261,6 @@ namespace funscript {
                 }
                 pop(-4);
                 push_bln(result);
-                break;
-            }
-            case Value::ARR: {
-                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::ARR); // TODO
-                FS_ASSERT(op == Operator::CALL); // TODO
-                Array *arr = get(-1).data.arr, *ind = get(-3).data.arr;
-                pop(-4);
-                for (size_t pos = 0; pos < ind->len; pos++) {
-                    FS_ASSERT(ind->data[pos].type == Value::INT); // TODO
-                    auto i = ind->data[pos].data.num;
-                    FS_ASSERT(i >= 0 && i < arr->len); // TODO
-                    push(arr->data[i]);
-                }
                 break;
             }
             default:
