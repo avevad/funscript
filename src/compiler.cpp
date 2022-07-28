@@ -204,7 +204,7 @@ namespace funscript {
                 break;
             }
             case Operator::ELSE: {
-                auto[cond, then] = left->get_then_operator();
+                auto [cond, then] = left->get_then_operator();
                 ch.put_instruction({.op = Opcode::SEP});
                 cond->compile_eval(as, ch);
                 auto pos1 = ch.put_instruction();
@@ -266,8 +266,9 @@ namespace funscript {
                 return {.no_scope = true};
             case Operator::ASSIGN:
                 return {.no_scope = false};
+            default:
+                return {.no_scope = a.no_scope && b.no_scope};
         }
-        return {.no_scope = a.no_scope && b.no_scope};
     }
 
     OperatorAST::OperatorAST(AST *left, AST *right, Operator op) :

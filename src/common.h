@@ -180,7 +180,7 @@ namespace funscript {
         explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
     };
 
-    static void assert_failed(const std::string &what,
+    [[noreturn]] static void assert_failed(const std::string &what,
                               std::experimental::source_location where = std::experimental::source_location::current()) {
         throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
                              std::to_string(where.column()) + ": function ‘" + where.function_name() +
