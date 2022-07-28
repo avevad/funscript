@@ -271,9 +271,8 @@ namespace funscript {
                 return {.no_scope = true};
             case Operator::ASSIGN:
                 return {.no_scope = false};
-            default:
-                return {.no_scope = a.no_scope && b.no_scope};
         }
+        return {.no_scope = a.no_scope && b.no_scope};
     }
 
     OperatorAST::OperatorAST(AST *left, AST *right, Operator op) :
