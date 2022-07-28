@@ -30,8 +30,6 @@ namespace funscript {
 
     class Array;
 
-    class String;
-
     typedef ssize_t stack_pos_t;
 
     class VM {
@@ -121,8 +119,6 @@ namespace funscript {
             void push_fun(Function *fun);
             void push_bln(bool bln);
             void push_arr();
-            void push_str(const wchar_t *data, size_t len);
-            void push_str(const wchar_t *str);
 
             bool as_boolean();
 
@@ -155,7 +151,7 @@ namespace funscript {
 
     struct Value {
         enum Type {
-            NUL, SEP, INT, OBJ, FUN, BLN, ARR, STR
+            NUL, SEP, INT, OBJ, FUN, BLN, ARR
         };
         union Data {
             int64_t num;
@@ -163,7 +159,6 @@ namespace funscript {
             Function *fun;
             bool bln;
             Array *arr;
-            String *str;
         };
         Type type = NUL;
         Data data = {.obj = nullptr};
@@ -256,33 +251,11 @@ namespace funscript {
         void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         Value *const data;
-        const size_t len;
+        size_t len;
 
         Array(VM &vm, size_t n) : vm(vm), data(vm.mem.allocate<Value>(n)), len(n) {}
 
         ~Array() override;
-    };
-
-    class String : public VM::Allocation {
-        void get_refs(const std::function<void(Allocation * )> &callback) override {}
-
-        static wchar_t *copy(const wchar_t *data, size_t len, Allocator *alloc) {
-            auto *new_data = alloc->allocate(sizeof(wchar_t) * len);
-            memcpy(new_data, data, sizeof(wchar_t) * len);
-            return reinterpret_cast<wchar_t *>(new_data);
-        }
-
-        Allocator *const alloc;
-        wchar_t *const priv_data;
-
-    public:
-        const wchar_t *const data;
-        const size_t len;
-
-        String(const wchar_t *data, size_t len, Allocator *alloc) :
-                alloc(alloc), priv_data(copy(data, len, alloc)), data(priv_data), len(len) {}
-
-        ~String() { alloc->free(priv_data); }
     };
 }
 

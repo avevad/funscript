@@ -206,17 +206,6 @@ namespace funscript {
         explicit BooleanAST(bool bln) : AST({.no_scope = true}), bln(bln) {}
 
     };
-
-    class StringAST : public AST {
-        std::wstring str;
-
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
-    public:
-        explicit StringAST(std::wstring str) : AST({.no_scope = true}), str(std::move(str)) {}
-
-    };
 }
 
 #endif //FUNSCRIPT_COMPILER_H

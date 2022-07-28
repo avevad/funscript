@@ -28,7 +28,6 @@ namespace funscript {
                 case Token::NUL:
                 case Token::INTEGER:
                 case Token::BOOLEAN:
-                case Token::STRING:
                 case Token::ID: {
                     if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
                         while (!stack.empty() && stack.back().type == Token::INDEX) {
@@ -108,10 +107,6 @@ namespace funscript {
         std::vector<AST *> ast;
         for (const Token &token: queue) {
             switch (token.type) {
-                case Token::STRING: {
-                    ast.push_back(new StringAST(get<std::wstring>(token.data)));
-                    break;
-                }
                 case Token::NUL: {
                     ast.push_back(new NulAST);
                     break;
@@ -431,13 +426,5 @@ namespace funscript {
         size_t size = 0;
         for (auto *ch: chunks) size += ch->size();
         return size;
-    }
-
-    void StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
-        ch.put_instruction({.op = Opcode::STR, .u16 = as.add_string_constant(str)});
-    }
-
-    void StringAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
-        throw CompilationError("expression is not assignable");
     }
 }
