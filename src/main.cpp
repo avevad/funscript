@@ -9,46 +9,30 @@
 #include <map>
 #include <fstream>
 
-template<typename T>
-std::wstring addr_to_str(const T *ptr) {
-    std::wstringstream str;
-    str.imbue(std::locale("C"));
-    str << ((const void *) ptr);
-    return str.str();
-}
-
-std::wstring to_string(const funscript::Value &val) {
-    switch (val.type) {
-        case funscript::Value::NUL:
-            return L"nul";
-        case funscript::Value::INT:
-            return std::to_wstring(val.data.num);
-        case funscript::Value::OBJ:
-            return L"object(" + addr_to_str(val.data.obj) + L")";
-        case funscript::Value::FUN:
-            return L"function(" + addr_to_str(val.data.fun) + L")";
-        case funscript::Value::BLN:
-            return val.data.bln ? L"yes" : L"no";
-        case funscript::Value::ARR: {
-            std::wstring result = L"[";
-            for (size_t pos = 0; pos < val.data.arr->len; pos++) {
-                result += to_string(val.data.arr->data[pos]);
-                if (pos + 1 != val.data.arr->len) result += L", ";
-            }
-            result += L"]";
-            return result;
-        }
-        default:
-            throw std::runtime_error("unknown value");
-    }
-}
-
 void print_stack_values(funscript::VM::Stack &stack, bool silent) {
     if (stack.size() > 0) {
         if (!silent) std::wcout << L"= ";
         for (funscript::stack_pos_t pos = 0; pos < stack.size(); pos++) {
             funscript::Value val = stack[pos];
-            std::wcout << to_string(val);
+            switch (val.type) {
+                case funscript::Value::NUL:
+                    std::wcout << L"nul";
+                    break;
+                case funscript::Value::INT:
+                    std::wcout << val.data.num;
+                    break;
+                case funscript::Value::OBJ:
+                    std::wcout << L"object(" << val.data.obj << ")";
+                    break;
+                case funscript::Value::FUN:
+                    std::wcout << L"function(" << val.data.fun << ")";
+                    break;
+                case funscript::Value::BLN:
+                    std::wcout << (val.data.bln ? L"yes" : L"no");
+                    break;
+                default:
+                    throw std::runtime_error("unknown value");
+            }
             if (pos != stack.size() - 1) std::wcout << L", ";
             else std::wcout << std::endl;
         }

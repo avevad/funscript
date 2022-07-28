@@ -56,7 +56,7 @@ namespace funscript {
     };
 
     enum class Bracket {
-        PLAIN, CURLY, SQUARE
+        PLAIN, CURLY
     };
 
     struct Token {
@@ -105,13 +105,11 @@ namespace funscript {
     static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
             {L'(', Bracket::PLAIN},
             {L'{', Bracket::CURLY},
-            {L'[', Bracket::SQUARE},
     };
 
     static const std::map<wchar_t, Bracket> RIGHT_BRACKET_KEYWORDS{
             {L')', Bracket::PLAIN},
             {L'}', Bracket::CURLY},
-            {L']', Bracket::SQUARE},
     };
 
     struct OperatorMeta {
@@ -164,7 +162,6 @@ namespace funscript {
         JN,  // jump if "no"
         JMP, // jump unconditionally
         POP, // pop one value from stack
-        ARR, // create array
     };
 
     struct Instruction {
@@ -227,6 +224,14 @@ namespace funscript {
             return *this;
         }
     };
+
+    template<typename T>
+    static std::string addr_to_string(const T *ptr) {
+        std::ostringstream str;
+        str.imbue(std::locale("C"));
+        str << (const void *) ptr;
+        return str.str();
+    }
 
     using fchar = wchar_t;
 

@@ -28,8 +28,6 @@ namespace funscript {
 
     class Bytecode;
 
-    class Array;
-
     typedef ssize_t stack_pos_t;
 
     class VM {
@@ -118,7 +116,6 @@ namespace funscript {
             void push_obj(Object *obj);
             void push_fun(Function *fun);
             void push_bln(bool bln);
-            void push_arr();
 
             bool as_boolean();
 
@@ -151,14 +148,13 @@ namespace funscript {
 
     struct Value {
         enum Type {
-            NUL, SEP, INT, OBJ, FUN, BLN, ARR
+            NUL, SEP, INT, OBJ, FUN, BLN
         };
         union Data {
             int64_t num;
             Object *obj;
             Function *fun;
             bool bln;
-            Array *arr;
         };
         Type type = NUL;
         Data data = {.obj = nullptr};
@@ -243,19 +239,6 @@ namespace funscript {
         explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
 
         ~Frame() override = default;
-    };
-
-    class Array : public VM::Allocation {
-        VM &vm;
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        Value *const data;
-        size_t len;
-
-        Array(VM &vm, size_t n) : vm(vm), data(vm.mem.allocate<Value>(n)), len(n) {}
-
-        ~Array() override;
     };
 }
 
