@@ -112,7 +112,7 @@ namespace funscript {
                     break;
                 }
                 case Token::ID: {
-                    ast.push_back(new IdentifierAST(get<std::wstring>(token.data)));
+                    ast.push_back(new IdentifierAST(get<fstring>(token.data)));
                     break;
                 }
                 case Token::INTEGER: {
@@ -147,7 +147,7 @@ namespace funscript {
                 case Token::INDEX: {
                     AST *child = ast.back();
                     ast.pop_back();
-                    ast.push_back(new IndexAST(child, get<std::wstring>(token.data)));
+                    ast.push_back(new IndexAST(child, get<fstring>(token.data)));
                     break;
                 }
                 case Token::BOOLEAN: {
@@ -390,10 +390,10 @@ namespace funscript {
         return chunks[CONST]->put_aligned(n) / sizeof(int64_t);
     }
 
-    uint16_t Assembler::add_string_constant(const std::wstring &str) {
-        auto pos = chunks[DATA]->align<wchar_t>();
-        chunks[DATA]->data.append(reinterpret_cast<const char *>(str.data()), str.size() * sizeof(wchar_t));
-        chunks[DATA]->data += '\0';
+    uint16_t Assembler::add_string_constant(const fstring &str) {
+        auto pos = chunks[DATA]->align<fchar>();
+        chunks[DATA]->data.append(reinterpret_cast<const char *>(str.data()), str.size() * sizeof(fchar));
+        chunks[DATA]->put<fchar>(0);
         size_t const_id;
         add_pointer(CONST, const_id = chunks[CONST]->put_aligned<size_t>(), DATA, pos);
         const_id /= sizeof(size_t);

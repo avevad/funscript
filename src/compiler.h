@@ -21,7 +21,7 @@ namespace funscript {
             friend Assembler;
             std::string data;
 
-            Chunk(size_t id) : id(id) {}
+            explicit Chunk(size_t id) : id(id) {}
 
             template<typename T>
             void put(T x = T()) { data.append(reinterpret_cast<const char *>(&x), sizeof x); }
@@ -66,7 +66,7 @@ namespace funscript {
 
         uint16_t add_pointer_constant(Chunk &to_chunk, size_t to_pos);
         uint16_t add_int_constant(int64_t n);
-        uint16_t add_string_constant(const std::wstring &str);
+        uint16_t add_string_constant(const fstring &str);
 
         void compile_expression(AST *ast);
 
@@ -129,13 +129,13 @@ namespace funscript {
     };
 
     class IdentifierAST : public AST {
-        std::wstring name;
+        fstring name;
 
         void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
 
         void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
     public:
-        explicit IdentifierAST(std::wstring name) : AST({.no_scope = true}), name(std::move(name)) {}
+        explicit IdentifierAST(fstring name) : AST({.no_scope = true}), name(std::move(name)) {}
 
     };
 
@@ -187,13 +187,13 @@ namespace funscript {
 
     class IndexAST : public AST {
         ast_ptr child;
-        std::wstring name;
+        fstring name;
 
         void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
 
         void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
     public:
-        IndexAST(AST *child, std::wstring name) : AST({.no_scope = true}), child(child), name(std::move(name)) {}
+        IndexAST(AST *child, fstring name) : AST({.no_scope = true}), child(child), name(std::move(name)) {}
     };
 
     class BooleanAST : public AST {

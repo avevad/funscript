@@ -39,7 +39,7 @@ void print_stack_values(funscript::VM::Stack &stack, bool silent) {
     }
 }
 
-void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const std::wstring &code,
+void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const funscript::fstring &code,
                   funscript::Allocator *allocator = new funscript::DefaultAllocator, bool silent = true) {
     funscript::VM &vm = stack.vm;
 
@@ -95,17 +95,18 @@ int main(int argc, char **argv) {
         vm.mem.gc_unpin(globals);
 
         if (read_from_file) {
-            std::wifstream file(argv[1]);
-            std::wstring code((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
+            std::ifstream file(argv[1]);
+            std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-            execute_code(vm.stack(sid), scope, code, allocator);
+            execute_code(vm.stack(sid), scope, funscript::ascii2fstring(code, vm.mem.str_alloc()));
         } else {
             while (true) {
-                std::wstring code;
+                std::string code;
                 std::cout << ": ";
-                if (!std::getline(std::wcin, code)) break;
+                if (!std::getline(std::cin, code)) break;
 
-                execute_code(vm.stack(sid), scope, code, allocator, false);
+                execute_code(vm.stack(sid), scope, funscript::ascii2fstring(code, vm.mem.str_alloc()), allocator,
+                             false);
             }
         }
         vm.mem.gc_unpin(scope);

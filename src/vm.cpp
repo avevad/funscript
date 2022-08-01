@@ -354,14 +354,14 @@ namespace funscript {
                     break;
                 }
                 case Opcode::VGT: {
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode->get_data() + size_const[inst.u16]),
+                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
                                  vm.mem.str_alloc());
                     push(scope->get_var(name));
                     ip++;
                     break;
                 }
                 case Opcode::VST: {
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode->get_data() + size_const[inst.u16]),
+                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
                                  vm.mem.str_alloc());
                     if (get(-1).type != Value::SEP) {
                         scope->set_var(name, get(-1));
@@ -371,7 +371,7 @@ namespace funscript {
                     break;
                 }
                 case Opcode::GET: {
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode->get_data() + size_const[inst.u16]),
+                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
                                  vm.mem.str_alloc());
                     FS_ASSERT(get(-1).type == Value::OBJ); // TODO
                     FS_ASSERT(get(-2).type == Value::SEP); // TODO
@@ -385,7 +385,7 @@ namespace funscript {
                     break;
                 }
                 case Opcode::SET: {
-                    fstring name(reinterpret_cast<const wchar_t *>(bytecode->get_data() + size_const[inst.u16]),
+                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
                                  vm.mem.str_alloc());
                     FS_ASSERT(get(-1).type == Value::OBJ); // TODO
                     FS_ASSERT(get(-2).type == Value::SEP); // TODO

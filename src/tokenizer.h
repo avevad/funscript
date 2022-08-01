@@ -11,11 +11,47 @@
 
 namespace funscript {
 
-    static const std::wstring NUL_KW = L"nul";
-    static const std::wstring YES_KW = L"yes";
-    static const std::wstring NO_KW = L"no";
+    static const std::map<std::string, Operator> OPERATOR_KEYWORDS{
+            {"*",     Operator::TIMES},
+            {"/",     Operator::DIVIDE},
+            {"+",     Operator::PLUS},
+            {"-",     Operator::MINUS},
+            {"=",     Operator::ASSIGN},
+            {",",     Operator::APPEND},
+            {";",     Operator::DISCARD},
+            {":",     Operator::LAMBDA},
+            {"%",     Operator::MODULO},
+            {"==",    Operator::EQUALS},
+            {"!=",    Operator::DIFFERS},
+            {"!",     Operator::NOT},
+            {"<",     Operator::LESS},
+            {">",     Operator::GREATER},
+            {"<=",    Operator::LESS_EQUAL},
+            {">=",    Operator::GREATER_EQUAL},
+            {"=>",    Operator::THEN},
+            {"then",  Operator::THEN},
+            {"?",     Operator::ELSE},
+            {"else",  Operator::ELSE},
+            {"until", Operator::UNTIL},
+            {"do",    Operator::DO}
+    };
+
+    static const std::map<char, Bracket> LEFT_BRACKET_KEYWORDS{
+            {'(', Bracket::PLAIN},
+            {'{', Bracket::CURLY},
+    };
+
+    static const std::map<char, Bracket> RIGHT_BRACKET_KEYWORDS{
+            {')', Bracket::PLAIN},
+            {'}', Bracket::CURLY},
+    };
+
+    static const std::string NUL_KW = "nul";
+    static const std::string YES_KW = "yes";
+    static const std::string NO_KW = "no";
 
     class TokenAutomaton {
+        AllocatorWrapper<fchar> alloc;
         size_t len = 0;
         bool nul_part = true;
         bool yes_part = true;
@@ -25,20 +61,20 @@ namespace funscript {
         bool index_part = true;
         bool left_bracket_part = true;
         bool right_bracket_part = true;
-        std::vector<std::wstring> ops_part;
+        std::vector<fstring> ops_part;
     public:
-        TokenAutomaton();
+        TokenAutomaton(AllocatorWrapper<fchar> alloc);
 
-        void append(wchar_t ch);
+        void append(fchar ch);
 
         [[nodiscard]] bool is_valid() const;
     };
 
-    bool is_valid_id(const std::wstring &token);
+    bool is_valid_id(const fstring &token, size_t offset);
 
-    Token get_token(const std::wstring &token);
+    Token get_token(const fstring &token);
 
-    void tokenize(const std::wstring &code, const std::function<void(Token)> &cb);
+    void tokenize(const fstring &code, const std::function<void(Token)> &cb);
 
 }
 

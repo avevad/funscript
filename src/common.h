@@ -59,6 +59,59 @@ namespace funscript {
         PLAIN, CURLY
     };
 
+    class Allocator {
+    public:
+        virtual void *allocate(size_t size) = 0;
+        virtual void free(void *ptr) = 0;
+    };
+
+    class DefaultAllocator : public Allocator {
+    public:
+        void *allocate(size_t size) override { return std::malloc(size); }
+
+        void free(void *ptr) override { std::free(ptr); }
+    };
+
+    template<typename T>
+    class AllocatorWrapper {
+    public:
+        Allocator *alloc;
+        typedef T value_type;
+
+        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
+
+        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
+
+        template<typename E>
+        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
+
+        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
+
+        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
+
+        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
+            if (&old != this) alloc = old.alloc;
+            return *this;
+        }
+
+        bool operator==(const AllocatorWrapper &o) const {
+            return o.alloc == alloc;
+        }
+
+        bool operator!=(const AllocatorWrapper &o) const {
+            return o.alloc == alloc;
+        }
+    };
+
+    using fchar = char32_t;
+
+    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
+    template<typename K, typename V>
+    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
+
+    template<typename K>
+    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
+
     struct Token {
         enum Type {
             UNKNOWN = 0,
@@ -72,44 +125,9 @@ namespace funscript {
             INDEX,
             BOOLEAN
         };
-        using Data = std::variant<Operator, Bracket, int64_t, std::wstring, bool>;
+        using Data = std::variant<Operator, Bracket, int64_t, fstring, bool>;
         Type type;
         Data data;
-    };
-
-    static const std::map<std::wstring, Operator> OPERATOR_KEYWORDS{
-            {L"*",     Operator::TIMES},
-            {L"/",     Operator::DIVIDE},
-            {L"+",     Operator::PLUS},
-            {L"-",     Operator::MINUS},
-            {L"=",     Operator::ASSIGN},
-            {L",",     Operator::APPEND},
-            {L";",     Operator::DISCARD},
-            {L":",     Operator::LAMBDA},
-            {L"%",     Operator::MODULO},
-            {L"==",    Operator::EQUALS},
-            {L"!=",    Operator::DIFFERS},
-            {L"!",     Operator::NOT},
-            {L"<",     Operator::LESS},
-            {L">",     Operator::GREATER},
-            {L"<=",    Operator::LESS_EQUAL},
-            {L">=",    Operator::GREATER_EQUAL},
-            {L"=>",    Operator::THEN},
-            {L"then",  Operator::THEN},
-            {L"?",     Operator::ELSE},
-            {L"else",  Operator::ELSE},
-            {L"until", Operator::UNTIL},
-            {L"do",    Operator::DO}
-    };
-
-    static const std::map<wchar_t, Bracket> LEFT_BRACKET_KEYWORDS{
-            {L'(', Bracket::PLAIN},
-            {L'{', Bracket::CURLY},
-    };
-
-    static const std::map<wchar_t, Bracket> RIGHT_BRACKET_KEYWORDS{
-            {L')', Bracket::PLAIN},
-            {L'}', Bracket::CURLY},
     };
 
     struct OperatorMeta {
@@ -181,7 +199,7 @@ namespace funscript {
     };
 
     [[noreturn]] static void assert_failed(const std::string &what,
-                              std::experimental::source_location where = std::experimental::source_location::current()) {
+                                           std::experimental::source_location where = std::experimental::source_location::current()) {
         throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
                              std::to_string(where.column()) + ": function ‘" + where.function_name() +
                              "’: assertion failed: " + what);
@@ -189,58 +207,23 @@ namespace funscript {
 
 #define FS_ASSERT(A) do {if(!(A)) assert_failed(#A); } while(0)
 
-    class Allocator {
-    public:
-        virtual void *allocate(size_t size) = 0;
-        virtual void free(void *ptr) = 0;
-    };
-
-    class DefaultAllocator : public Allocator {
-    public:
-        void *allocate(size_t size) override { return std::malloc(size); }
-
-        void free(void *ptr) override { std::free(ptr); }
-    };
-
-    template<typename T>
-    class AllocatorWrapper {
-    public:
-        Allocator *alloc;
-        typedef T value_type;
-
-        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
-
-        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
-
-        template<typename E>
-        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
-
-        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
-
-        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
-
-        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
-            if (&old != this) alloc = old.alloc;
-            return *this;
-        }
-    };
-
-    template<typename T>
-    static std::string addr_to_string(const T *ptr) {
-        std::ostringstream str;
-        str.imbue(std::locale("C"));
-        str << (const void *) ptr;
-        return str.str();
+    static fstring ascii2fstring(const std::string &str, AllocatorWrapper<fchar> alloc) {
+        fstring result(alloc);
+        result.reserve(str.size());
+        for (char c: str) result += fchar(c);
+        return result;
     }
 
-    using fchar = wchar_t;
+    static char fchar2ascii(fchar c) {
+        return char(c);
+    }
 
-    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
-    template<typename K, typename V>
-    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
-
-    template<typename K>
-    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
+    static std::string fstring2ascii(const fstring &str) {
+        std::string result;
+        result.reserve(str.size());
+        for (fchar c: str) result += fchar2ascii(c);
+        return result;
+    }
 }
 
 #endif //FUNSCRIPT_COMMON_H
