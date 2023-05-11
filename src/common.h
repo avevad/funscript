@@ -1,37 +1,98 @@
-//
-// Created by avevad on 11/20/21.
-//
-
 #ifndef FUNSCRIPT_COMMON_H
 #define FUNSCRIPT_COMMON_H
 
-#include <utility>
-#include <variant>
-#include <string>
-#include <map>
+#include <source_location>
 #include <stdexcept>
-#include <experimental/source_location>
-#include <set>
-#include <cstring>
-#include <sstream>
+#include <cstdint>
 
 namespace funscript {
 
-#define FS_VERSION_MAJOR 0
-#define FS_VERSION_MINOR 1
-#define FS_STR(S) #S
-#define FS_TO_STR(X) FS_STR(X)
+    class AssertionError : public std::runtime_error {
+    public:
+        explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
+    };
 
-    const static constexpr size_t VERSION_MAJOR = FS_VERSION_MAJOR;
-    const static constexpr size_t VERSION_MINOR = FS_VERSION_MINOR;
-    const static constexpr char *VERSION = "Funscript " FS_TO_STR(FS_VERSION_MAJOR) "." FS_TO_STR(FS_VERSION_MINOR);
+    [[noreturn]] static void assertion_failed(const std::string &what,
+                                              std::source_location where = std::source_location::current()) {
+        throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
+                             std::to_string(where.column()) + ": function ‘" + where.function_name() +
+                             "’: assertion failed: " + what);
+    }
 
-#undef M_VERSION_MAJOR
-#undef M_VERSION_MINOR
-#undef M_STR
-#undef M_TO_STR
+    enum class Type : uint8_t {
+        NUL, SEP, INT, OBJ, FUN, BLN
+    };
 
-    enum class Operator : char {
+    /**
+     * Enumeration of all the instruction types handled by Funscript VM
+     */
+    enum class Opcode : uint16_t {
+        NOP, // Do nothing
+        /**
+         * @brief Push literal value.
+         * @param u16 Value type (enum funscript::Type).
+         * @param u64 Representation of the value or the pointer to the offset of value representation.
+         */
+        VAL,
+        /**
+         * @brief Shorthand for VAL(u16 = Type::SEP)
+         */
+        SEP,
+        /**
+         * @brief Get a field of an object or the scope.
+         * @param u16 Bool `true` if the alternative lookup method should be used.
+         * @param u64 The offset of identifier string.
+         */
+        GET,
+        /**
+         * @brief Set a field of an object or the scope.
+         * @param u16 Bool `true` if the alternative lookup method should be used.
+         * @param u64 The offset of identifier string.
+         */
+        SET,
+        /**
+         * @brief Change current scope.
+         * @param u16 Bool `true` if the action is creating a new scope and `false` if the action is to discard the scope.
+         */
+        SCP,
+        /**
+         * @brief Discard values until (and including) the topmost separator.
+         */
+        DIS,
+        /**
+         * @brief Execute an operator call.
+         * @param u16 Operator type (enum funscript::Operator)
+         */
+        OPR,
+        /**
+         * @brief End execution of the function.
+         */
+        END,
+        /**
+         * @brief Jump if the value is boolean `no`.
+         * @param u64 Bytecode offset of where to jump.
+         */
+        JNO,
+        /**
+         * @brief Jump unconditionally.
+         * @param u64 Bytecode offset of where to jump.
+         */
+        JMP
+    };
+
+    struct Instruction {
+        Opcode op;
+        uint16_t u16;
+        uint32_t reserved;
+        uint64_t u64;
+
+        Instruction(Opcode op, uint16_t u16 = 0, uint64_t u64 = 0) : op(op), u16(u16), reserved(0), u64(u64) {}
+    };
+
+    /**
+     * Enumeration of language operators.
+     */
+    enum class Operator : uint8_t {
         TIMES,
         DIVIDE,
         PLUS,
@@ -39,8 +100,9 @@ namespace funscript {
         ASSIGN,
         APPEND,
         DISCARD,
-        CALL,
+        CALL, // Implicitly inserted during parsing
         LAMBDA,
+        INDEX,
         MODULO,
         EQUALS,
         DIFFERS,
@@ -54,176 +116,6 @@ namespace funscript {
         UNTIL,
         DO
     };
-
-    enum class Bracket {
-        PLAIN, CURLY
-    };
-
-    class Allocator {
-    public:
-        virtual void *allocate(size_t size) = 0;
-        virtual void free(void *ptr) = 0;
-    };
-
-    class DefaultAllocator : public Allocator {
-    public:
-        void *allocate(size_t size) override { return std::malloc(size); }
-
-        void free(void *ptr) override { std::free(ptr); }
-    };
-
-    template<typename T>
-    class AllocatorWrapper {
-    public:
-        Allocator *alloc;
-        typedef T value_type;
-
-        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
-
-        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
-
-        template<typename E>
-        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
-
-        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
-
-        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
-
-        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
-            if (&old != this) alloc = old.alloc;
-            return *this;
-        }
-
-        bool operator==(const AllocatorWrapper &o) const {
-            return o.alloc == alloc;
-        }
-
-        bool operator!=(const AllocatorWrapper &o) const {
-            return o.alloc == alloc;
-        }
-    };
-
-    using fchar = char32_t;
-
-    using fstring = std::basic_string<fchar, std::char_traits<fchar>, AllocatorWrapper<fchar>>;
-    template<typename K, typename V>
-    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
-
-    template<typename K>
-    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
-
-    struct Token {
-        enum Type {
-            UNKNOWN = 0,
-            ID,
-            INTEGER,
-            OPERATOR,
-            LEFT_BRACKET,
-            RIGHT_BRACKET,
-            NUL,
-            VOID, // special
-            INDEX,
-            BOOLEAN
-        };
-        using Data = std::variant<Operator, Bracket, int64_t, fstring, bool>;
-        Type type;
-        Data data;
-    };
-
-    struct OperatorMeta {
-        int order;
-        bool left;
-    };
-
-    static const std::map<Operator, OperatorMeta> OPERATORS{
-            {Operator::CALL,          {0,  false}}, // special
-            {Operator::NOT,           {1,  false}},
-            {Operator::TIMES,         {3,  true}},
-            {Operator::DIVIDE,        {4,  true}},
-            {Operator::MODULO,        {4,  true}},
-            {Operator::PLUS,          {4,  true}},
-            {Operator::MINUS,         {4,  true}},
-            {Operator::EQUALS,        {6,  true}},
-            {Operator::DIFFERS,       {6,  true}},
-            {Operator::LESS,          {6,  true}},
-            {Operator::GREATER,       {6,  true}},
-            {Operator::LESS_EQUAL,    {6,  true}},
-            {Operator::GREATER_EQUAL, {6,  true}},
-            {Operator::LAMBDA,        {7,  false}}, // special
-            {Operator::APPEND,        {9,  false}}, // special
-            {Operator::ASSIGN,        {10, true}},  // special
-            {Operator::THEN,          {11, false}}, // special
-            {Operator::ELSE,          {12, false}}, // special
-            {Operator::UNTIL,         {13, false}}, // special
-            {Operator::DO,            {13, false}}, // special
-            {Operator::DISCARD,       {14, false}}, // special
-    };
-
-    enum class Opcode : uint8_t {
-        NOP, // do nothing
-        SEP, // push a separator
-        NUL, // push NUL
-        INT, // push an integer
-        OP,  // make an operator call
-        DIS, // discard values until the separator
-        END, // finish execution
-        NS,  // push new scope
-        DS,  // pop current scope
-        FUN, // create function
-        OBJ, // push current scope variables map
-        VST, // move value to the variable
-        VGT, // push value of the variable
-        SET, // move value to object's field
-        GET, // push
-        PBY, // push boolean "yes"
-        PBN, // push boolean "no",
-        JN,  // jump if "no"
-        JMP, // jump unconditionally
-        POP, // pop one value from stack
-    };
-
-    struct Instruction {
-        Opcode op;
-        uint8_t u8;
-        uint16_t u16;
-    };
-
-    class CompilationError : public std::runtime_error {
-    public:
-        explicit CompilationError(const std::string &msg) : std::runtime_error(msg) {}
-    };
-
-    class AssertionError : public std::runtime_error {
-    public:
-        explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
-    };
-
-    [[noreturn]] static void assert_failed(const std::string &what,
-                                           std::experimental::source_location where = std::experimental::source_location::current()) {
-        throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
-                             std::to_string(where.column()) + ": function ‘" + where.function_name() +
-                             "’: assertion failed: " + what);
-    }
-
-#define FS_ASSERT(A) do {if(!(A)) assert_failed(#A); } while(0)
-
-    static fstring ascii2fstring(const std::string &str, AllocatorWrapper<fchar> alloc) {
-        fstring result(alloc);
-        result.reserve(str.size());
-        for (char c: str) result += fchar(c);
-        return result;
-    }
-
-    static char fchar2ascii(fchar c) {
-        return char(c);
-    }
-
-    static std::string fstring2ascii(const fstring &str) {
-        std::string result;
-        result.reserve(str.size());
-        for (fchar c: str) result += fchar2ascii(c);
-        return result;
-    }
 }
 
 #endif //FUNSCRIPT_COMMON_H

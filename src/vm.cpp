@@ -1,496 +1,18 @@
-//
-// Created by avevad on 11/20/21.
-//
-
-#include "vm.h"
-#include "common.h"
-
-#include <stdexcept>
-#include <cstring>
+#include <queue>
 #include <utility>
+#include "vm.h"
 
 namespace funscript {
 
-    bool Object::contains(const fstring &key) const {
-        return str_map.contains(key);
-    }
+    VM::MemoryManager::MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<std::pair<Allocation *const, size_t>>()),
+                                               gc_pins((std_alloc<std::pair<Allocation *const, size_t>>())) {}
 
-    Value Object::get_val(const fstring &key) const {
-        return str_map.contains(key) ? str_map.at(key) : Value{.type=Value::NUL};
-    }
+    void VM::MemoryManager::free(void *ptr) { vm.config.allocator->free(ptr); }
 
-    void Object::get_refs(const std::function<void(Allocation * )> &callback) {
-        for (const auto &[key, val]: str_map) {
-            if (val.type == Value::OBJ) callback(val.data.obj);
-            if (val.type == Value::FUN) callback(val.data.fun);
-        }
-    }
-
-    void Object::set_val(const fstring &key, Value val) {
-        str_map[key] = val;
-    }
-
-    void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
-        callback(vars);
-        callback(prev_scope);
-    }
-
-    Value Scope::get_var(const fstring &name) const {
-        if (vars->contains(name)) return vars->get_val(name);
-        if (prev_scope == nullptr) return {.type = Value::NUL};
-        return prev_scope->get_var(name);
-    }
-
-    void Scope::set_var(const fstring &name, Value val) {
-        set_var(name, val, *this);
-    }
-
-    void Scope::set_var(const fstring &name, Value val, Scope &first) {
-        if (vars->contains(name)) vars->set_val(name, val);
-        if (prev_scope) prev_scope->set_var(name, val, first);
-        else first.vars->set_val(name, val);
-    }
-
-    stack_pos_t VM::Stack::size() const { return stack.size(); }
-
-    VM::Stack::Stack(VM &vm) : vm(vm), stack(AllocatorWrapper<Value>(vm.config.allocator)) {}
-
-    const Value &VM::Stack::operator[](stack_pos_t pos) { return get(pos); }
-
-    void VM::Stack::push_sep() { push({Value::SEP}); }
-
-    void VM::Stack::push_nul() { push({Value::NUL}); }
-
-    void VM::Stack::push_int(int64_t num) { push({Value::INT, {.num = num}}); }
-
-    void VM::Stack::pop(stack_pos_t pos) {
-        if (pos < 0) pos += size();
-        stack.resize(pos);
-    }
-
-    void VM::Stack::call(Function *fun, Frame *frame) {
-        auto *new_frame = vm.mem.gc_new<Frame>(frame);
-        (*fun)(*this, new_frame);
-        vm.mem.gc_unpin(new_frame);
-    }
-
-    VM::Stack::~Stack() = default;
-
-    void VM::Stack::push(const Value &e) { stack.push_back(e); }
-
-    Value &VM::Stack::get(stack_pos_t pos) {
-        if (pos < 0) pos += size();
-        return stack[pos];
-    }
-
-    stack_pos_t VM::Stack::find_sep(stack_pos_t before) {
-        stack_pos_t pos = before - 1;
-        while (get(pos).type != Value::SEP) pos--;
-        return pos;
-    }
-
-    void VM::Stack::discard() {
-        stack_pos_t sep_pos = find_sep(0);
-        pop(sep_pos);
-    }
-
-    void VM::Stack::call_operator(Frame *frame, Operator op) {
-        stack_pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
-        size_t cnt_a = 0 - pos_a, cnt_b = pos_a - pos_b - 1;
-        if (cnt_a == 0) { // unary operators
-            if (cnt_b != 1) assert_failed("unary operator on multiple values"); // TODO
-            switch (get(-2).type) {
-                case Value::INT: {
-                    int64_t result;
-                    switch (op) {
-                        case Operator::PLUS: {
-                            result = +get(-2).data.num;
-                            break;
-                        }
-                        case Operator::MINUS: {
-                            result = -get(-2).data.num;
-                            break;
-                        }
-                        default:
-                            assert_failed("invalid unary operator for integer"); // TODO
-                    }
-                    pop(-3);
-                    push_int(result);
-                    break;
-                }
-                case Value::BLN: {
-                    if (op != Operator::NOT) assert_failed("invalid unary operator for boolean"); // TODO
-                    pop(-1);
-                    bool result = !as_boolean();
-                    pop(-2);
-                    push_bln(result);
-                    break;
-                }
-                default:
-                    assert_failed("invalid operand for unary operator"); // TODO
-            }
-            return;
-        }
-        if (cnt_a != 1) assert_failed("first operand is multiple values");
-        switch (get(pos_a).type) {
-            case Value::NUL: {
-                assert_failed("invalid operation on nul"); // TODO
-                break;
-            }
-            case Value::INT: {
-                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::INT);
-                int64_t left = get(-1).data.num, right = get(-3).data.num;
-                switch (op) {
-                    case Operator::TIMES: {
-                        int64_t result = left * right;
-                        pop(-4);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::DIVIDE: {
-                        int64_t result = left / right;
-                        pop(-4);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::PLUS: {
-                        int64_t result = left + right;
-                        pop(-4);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::MINUS: {
-                        int64_t result = left - right;
-                        pop(-4);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::MODULO: {
-                        int64_t result = left % right;
-                        pop(-4);
-                        push_int(result);
-                        break;
-                    }
-                    case Operator::GREATER: {
-                        bool result = left > right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    case Operator::LESS: {
-                        bool result = left < right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    case Operator::LESS_EQUAL: {
-                        bool result = left <= right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    case Operator::GREATER_EQUAL: {
-                        bool result = left >= right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    case Operator::DIFFERS: {
-                        bool result = left != right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    case Operator::EQUALS: {
-                        bool result = left == right;
-                        pop(-4);
-                        push_bln(result);
-                        break;
-                    }
-                    default:
-                        assert_failed("invalid operation on integer"); // TODO
-                }
-                break;
-            }
-            case Value::OBJ: {
-                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::OBJ);
-                Object *left = get(-1).data.obj, *right = get(-3).data.obj;
-                bool result;
-                switch (op) {
-                    case Operator::EQUALS:
-                        result = left == right;
-                        break;
-                    case Operator::DIFFERS:
-                        result = left != right;
-                        break;
-                    default:
-                        assert_failed("invalid operation on object"); // TODO
-                }
-                pop(-4);
-                push_bln(result);
-                break;
-            }
-            case Value::FUN:
-                switch (op) {
-                    case Operator::CALL: {
-                        Function *fun = get(-1).data.fun;
-                        vm.mem.gc_pin(fun);
-                        pop(-2);
-                        call(fun, frame);
-                        vm.mem.gc_unpin(fun);
-                        break;
-                    }
-                    default:
-                        assert_failed("invalid operation on function"); // TODO
-
-                }
-                break;
-            case Value::BLN: {
-                FS_ASSERT(cnt_b == 1 && get(-3).type == Value::BLN);
-                bool left = get(-1).data.bln, right = get(-3).data.bln;
-                bool result;
-                switch (op) {
-                    case Operator::EQUALS:
-                        result = left == right;
-                        break;
-                    case Operator::DIFFERS:
-                        result = left != right;
-                        break;
-                    default:
-                        assert_failed("invalid operation on boolean"); // TODO
-                }
-                pop(-4);
-                push_bln(result);
-                break;
-            }
-            default:
-                assert_failed("unknown value type"); // TODO
-        }
-    }
-
-    stack_pos_t VM::Stack::abs(stack_pos_t pos) const { return pos < 0 ? size() + pos : pos; }
-
-    void VM::Stack::push_fun(Function *fun) {
-        push({.type=Value::FUN, .data = {.fun = fun}});
-    }
-
-    void VM::Stack::push_obj(Object *obj) {
-        push({.type = Value::OBJ, .data = {.obj = obj}});
-    }
-
-    VM::VM(VM::Config config) : config(config), stacks(AllocatorWrapper<Stack *>(config.allocator)), mem(*this) {}
-
-    VM::Stack &VM::stack(size_t id) { return *stacks[id]; }
-
-    size_t VM::new_stack() {
-        stacks.push_back(mem.gc_new<Stack>(*this));
-        return stacks.size() - 1;
-    }
-
-    VM::~VM() = default;
-
-    void VM::Stack::exec_bytecode(Frame *frame, Scope *scope, Bytecode *bytecode, size_t offset) {
-        const auto *size_const = reinterpret_cast<const size_t *>(bytecode->get_data());
-        const auto *int_const = reinterpret_cast<const int64_t *>(bytecode->get_data());
-        const auto *ip = reinterpret_cast<const Instruction *>(bytecode->get_data() + offset);
-        while (true) {
-            Instruction inst = *ip;
-            switch (inst.op) {
-                case Opcode::NOP:
-                    break;
-                    ip++;
-                case Opcode::NUL: {
-                    push_nul();
-                    ip++;
-                    break;
-                }
-                case Opcode::SEP: {
-                    push_sep();
-                    ip++;
-                    break;
-                }
-                case Opcode::INT: {
-                    push_int(int_const[inst.u16]);
-                    ip++;
-                    break;
-                }
-                case Opcode::OP: {
-                    auto oper = (Operator) inst.u8;
-                    call_operator(frame, oper);
-                    ip++;
-                    break;
-                }
-                case Opcode::DIS: {
-                    discard();
-                    ip++;
-                    break;
-                }
-                case Opcode::NS: {
-                    auto *vars = vm.mem.gc_new<Object>(vm);
-                    scope = vm.mem.gc_new<Scope>(vars, scope);
-                    vm.mem.gc_unpin(vars);
-                    ip++;
-                    break;
-                }
-                case Opcode::DS: {
-                    Scope *prev = scope->prev_scope;
-                    vm.mem.gc_unpin(scope);
-                    scope = prev;
-                    ip++;
-                    break;
-                }
-                case Opcode::END:
-                    return;
-                case Opcode::FUN: {
-                    Function *fun = vm.mem.gc_new<CompiledFunction>(scope, bytecode, size_const[inst.u16]);
-                    push_fun(fun);
-                    vm.mem.gc_unpin(fun);
-                    ip++;
-                    break;
-                }
-                case Opcode::OBJ: {
-                    push_obj(scope->vars);
-                    ip++;
-                    break;
-                }
-                case Opcode::VGT: {
-                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
-                                 vm.mem.str_alloc());
-                    push(scope->get_var(name));
-                    ip++;
-                    break;
-                }
-                case Opcode::VST: {
-                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
-                                 vm.mem.str_alloc());
-                    if (get(-1).type != Value::SEP) {
-                        scope->set_var(name, get(-1));
-                        pop();
-                    }
-                    ip++;
-                    break;
-                }
-                case Opcode::GET: {
-                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
-                                 vm.mem.str_alloc());
-                    FS_ASSERT(get(-1).type == Value::OBJ); // TODO
-                    FS_ASSERT(get(-2).type == Value::SEP); // TODO
-                    Object *obj = get(-1).data.obj;
-                    vm.mem.gc_pin(obj);
-                    pop();
-                    pop();
-                    push(obj->get_val(name));
-                    vm.mem.gc_unpin(obj);
-                    ip++;
-                    break;
-                }
-                case Opcode::SET: {
-                    fstring name(reinterpret_cast<const fchar *>(bytecode->get_data() + size_const[inst.u16]),
-                                 vm.mem.str_alloc());
-                    FS_ASSERT(get(-1).type == Value::OBJ); // TODO
-                    FS_ASSERT(get(-2).type == Value::SEP); // TODO
-                    Object *obj = get(-1).data.obj;
-                    vm.mem.gc_pin(obj);
-                    pop();
-                    pop();
-                    if (get(-1).type != Value::SEP) {
-                        obj->set_val(name, get(-1));
-                        pop();
-                    }
-                    vm.mem.gc_unpin(obj);
-                    ip++;
-                    break;
-                }
-                case Opcode::PBY: {
-                    push_bln(true);
-                    ip++;
-                    break;
-                }
-                case Opcode::PBN: {
-                    push_bln(false);
-                    ip++;
-                    break;
-                }
-                case Opcode::JMP: {
-                    ip = reinterpret_cast<const Instruction *>(bytecode->get_data() + size_const[inst.u16]);
-                    break;
-                }
-                case Opcode::JN: {
-                    if (!as_boolean()) {
-                        ip = reinterpret_cast<const Instruction *>(bytecode->get_data() + size_const[inst.u16]);
-                    } else ip++;
-                    break;
-                }
-                case Opcode::POP: {
-                    pop();
-                    ip++;
-                    break;
-                }
-                default:
-                    throw std::runtime_error("unknown opcode");
-            }
-        }
-    }
-
-    void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
-        for (const Value &val: stack) {
-            if (val.type == Value::OBJ) callback(val.data.obj);
-            if (val.type == Value::FUN) callback(val.data.fun);
-        }
-    }
-
-    void VM::Stack::push_bln(bool bln) {
-        push({.type = Value::BLN, .data={.bln=bln}});
-    }
-
-    bool VM::Stack::as_boolean() {
-        if (get(-1).type != Value::BLN) assert_failed("no implicit conversion to boolean");
-        return get(-1).data.bln;
-    }
-
-    void VM::MemoryManager::gc_track(VM::Allocation *alloc) {
-        if (gc_tracked.contains(alloc)) throw AssertionError("allocation is already tracked");
-        gc_tracked.insert(alloc);
+    void VM::MemoryManager::gc_track(VM::Allocation *alloc, size_t len) {
+        if (gc_tracked.contains(alloc)) [[unlikely]] assertion_failed("allocation is already tracked");
+        gc_tracked[alloc] = len;
         gc_pins[alloc] = 1;
-    }
-
-    VM::MemoryManager::~MemoryManager() {
-        for (Allocation *alloc: gc_tracked) {
-            (*alloc).~Allocation();
-            free(alloc);
-        }
-    }
-
-    void VM::MemoryManager::gc_cycle() {
-        std::queue<Allocation *, std::deque<Allocation *, AllocatorWrapper<Allocation *>>>
-                queue(std_alloc<Allocation *>());
-        fset<Allocation *> marked(std_alloc<Allocation *>());
-        fset<Allocation *> unpinned(std_alloc<Allocation *>());
-        for (const auto&[alloc, cnt]: gc_pins) {
-            if (cnt == 0) {
-                unpinned.insert(alloc);
-                continue;
-            }
-            marked.insert(alloc);
-            queue.push(alloc);
-        }
-        for (auto *alloc: unpinned) gc_pins.erase(alloc);
-        while (!queue.empty()) {
-            auto *alloc = queue.front();
-            queue.pop();
-            alloc->get_refs([&marked, &queue](Allocation *ref) {
-                if (ref && !marked.contains(ref)) queue.push(ref), marked.insert(ref);
-            });
-        }
-        for (auto iter = gc_tracked.begin(); iter != gc_tracked.end();) {
-            if (marked.contains(*iter)) iter++;
-            else {
-                Allocation *alloc = *iter;
-                alloc->~Allocation();
-                free(alloc);
-                iter = gc_tracked.erase(iter);
-            }
-        }
     }
 
     void VM::MemoryManager::gc_pin(VM::Allocation *alloc) {
@@ -499,26 +21,445 @@ namespace funscript {
     }
 
     void VM::MemoryManager::gc_unpin(VM::Allocation *alloc) {
-        if (!gc_tracked.contains(alloc)) [[unlikely]] throw AssertionError("allocation is not tracked");
-        if (!gc_pins[alloc]) [[unlikely]] throw AssertionError("unpin mismatch");
+        if (!gc_tracked.contains(alloc)) [[unlikely]] assertion_failed("allocation is not tracked");
+        if (!gc_pins[alloc]) assertion_failed("mismatched allocation unpin");
         gc_pins[alloc]--;
-        if (gc_pins[alloc] == 0) gc_pins.erase(alloc);
     }
+
+    void VM::MemoryManager::gc_cycle() {
+        std::queue<Allocation *, fdeq<Allocation *>> queue(std_alloc<Allocation *>()); // Allocations to be marked.
+        // Populate the queue with GC roots
+        auto unmarked = gc_tracked;
+        for (const auto &[alloc, cnt] : gc_pins) {
+            if (cnt == 0) continue;
+            unmarked.erase(alloc);
+            queue.push(alloc);
+        }
+        // Using BFS to mark all reachable allocations
+        while (!queue.empty()) {
+            auto *alloc = queue.front();
+            queue.pop();
+            size_t len = gc_tracked[alloc];
+            for (size_t i = 0; i < len; i++) {
+                alloc[i].get_refs([&queue, &unmarked](Allocation *ref) -> void {
+                    if (!unmarked.contains(ref)) return;
+                    unmarked.erase(ref);
+                    queue.push(ref);
+                });
+            }
+        }
+        // Destroy unreachable allocations
+        for (const auto &[alloc, len] : unmarked) {
+            for (size_t i = 0; i < len; i++) alloc[i].~Allocation();
+            free(alloc);
+            gc_tracked.erase(alloc);
+            gc_pins.erase(alloc);
+        }
+    }
+
+    VM::MemoryManager::~MemoryManager() {
+        for (const auto &[alloc, len] : gc_tracked) {
+            if (gc_pins[alloc]) assertion_failed("destructing memory manager with pinned allocations");
+            for (size_t i = 0; i < len; i++) alloc[i].~Allocation();
+            free(alloc);
+        }
+    }
+
+
+    VM::VM(VM::Config config) : config(config), mem(*this) {
+
+    }
+
+    void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
+        for (const auto &val : values) val.get_ref(callback);
+        for (auto *frame : frames) callback(frame);
+    }
+
+    VM::Stack::Stack(VM &vm, Function *start) : vm(vm), values(vm.mem.std_alloc<Value>()),
+                                                frames(vm.mem.std_alloc<Frame *>()) {
+        frames.push_back(vm.mem.gc_new<Frame>(start));
+        vm.mem.gc_unpin(frames.back());
+        push_sep(); // Empty arguments for the start function.
+    }
+
+    VM::Stack::pos_t VM::Stack::size() const {
+        return values.size(); // NOLINT(cppcoreguidelines-narrowing-conversions)
+    }
+
+    const Value &VM::Stack::operator[](VM::Stack::pos_t pos) {
+        if (pos < 0) pos += size();
+        return values[pos];
+    }
+
+    void VM::Stack::push_sep() { push({Type::SEP}); }
+
+    void VM::Stack::push_nul() { push({Type::NUL}); }
+
+    void VM::Stack::push_int(fint num) { push({Type::INT, num}); }
+
+    void VM::Stack::push_obj(Object *obj) { push({Type::OBJ, {.obj = obj}}); }
+
+    void VM::Stack::push_fun(Function *fun) { push({Type::FUN, {.fun = fun}}); }
+
+    void VM::Stack::push_bln(bool bln) { push({Type::BLN, {.bln = bln}}); }
+
+    bool VM::Stack::as_bln() {
+        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
+            assertion_failed("no implicit conversion to boolean");
+        }
+        return get(-1).data.bln;
+    }
+
+    void VM::Stack::discard() { pop(find_sep()); }
+
+    void VM::Stack::pop(VM::Stack::pos_t pos) {
+        if (pos < 0) pos += size();
+        values.resize(pos);
+    }
+
+    VM::Stack::pos_t VM::Stack::find_sep(funscript::VM::Stack::pos_t before) {
+        pos_t pos = before - 1;
+        while (get(pos).type != Type::SEP) pos--;
+        if (pos < 0) pos += size();
+        return pos;
+    }
+
+    void VM::Stack::push(const Value &e) { values.push_back(e); }
+
+    Value &VM::Stack::get(VM::Stack::pos_t pos) {
+        if (pos < 0) pos += size();
+        return values[pos];
+    }
+
+    void VM::Stack::exec_bytecode(funscript::Scope *scope, Bytecode *bytecode_obj, size_t offset) {
+        const auto *bytecode = bytecode_obj->bytes.data();
+        const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
+        while (true) {
+            Instruction ins = *ip;
+            switch (ins.op) {
+                case Opcode::NOP:
+                    ip++;
+                    break;
+                case Opcode::VAL: {
+                    Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
+                    if (val.type == Type::OBJ) val.data.obj = scope->vars;
+                    if (val.type == Type::FUN) {
+                        auto *fun = vm.mem.gc_new<BytecodeFunction>(scope, bytecode_obj, size_t(ins.u64));
+                        val.data.fun = fun;
+                    }
+                    push(val);
+                    if (val.type == Type::FUN) {
+                        vm.mem.gc_unpin(val.data.fun);
+                    }
+                    ip++;
+                    break;
+                }
+                case Opcode::SEP: {
+                    push_sep();
+                    ip++;
+                    break;
+                }
+                case Opcode::GET: {
+                    fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                    if (get(-1).type == Type::SEP) {
+                        pop();
+                        push(scope->get_var(name));
+                    } else {
+                        if (get(-1).type != Type::OBJ) assertion_failed("only objects are able to be indexed");
+                        Object *obj = get(-1).data.obj;
+                        vm.mem.gc_pin(obj);
+                        pop();
+                        if (get(-1).type != Type::SEP) assertion_failed("can't index multiple values");
+                        pop();
+                        push(obj->get_field(name));
+                        vm.mem.gc_unpin(obj);
+                    }
+                    ip++;
+                    break;
+                }
+                case Opcode::SET: {
+                    fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                    if (get(-1).type == Type::SEP) {
+                        pop();
+                        if (get(-1).type == Type::SEP) assertion_failed("not enough values to assign");
+                        scope->set_var(name, get(-1));
+                        pop();
+                    } else {
+                        if (get(-1).type != Type::OBJ) assertion_failed("only objects are able to be indexed");
+                        Object *obj = get(-1).data.obj;
+                        vm.mem.gc_pin(obj);
+                        pop();
+                        if (get(-1).type != Type::SEP) assertion_failed("can't index multiple values");
+                        pop();
+                        if (get(-1).type == Type::SEP) assertion_failed("not enough values to assign");
+                        obj->set_field(name, get(-1));
+                        pop();
+                        vm.mem.gc_unpin(obj);
+                    }
+                    ip++;
+                    break;
+                }
+                case Opcode::SCP: {
+                    if (ins.u16) {
+                        auto *vars = vm.mem.gc_new<Object>(vm);
+                        scope = vm.mem.gc_new<Scope>(vars, scope);
+                        vm.mem.gc_unpin(vars);
+                    } else {
+                        Scope *prev = scope->prev_scope;
+                        vm.mem.gc_unpin(scope);
+                        scope = prev;
+                    }
+                    ip++;
+                    break;
+                }
+                case Opcode::DIS: {
+                    discard();
+                    ip++;
+                    break;
+                }
+                case Opcode::OPR: {
+                    auto op = static_cast<Operator>(ins.u16);
+                    call_operator(op, nullptr);
+                    ip++;
+                    break;
+                }
+                case Opcode::END: {
+                    return;
+                }
+                case Opcode::JNO: {
+                    bool bln = as_bln();
+                    discard();
+                    if (!bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
+                    else ip++;
+                    break;
+                }
+                case Opcode::JMP: {
+                    ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
+                    break;
+                }
+            }
+        }
+    }
+
+    void VM::Stack::call_operator(Operator op, Function *cont_fn) {
+        // Calculate stack positions of operands and their lengths
+        pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
+        pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
+        switch (op) {
+            case Operator::TIMES: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_int(a * b);
+                break;
+            }
+            case Operator::DIVIDE: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_int(a / b);
+                break;
+            }
+            case Operator::PLUS: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_int(a + b);
+                break;
+            }
+            case Operator::MINUS: {
+                if (cnt_a == 0) {
+                    if (cnt_b != 1 || get(pos_b).type != Type::INT) {
+                        assertion_failed("invalid operands");
+                    }
+                    fint num = get(pos_b).data.num;
+                    pop(-3);
+                    push_int(-num);
+                    break;
+                }
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_int(a - b);
+                break;
+            }
+            case Operator::CALL: {
+                if (cnt_a != 1 || get(pos_a).type != Type::FUN) {
+                    assertion_failed("invalid operands");
+                }
+                Function *fn = get(pos_a).data.fun;
+                vm.mem.gc_pin(fn);
+                pop(-2);
+                call_function(fn, cont_fn);
+                vm.mem.gc_unpin(fn);
+                break;
+            }
+            case Operator::MODULO: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_int(a % b);
+                break;
+            }
+            case Operator::EQUALS: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a == b);
+                break;
+            }
+            case Operator::DIFFERS: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a != b);
+                break;
+            }
+            case Operator::NOT: {
+                if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                bool bln = get(pos_b).data.bln;
+                pop(-3);
+                push_bln(!bln);
+                break;
+            }
+            case Operator::LESS: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a < b);
+                break;
+            }
+            case Operator::GREATER: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a > b);
+                break;
+            }
+            case Operator::LESS_EQUAL: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a <= b);
+                break;
+            }
+            case Operator::GREATER_EQUAL: {
+                if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                    assertion_failed("invalid operands");
+                }
+                fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                pop(-4);
+                push_bln(a >= b);
+                break;
+            }
+            default:
+                assertion_failed("unknown operator");
+        }
+    }
+
+    void VM::Stack::call_function(Function *fun, Function *cont_fn) {
+        frames.back()->cont_fn = cont_fn;
+        auto *frame = vm.mem.gc_new<Frame>(nullptr);
+        frames.push_back(frame);
+        vm.mem.gc_unpin(frame);
+        fun->call(*this, frame);
+        frames.pop_back();
+        frames.back()->cont_fn = nullptr;
+    }
+
+    void VM::Stack::continue_execution() {
+        if (frames.empty()) assertion_failed("the routine is no longer alive");
+        for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
+            Function *cont_fn = frames[pos]->cont_fn;
+            vm.mem.gc_pin(cont_fn);
+            frames[pos]->cont_fn = nullptr;
+            cont_fn->call(*this, frames[pos]);
+            vm.mem.gc_unpin(cont_fn);
+        }
+    }
+
+    VM::Stack::~Stack() = default;
+
+    void Object::get_refs(const std::function<void(Allocation * )> &callback) {
+        for (const auto &[key, val] : fields) val.get_ref(callback);
+    }
+
+    bool Object::contains_field(const fstr &key) const {
+        return fields.contains(key);
+    }
+
+    Value Object::get_field(const fstr &key) const {
+        if (!fields.contains(key)) assertion_failed("no such field");
+        return fields.at(key);
+    }
+
+    void Object::set_field(const fstr &key, Value val) {
+        fields[key] = val;
+    }
+
+    void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
+        callback(vars);
+        callback(prev_scope);
+    }
+
+    void Scope::set_var(const funscript::fstr &name, funscript::Value val, Scope &first) {
+        if (vars->contains_field(name)) vars->set_field(name, val);
+        if (prev_scope) prev_scope->set_var(name, val, first);
+        else first.vars->set_field(name, val);
+    }
+
+    Value Scope::get_var(const funscript::fstr &name) const {
+        if (vars->contains_field(name)) return vars->get_field(name);
+        if (prev_scope == nullptr) assertion_failed("no such variable");
+        return prev_scope->get_var(name);
+    }
+
+    void Scope::set_var(const fstr &name, Value val) {
+        set_var(name, val, *this);
+    }
+
+    Frame::Frame(Function *fn) : cont_fn(fn) {}
 
     void Frame::get_refs(const std::function<void(Allocation * )> &callback) {
-        callback(prev_frame);
+        callback(cont_fn);
     }
 
-    void CompiledFunction::get_refs(const std::function<void(Allocation * )> &callback) {
+    Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
+
+    void Bytecode::get_refs(const std::function<void(Allocation * )> &callback) {}
+
+    void BytecodeFunction::get_refs(const std::function<void(Allocation * )> &callback) {
         callback(bytecode);
         callback(scope);
     }
 
-    const char *Bytecode::get_data() {
-        return data;
+    void BytecodeFunction::call(VM::Stack &stack, funscript::Frame *frame) {
+        stack.exec_bytecode(scope, bytecode, offset);
     }
 
-    Bytecode::~Bytecode() {
-        allocator->free(data);
-    }
+    BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
+                                                                                          bytecode(bytecode),
+                                                                                          offset(offset) {}
 }

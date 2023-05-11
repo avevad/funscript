@@ -1,115 +1,80 @@
+#include <vector>
+#include <iostream>
+
 #include "tokenizer.h"
-#include "compiler.h"
+#include "ast.h"
 #include "vm.h"
 
-#include <cstddef>
-#include <vector>
-#include <stdexcept>
-#include <iostream>
-#include <map>
-#include <fstream>
-
-void print_stack_values(funscript::VM::Stack &stack, bool silent) {
+void print_stack_values(funscript::VM::Stack &stack) {
     if (stack.size() > 0) {
-        if (!silent) std::wcout << L"= ";
-        for (funscript::stack_pos_t pos = 0; pos < stack.size(); pos++) {
+        for (funscript::VM::Stack::pos_t pos = 0; pos < stack.size(); pos++) {
             funscript::Value val = stack[pos];
             switch (val.type) {
-                case funscript::Value::NUL:
-                    std::wcout << L"nul";
+                case funscript::Type::NUL:
+                    std::cout << "nul";
                     break;
-                case funscript::Value::INT:
-                    std::wcout << val.data.num;
+                case funscript::Type::INT:
+                    std::cout << val.data.num;
                     break;
-                case funscript::Value::OBJ:
-                    std::wcout << L"object(" << val.data.obj << ")";
+                case funscript::Type::OBJ:
+                    std::cout << "object(" << val.data.obj << ")";
                     break;
-                case funscript::Value::FUN:
-                    std::wcout << L"function(" << val.data.fun << ")";
+                case funscript::Type::FUN:
+                    std::cout << "function(" << val.data.fun << ")";
                     break;
-                case funscript::Value::BLN:
-                    std::wcout << (val.data.bln ? L"yes" : L"no");
+                case funscript::Type::BLN:
+                    std::cout << (val.data.bln ? "yes" : "no");
                     break;
                 default:
                     throw std::runtime_error("unknown value");
             }
-            if (pos != stack.size() - 1) std::wcout << L", ";
-            else std::wcout << std::endl;
+            if (pos != stack.size() - 1) std::cout << ", ";
         }
     }
 }
 
-void execute_code(funscript::VM::Stack &stack, funscript::Scope *scope, const funscript::fstring &code,
-                  funscript::Allocator *allocator = new funscript::DefaultAllocator, bool silent = true) {
-    funscript::VM &vm = stack.vm;
-
-    std::vector<funscript::Token> tokens;
-    try {
-        funscript::tokenize(code, [&tokens](const funscript::Token &token) { tokens.push_back(token); });
-    } catch (const funscript::CompilationError &err) {
-        std::cerr << "reading error: " << err.what() << std::endl;
-        return;
-    }
-
-    funscript::ast_ptr ast;
-    try {
-        ast = funscript::parse(tokens);
-    } catch (const funscript::CompilationError &err) {
-        std::cerr << "parsing error: " << err.what() << std::endl;
-        return;
-    }
-
-    funscript::Assembler as;
-    try {
+int main() {
+    // Create a VM instance
+    funscript::DefaultAllocator allocator;
+    funscript::VM vm({.allocator = &allocator});
+    // Create the global environment for the expression evaluation
+    auto *globals = vm.mem.gc_new<funscript::Object>(vm);
+    auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
+    while (true) {
+        // Read expression from stdin
+        std::cout << ": ";
+        std::string code;
+        if (!std::getline(std::cin, code)) break;
+        // Split expression into array of tokens
+        std::vector<funscript::Token> tokens;
+        funscript::tokenize(code, [&tokens](auto token) { tokens.push_back(token); });
+        // Parse array of tokens
+        funscript::ast_ptr ast = funscript::parse(tokens);
+        // Compile the expression AST
+        funscript::Assembler as;
         as.compile_expression(ast.get());
-    } catch (const funscript::CompilationError &err) {
-        std::cerr << "compilation error: " << err.what() << std::endl;
-        return;
-    }
-    char *bytecode = vm.mem.allocate<char>(as.total_size());
-    as.assemble(bytecode);
-
-    auto *bytecode_obj = vm.mem.gc_new<funscript::Bytecode>(bytecode, allocator);
-    stack.exec_bytecode(nullptr, scope, bytecode_obj, reinterpret_cast<size_t *>(bytecode)[0]);
-
-    print_stack_values(stack, silent);
-    stack.pop(0);
-    vm.mem.gc_unpin(bytecode_obj);
-    vm.mem.gc_cycle();
-}
-
-int main(int argc, char **argv) {
-    if (argc != 1 && argc != 2) {
-        std::cerr << "invalid number of arguments" << std::endl;
-        return 1;
-    }
-    bool read_from_file = argc == 2;
-    std::locale::global(std::locale(""));
-    if (!read_from_file) std::cout << funscript::VERSION << std::endl;
-    auto *allocator = new funscript::DefaultAllocator();
-    {
-        funscript::VM vm({.allocator = allocator});
-        const size_t sid = vm.new_stack();
-        auto *globals = vm.mem.gc_new<funscript::Object>(vm);
-        auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
-        vm.mem.gc_unpin(globals);
-
-        if (read_from_file) {
-            std::ifstream file(argv[1]);
-            std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-
-            execute_code(vm.stack(sid), scope, funscript::ascii2fstring(code, vm.mem.str_alloc()));
-        } else {
-            while (true) {
-                std::string code;
-                std::cout << ": ";
-                if (!std::getline(std::cin, code)) break;
-
-                execute_code(vm.stack(sid), scope, funscript::ascii2fstring(code, vm.mem.str_alloc()), allocator,
-                             false);
-            }
+        // Assemble the whole expression bytecode
+        std::string bytes(as.total_size(), '\0');
+        as.assemble(bytes.data());
+        auto *bytecode = vm.mem.gc_new<funscript::Bytecode>(bytes);
+        // Create temporary environment for expression evaluation
+        auto *start = vm.mem.gc_new<funscript::BytecodeFunction>(scope, bytecode);
+        vm.mem.gc_unpin(bytecode);
+        auto *stack = vm.mem.gc_new<funscript::VM::Stack>(vm, start);
+        vm.mem.gc_unpin(start);
+        // Evaluate the expression and print the result
+        stack->continue_execution();
+        if (stack->size() != 0) {
+            std::cout << "= ";
+            print_stack_values(*stack);
+            std::cout << std::endl;
         }
-        vm.mem.gc_unpin(scope);
+        // Intermediate cleanup
+        vm.mem.gc_unpin(stack);
+        vm.mem.gc_cycle();
     }
-    delete allocator;
+    // Final cleanup
+    vm.mem.gc_unpin(scope);
+    vm.mem.gc_unpin(globals);
+    return 0;
 }

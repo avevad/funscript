@@ -1,50 +1,107 @@
-//
-// Created by avevad on 11/20/21.
-//
 #ifndef FUNSCRIPT_VM_H
 #define FUNSCRIPT_VM_H
 
-#include "common.h"
-
-#include <map>
-#include <string>
-#include <vector>
+#include <cstddef>
+#include <cstdlib>
 #include <functional>
+#include <string>
+#include <map>
 #include <set>
-#include <queue>
-#include <iostream>
+#include <deque>
+#include "common.h"
 
 namespace funscript {
 
+    /**
+     * Interface for memory allocation and deallocation. Every instance of Funscript VM manages memory through this interface.
+     */
+    class Allocator {
+    public:
+        virtual void *allocate(size_t size) = 0;
+        virtual void free(void *ptr) = 0;
+    };
+
+    /**
+     * Default Funscript allocator which uses C memory management functions.
+     */
+    class DefaultAllocator : public Allocator {
+    public:
+        void *allocate(size_t size) override { return std::malloc(size); }
+
+        void free(void *ptr) override { std::free(ptr); }
+    };
+
+    /**
+     * Funscript allocator wrapper for C++ STL containers.
+     * @tparam T The type which the allocator can allocate memory for.
+     */
+    template<typename T>
+    class AllocatorWrapper {
+    public:
+        Allocator *alloc;
+        typedef T value_type;
+
+        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
+
+        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
+
+        template<typename E>
+        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
+
+        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
+
+        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
+
+        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
+            if (&old != this) alloc = old.alloc;
+            return *this;
+        }
+    };
+
+    using fstr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
+    template<typename K, typename V>
+    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
+    template<typename K>
+    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
+    template<typename E>
+    using fvec = std::vector<E, AllocatorWrapper<E>>;
+    template<typename E>
+    using fdeq = std::deque<E, AllocatorWrapper<E>>;
+    using fint = int64_t;
+
+
     class Object;
-
-    class Scope;
-
-    class Value;
-
-    class Frame;
 
     class Function;
 
-    class Bytecode;
+    struct Value;
 
-    typedef ssize_t stack_pos_t;
+    class Scope;
+
+    class Frame;
+
+    class Bytecode;
 
     class VM {
     public:
-        class Stack;
-
         VM(const VM &vm) = delete;
         VM &operator=(const VM &vm) = delete;
 
         struct Config {
-            Allocator *allocator = nullptr;
+            Allocator *allocator = nullptr; // The allocator for this VM instance.
         };
 
         class MemoryManager;
 
+        /**
+         * Abstract class of every allocation managed by VM's MM.
+         */
         class Allocation {
             friend MemoryManager;
+            /**
+             * Enumerates all the outgoing references to other allocations from this allocation.
+             * @param callback The callback which should be called for every reference.
+             */
             virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
         public:
             virtual ~Allocation() = default;
@@ -52,31 +109,67 @@ namespace funscript {
 
         class MemoryManager {
         public:
-            VM &vm;
+            VM &vm; // Funscript VM instance which owns this memory manager.
         private:
-            fset<Allocation *> gc_tracked;
-            fmap<Allocation *, size_t> gc_pins;
+            fmap<Allocation *, size_t> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
+            fmap<Allocation *, size_t> gc_pins; // Dictionary of pins counts for every allocation.
         public:
 
-            explicit MemoryManager(VM &vm) : vm(vm), gc_tracked(std_alloc<Allocation *>()),
-                                             gc_pins(std_alloc<std::pair<Allocation *const, size_t>>()) {}
-
+            /**
+             * @tparam T Any type.
+             * @return STL allocator for the specified type.
+             */
             template<typename T>
             AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.allocator); }
 
-            AllocatorWrapper<fchar> str_alloc() { return std_alloc<fchar>(); }
+            /**
+             * @return STL string allocator.
+             */
+            AllocatorWrapper<fstr::value_type> str_alloc() { return std_alloc<fstr::value_type>(); }
 
+            /**
+             * Allocates memory for `n` values of type `T`
+             * @tparam T Type of values to allocate memory for.
+             * @param n Number of values.
+             * @return Pointer to allocated memory.
+             */
             template<typename T>
             T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.allocator->allocate(n * sizeof(T))); }
 
-            void free(void *ptr) { vm.config.allocator->free(ptr); }
+            /**
+             * Frees previously `allocate`'d memory.
+             * @param ptr Pointer to memory to deallocate.
+             */
+            void free(void *ptr);
 
-            void gc_track(Allocation *alloc);
+            explicit MemoryManager(VM &vm);
 
+            /**
+             * Begins GC-tracking of the allocation array and pins it.
+             * @param alloc The allocation to track.
+             * @param len The length of the array.
+             */
+            void gc_track(Allocation *alloc, size_t len = 1);
+
+            /**
+             * Pins GC-tracked allocation.
+             * @param alloc The allocation to pin.
+             */
             void gc_pin(Allocation *alloc);
 
+            /**
+             * Unpins GC-tracked allocation.
+             * @param alloc The allocation to unpin.
+             */
             void gc_unpin(Allocation *alloc);
 
+            /**
+             * Shortcut for constructing and pinning a GC-tracked allocation.
+             * @tparam T Type of the allocation to create.
+             * @tparam A Type of arguments to forward to `T`'s constructor.
+             * @param args The arguments to forward to the constructor of the allocation.
+             * @return The pointer to newly created GC-tracked allocation.
+             */
             template<class T, typename... A>
             T *gc_new(A &&... args) {
                 T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
@@ -84,162 +177,239 @@ namespace funscript {
                 return ptr;
             }
 
+            /**
+             * Looks for unused GC-tracked allocations and destroys them.
+             */
             void gc_cycle();
+
 
             ~MemoryManager();
         };
 
-        const Config config;
-        MemoryManager mem;
+        const Config config; // Configuration of current VM instance.
+        MemoryManager mem; // Memory manager for the current VM.
 
         explicit VM(Config config);
 
-        friend MemoryManager;
-
+        /**
+         * Class of Funscript execution stack.
+         */
         class Stack : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            VM &vm;
 
-            Stack &operator=(const Stack &s) = delete;
-            Stack(const Stack &s) = delete;
+            using pos_t = ssize_t; // Type representing position in stack. Can be negative (-1 is the topmost element).
 
-            explicit Stack(VM &vm);
+            VM &vm; // The VM instance which holds the stack.
 
-            [[nodiscard]] stack_pos_t size() const;
-            const Value &operator[](stack_pos_t pos);
-            [[nodiscard]] stack_pos_t abs(stack_pos_t pos) const;
+            Stack &operator=(const Stack &) = delete;
+            Stack(const Stack &) = delete;
+
+            /**
+             * @param vm The VM instance which owns the stack.
+             * @param start The main function of this routine.
+             */
+            explicit Stack(VM &vm, Function *start);
+
+            [[nodiscard]] pos_t size() const;
+            const Value &operator[](pos_t pos); // Value stack indexing.
+
+            void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset);
+            void call_operator(Operator op, Function *cont_fn);
+            void call_function(Function *fun, Function *cont_fn);
+            void continue_execution();
+
+            // Some functions for pushing values onto the value stack.
 
             void push_sep();
             void push_nul();
-            void push_int(int64_t num);
+            void push_int(fint num);
             void push_obj(Object *obj);
             void push_fun(Function *fun);
             void push_bln(bool bln);
 
-            bool as_boolean();
+            /**
+             * Weak conversion of value pack to boolean.
+             * @return
+             */
+            bool as_bln();
 
-            void exec_bytecode(Frame *, Scope *scope, Bytecode *bytecode_obj, size_t offset);
+            /**
+             * Discards values until (and including) the topmost separator.
+             */
             void discard();
-            void call_operator(Frame *frame, Operator op);
 
-            void pop(stack_pos_t pos = -1);
+            /**
+             * Pops values until (and including) the value at position `pos`.
+             * @param pos The position of bottommost element to pop.
+             */
+            void pop(pos_t pos = -1);
 
-            ~Stack();
+            /**
+             * Finds the topmost separator value in value stack.
+             * @param before Upper bound of search.
+             * @return Absolute (non-negative) position of the requested separator.
+             */
+            pos_t find_sep(pos_t before = 0);
+
+            ~Stack() override;
 
         private:
-            std::vector<Value, AllocatorWrapper<Value>> stack;
+            fvec<Value> values; // Values stack.
+            fvec<Frame *> frames; // Frames stack.
 
+            /**
+             * Pushes any value onto the value stack.
+             * @param e Value to push.
+             */
             void push(const Value &e);
-            Value &get(stack_pos_t pos);
-            stack_pos_t find_sep(stack_pos_t before = 0);
-            void call(Function *fun, Frame *frame);
+
+            /**
+             * Returns mutable reference to the value stack element at the specified position.
+             * @param pos Position to index.
+             * @return The value at the specified position of value stack.
+             */
+            Value &get(pos_t pos);
         };
-
-        Stack &stack(size_t id);
-
-        size_t new_stack();
-
-        ~VM();
-
-    private:
-        std::vector<Stack *, AllocatorWrapper<Stack *>> stacks;
     };
 
-    struct Value {
-        enum Type {
-            NUL, SEP, INT, OBJ, FUN, BLN
-        };
-        union Data {
-            int64_t num;
-            Object *obj;
-            Function *fun;
-            bool bln;
-        };
-        Type type = NUL;
-        Data data = {.obj = nullptr};
-    };
-
+    /**
+     * Class of object value objects.
+     */
     class Object : public VM::Allocation {
     private:
-        friend VM;
-
-        fmap<fstring, Value> str_map;
+        fmap<fstr, Value> fields; // Dictionary of object's fields.
 
         void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
         VM &vm;
 
-    public:
-        explicit Object(VM &vm) : vm(vm), str_map(vm.mem.std_alloc<std::pair<const fstring, Value>>()) {};
-        [[nodiscard]] bool contains(const fstring &key) const;
-        [[nodiscard]] Value get_val(const fstring &key) const;
-        void set_val(const fstring &key, Value val);
+        explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const fstr, Value>>()) {};
+
+        [[nodiscard]] bool contains_field(const fstr &key) const;
+        [[nodiscard]] Value get_field(const fstr &key) const;
+        void set_field(const fstr &key, Value val);
+
         ~Object() override = default;
-        bool equals(Object &obj) const;
     };
 
+    /**
+     * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
+     */
     class Scope : public VM::Allocation {
         void get_refs(const std::function<void(Allocation * )> &callback) override;
 
-        void set_var(const fstring &name, Value val, Scope &first);
-
+        /**
+         * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
+         * @param name Name of the variable to search.
+         * @param val The new value of the variable.
+         * @param first The scope where the variable should be created if wasn't found.
+         */
+        void set_var(const fstr &name, Value val, Scope &first);
     public:
-        Object *const vars;
-        Scope *const prev_scope;
+        Object *const vars; // Object which contains all the variables of the scope.
+        Scope *const prev_scope; // Pointer to the parent scope.
 
         Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
 
-        [[nodiscard]] Value get_var(const fstring &name) const;
+        /**
+         * Recursively searches the specified variable in the scope and all its parent scopes and retrieves the value of it.
+         * @param name Name of the variable to search.
+         * @return The value of the requested variable.
+         */
+        [[nodiscard]] Value get_var(const fstr &name) const;
 
-        void set_var(const fstring &name, Value val);
+        /**
+         * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
+         * @param name Name of the variable to search.
+         * @param val The new value of the variable.
+         */
+        void set_var(const fstr &name, Value val);
     };
 
-    class Function : public VM::Allocation {
-    public:
-
-        explicit Function() {}
-
-        virtual void operator()(VM::Stack &stack, Frame *frame) = 0;
-    };
-
-    class Bytecode : public VM::Allocation {
-        char *const data;
-        Allocator *const allocator;
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override {}
-
-    public:
-        Bytecode(char *data, Allocator *allocator) : data(data), allocator(allocator) {}
-
-        const char *get_data();
-        ~Bytecode();
-    };
-
-    class CompiledFunction : public Function {
-        Bytecode *bytecode;
-        size_t offset;
-        Scope *scope;
+    /**
+     * Objects of this class hold information about VM stack frame.
+     */
+    class Frame : public VM::Allocation {
+        friend VM::Stack;
+        Function *cont_fn; // The function to be called in this frame.
 
         void get_refs(const std::function<void(Allocation * )> &callback) override;
     public:
-        CompiledFunction(Scope *scope, Bytecode *bytecode, size_t offset) : bytecode(bytecode), scope(scope),
-                                                                            offset(offset) {}
+        explicit Frame(Function *cont_fn);
+    };
 
-        void operator()(VM::Stack &stack, Frame *frame) override {
-            stack.exec_bytecode(frame, scope, bytecode, offset);
+    /**
+     * Class of function value objects.
+     */
+    class Function : public VM::Allocation {
+        friend VM::Stack;
+
+        virtual void call(VM::Stack &stack, Frame *frame) = 0;
+    public:
+        Function() = default;
+        ~Function() override = default;
+    };
+
+    class BytecodeFunction;
+
+    /**
+     * Class of bytecode holder objects.
+     */
+    class Bytecode : public VM::Allocation {
+        friend BytecodeFunction;
+        friend VM::Stack;
+        const std::string bytes;
+    public:
+        explicit Bytecode(std::string data);
+
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
+
+        ~Bytecode() = default;
+    };
+
+    /**
+     * Class of plain bytecode-compiled function value objects.
+     */
+    class BytecodeFunction : public Function {
+        Scope *scope;
+        Bytecode *bytecode;
+        size_t offset;
+
+        void call(VM::Stack &stack, funscript::Frame *frame) override;
+    public:
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
+
+        BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
+    };
+
+    /**
+     * Structure that holds Funscript value of any type.
+     */
+    struct Value {
+        union Data {
+            fint num;
+            Object *obj;
+            Function *fun;
+            bool bln;
+        };
+        Type type = Type::NUL;
+        Data data = {.obj = nullptr};
+
+        void get_ref(const std::function<void(VM::Allocation *)> &callback) const {
+            if (type == Type::OBJ) callback(data.obj);
+            if (type == Type::FUN) callback(data.fun);
         }
     };
 
-    class Frame : public VM::Allocation {
-        Frame *prev_frame;
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        explicit Frame(Frame *prev_frame) : prev_frame(prev_frame) {}
-
-        ~Frame() override = default;
-    };
+    namespace {
+        /**
+         * Stub class used to implement routine yielding via stack unwinding.
+         * The objects of this class are thrown in case of yield.
+         */
+        class __yield {
+        };
+    }
 }
 
 #endif //FUNSCRIPT_VM_H
