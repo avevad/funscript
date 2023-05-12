@@ -25,6 +25,7 @@ namespace funscript {
                 case Token::NUL:
                 case Token::INTEGER:
                 case Token::BOOLEAN:
+                case Token::STRING:
                 case Token::ID: {
                     // We need to insert implicit call operator if the previous token was literal-like token or right bracket
                     // As in `fib 5` or `arr[2][3]`
@@ -132,6 +133,10 @@ namespace funscript {
                 }
                 case Token::BOOLEAN: {
                     ast.push_back(new BooleanAST(get<bool>(token.data)));
+                    break;
+                }
+                case Token::STRING: {
+                    ast.push_back(new StringAST(get<std::string>(token.data)));
                     break;
                 }
             }

@@ -85,6 +85,8 @@ namespace funscript {
         size_t len = 0; // Current token part length
         bool id_part = true; // Is current token part a prefix of an identifier
         bool int_part = true; // Is current token part a prefix of an integer literal
+        bool str_part = true; // Is current token part a prefix of a string literal
+        bool str_end = false; // Was the closing quote of the string literal already found
         std::vector<Keyword> kws_part; // Keywords which start with current token part
     public:
         TokenAutomaton();
@@ -122,7 +124,8 @@ namespace funscript {
             RIGHT_BRACKET,
             NUL,
             VOID, // Implicitly inserted during parsing.
-            BOOLEAN
+            BOOLEAN,
+            STRING
         };
         using Data = std::variant<Operator, Bracket, int64_t, std::string, bool>;
         Type type;

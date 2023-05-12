@@ -10,6 +10,13 @@ funscript::TokenAutomaton::TokenAutomaton() {
 }
 
 void funscript::TokenAutomaton::append(char c) {
+    if (str_part) {
+        if (str_end) str_part = false; // There can be no symbols after the end of the literal
+        else {
+            if (len == 0) str_part = c == '\''; // Every string literal begins with a quote
+            else if (c == '\'') str_end = true; // And it also ends with a quote
+        }
+    }
     // Every identifier consists of alphanumeric characters and underscores and must not start with a digit
     if (len == 0) id_part = std::isalpha(c) || c == '_';
     else if (id_part) id_part = std::isalnum(c) || c == '_';
@@ -28,7 +35,7 @@ void funscript::TokenAutomaton::append(char c) {
 }
 
 bool funscript::TokenAutomaton::is_valid() const {
-    return id_part || int_part || !kws_part.empty();
+    return str_part || id_part || int_part || !kws_part.empty();
 }
 
 namespace funscript {
@@ -41,6 +48,10 @@ namespace funscript {
 funscript::Token funscript::get_token(const std::string &token_str) {
     // Token cannot be empty
     if (token_str.empty()) return {Token::UNKNOWN};
+    // Token can be a string literal enclosed in quotes
+    if (token_str.size() >= 2 && token_str.starts_with('\'') && token_str.ends_with('\'')) {
+        return {Token::STRING, token_str.substr(1, token_str.size() - 2)};
+    }
     // Token can be a keyword of different types
     if (get_inverse_keyword_mapping().contains(token_str)) {
         Keyword keyword = get_inverse_keyword_mapping().at(token_str);

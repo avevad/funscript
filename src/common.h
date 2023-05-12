@@ -20,7 +20,7 @@ namespace funscript {
     }
 
     enum class Type : uint8_t {
-        NUL, SEP, INT, OBJ, FUN, BLN
+        NUL, SEP, INT, OBJ, FUN, BLN, STR
     };
 
     /**
@@ -29,7 +29,7 @@ namespace funscript {
     enum class Opcode : uint16_t {
         NOP, // Do nothing
         /**
-         * @brief Push literal value.
+         * @brief Push literal value (except strings)
          * @param u16 Value type (enum funscript::Type).
          * @param u64 Representation of the value or the pointer to the offset of value representation.
          */
@@ -77,7 +77,13 @@ namespace funscript {
          * @brief Jump unconditionally.
          * @param u64 Bytecode offset of where to jump.
          */
-        JMP
+        JMP,
+        /**
+         * @brief Push string value.
+         * @param u16 Length of the string.
+         * @param u64 Bytecode offset of where the string is stored.
+         */
+        STR,
     };
 
     struct Instruction {

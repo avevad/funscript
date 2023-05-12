@@ -25,6 +25,9 @@ void print_stack_values(funscript::VM::Stack &stack) {
                 case funscript::Type::BLN:
                     std::cout << (val.data.bln ? "yes" : "no");
                     break;
+                case funscript::Type::STR:
+                    std::cout << "'" << val.data.str->bytes << "'";
+                    break;
                 default:
                     throw std::runtime_error("unknown value");
             }

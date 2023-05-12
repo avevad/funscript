@@ -103,6 +103,8 @@ namespace funscript {
 
     void VM::Stack::push_bln(bool bln) { push({Type::BLN, {.bln = bln}}); }
 
+    void VM::Stack::push_str(String *str) { push({Type::STR, {.str = str}}); }
+
     bool VM::Stack::as_bln() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
             assertion_failed("no implicit conversion to boolean");
@@ -237,6 +239,16 @@ namespace funscript {
                     ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                     break;
                 }
+                case Opcode::STR: {
+                    fstr str(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64),
+                             reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64 + ins.u16),
+                             vm.mem.str_alloc());
+                    auto *str_obj = vm.mem.gc_new<String>(str);
+                    push_str(str_obj);
+                    vm.mem.gc_unpin(str_obj);
+                    ip++;
+                    break;
+                }
             }
         }
     }
@@ -265,6 +277,14 @@ namespace funscript {
                 break;
             }
             case Operator::PLUS: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
+                    fstr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
+                    pop(-4);
+                    auto *str = vm.mem.gc_new<String>(a + b);
+                    push_str(str);
+                    vm.mem.gc_unpin(str);
+                    break;
+                }
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
                     assertion_failed("invalid operands");
                 }
@@ -462,4 +482,8 @@ namespace funscript {
     BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
                                                                                           bytecode(bytecode),
                                                                                           offset(offset) {}
+
+    String::String(fstr bytes) : bytes(std::move(bytes)) {}
+
+    void String::get_refs(const std::function<void(Allocation * )> &callback) {}
 }

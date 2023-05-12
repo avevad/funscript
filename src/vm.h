@@ -82,6 +82,8 @@ namespace funscript {
 
     class Bytecode;
 
+    class String;
+
     class VM {
     public:
         VM(const VM &vm) = delete;
@@ -226,6 +228,7 @@ namespace funscript {
             void push_int(fint num);
             void push_obj(Object *obj);
             void push_fun(Function *fun);
+            void push_str(String *str);
             void push_bln(bool bln);
 
             /**
@@ -271,6 +274,17 @@ namespace funscript {
              */
             Value &get(pos_t pos);
         };
+    };
+
+    /**
+     * Class of string value objects.
+     */
+    class String : public VM::Allocation {
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
+    public:
+        const fstr bytes;
+
+        explicit String(fstr bytes);
     };
 
     /**
@@ -392,6 +406,7 @@ namespace funscript {
             Object *obj;
             Function *fun;
             bool bln;
+            String *str;
         };
         Type type = Type::NUL;
         Data data = {.obj = nullptr};
@@ -399,6 +414,7 @@ namespace funscript {
         void get_ref(const std::function<void(VM::Allocation *)> &callback) const {
             if (type == Type::OBJ) callback(data.obj);
             if (type == Type::FUN) callback(data.fun);
+            if (type == Type::STR) callback(data.str);
         }
     };
 

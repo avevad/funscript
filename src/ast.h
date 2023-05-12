@@ -280,6 +280,18 @@ namespace funscript {
     public:
         explicit BooleanAST(bool bln);
     };
+
+    /**
+     * Class of AST leaves which represent string literals.
+     */
+    class StringAST : public AST {
+        std::string str;
+
+        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
+        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+    public:
+        explicit StringAST(std::string str);
+    };
 }
 
 #endif //FUNSCRIPT_AST_H

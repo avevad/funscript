@@ -235,4 +235,16 @@ namespace funscript {
     }
 
     BooleanAST::BooleanAST(bool bln) : AST({.no_scope = true}), bln(bln) {}
+
+    StringAST::StringAST(std::string str) : AST({.no_scope = true}), str(std::move(str)) {}
+
+    void StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+        ch.put_instruction({Opcode::STR,
+                            static_cast<uint16_t>(str.size()), 0 /* Will be overwritten to actual string location */});
+        as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(str));
+    }
+
+    void StringAST::compile_move(Assembler &as, Assembler::Chunk &chunk) {
+        throw CompilationError("expression is not assignable");
+    }
 }

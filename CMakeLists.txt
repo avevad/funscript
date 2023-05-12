@@ -8,4 +8,4 @@ IF (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-D_GLIBCXX_DEBUG)
 ENDIF ()
 
-add_executable(funscript src/tokenizer.cpp src/ast_parser.cpp src/ast.cpp src/main.cpp src/ast_assembler.cpp src/vm.cpp)
+add_executable(funscript src/tokenizer.cpp src/ast.cpp src/ast_parser.cpp src/ast_assembler.cpp src/vm.cpp src/main.cpp)
