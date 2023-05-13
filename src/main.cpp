@@ -28,6 +28,9 @@ void print_stack_values(funscript::VM::Stack &stack) {
                 case funscript::Type::STR:
                     std::cout << "'" << val.data.str->bytes << "'";
                     break;
+                case funscript::Type::ERR:
+                    std::cout << "runtime error: " << val.data.err->desc;
+                    break;
                 default:
                     throw std::runtime_error("unknown value");
             }
@@ -48,33 +51,39 @@ int main() {
         std::cout << ": ";
         std::string code;
         if (!std::getline(std::cin, code)) break;
-        // Split expression into array of tokens
-        std::vector<funscript::Token> tokens;
-        funscript::tokenize(code, [&tokens](auto token) { tokens.push_back(token); });
-        // Parse array of tokens
-        funscript::ast_ptr ast = funscript::parse(tokens);
-        // Compile the expression AST
-        funscript::Assembler as;
-        as.compile_expression(ast.get());
-        // Assemble the whole expression bytecode
-        std::string bytes(as.total_size(), '\0');
-        as.assemble(bytes.data());
-        auto *bytecode = vm.mem.gc_new<funscript::Bytecode>(bytes);
-        // Create temporary environment for expression evaluation
-        auto *start = vm.mem.gc_new<funscript::BytecodeFunction>(scope, bytecode);
-        vm.mem.gc_unpin(bytecode);
-        auto *stack = vm.mem.gc_new<funscript::VM::Stack>(vm, start);
-        vm.mem.gc_unpin(start);
-        // Evaluate the expression and print the result
-        stack->continue_execution();
-        if (stack->size() != 0) {
-            std::cout << "= ";
-            print_stack_values(*stack);
-            std::cout << std::endl;
+        try {
+            // Split expression into array of tokens
+            std::vector<funscript::Token> tokens;
+            funscript::tokenize(code, [&tokens](auto token) { tokens.push_back(token); });
+            // Parse array of tokens
+            funscript::ast_ptr ast = funscript::parse(tokens);
+            // Compile the expression AST
+            funscript::Assembler as;
+            as.compile_expression(ast.get());
+            // Assemble the whole expression bytecode
+            std::string bytes(as.total_size(), '\0');
+            as.assemble(bytes.data());
+            auto *bytecode = vm.mem.gc_new<funscript::Bytecode>(bytes);
+            // Create temporary environment for expression evaluation
+            auto *start = vm.mem.gc_new<funscript::BytecodeFunction>(scope, bytecode);
+            vm.mem.gc_unpin(bytecode);
+            auto *stack = vm.mem.gc_new<funscript::VM::Stack>(vm, start);
+            vm.mem.gc_unpin(start);
+            // Evaluate the expression and print the result
+            stack->continue_execution();
+            if (stack->size() != 0) {
+                std::cout << "= ";
+                print_stack_values(*stack);
+                std::cout << std::endl;
+            }
+            // Intermediate cleanup
+            vm.mem.gc_unpin(stack);
+            vm.mem.gc_cycle();
+        } catch (const funscript::CodeReadingError &err) {
+            std::cout << "syntax error: " << err.what() << std::endl;
+        } catch (const funscript::CompilationError &err) {
+            std::cout << "compilation error: " << err.what() << std::endl;
         }
-        // Intermediate cleanup
-        vm.mem.gc_unpin(stack);
-        vm.mem.gc_cycle();
     }
     // Final cleanup
     vm.mem.gc_unpin(scope);

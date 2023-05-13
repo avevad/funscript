@@ -169,6 +169,7 @@ namespace funscript {
      */
     static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
         static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
+                {Operator::INDEX,         {0,  false}},
                 {Operator::CALL,          {0,  false}},
                 {Operator::NOT,           {1,  false}},
                 {Operator::TIMES,         {3,  true}},

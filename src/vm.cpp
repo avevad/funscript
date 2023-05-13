@@ -105,6 +105,8 @@ namespace funscript {
 
     void VM::Stack::push_str(String *str) { push({Type::STR, {.str = str}}); }
 
+    void VM::Stack::push_err(funscript::Error *err) { push({Type::ERR, {.err = err}}); }
+
     bool VM::Stack::as_bln() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
             assertion_failed("no implicit conversion to boolean");
@@ -133,7 +135,7 @@ namespace funscript {
         return values[pos];
     }
 
-    void VM::Stack::exec_bytecode(funscript::Scope *scope, Bytecode *bytecode_obj, size_t offset) {
+    void VM::Stack::exec_bytecode(funscript::Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         const auto *bytecode = bytecode_obj->bytes.data();
         const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
         while (true) {
@@ -167,11 +169,15 @@ namespace funscript {
                         pop();
                         push(scope->get_var(name));
                     } else {
-                        if (get(-1).type != Type::OBJ) assertion_failed("only objects are able to be indexed");
+                        if (get(-1).type != Type::OBJ) {
+                            return raise_err("only objects are able to be indexed", frame_start);
+                        }
                         Object *obj = get(-1).data.obj;
                         vm.mem.gc_pin(obj);
                         pop();
-                        if (get(-1).type != Type::SEP) assertion_failed("can't index multiple values");
+                        if (get(-1).type != Type::SEP) {
+                            return raise_err("can't index multiple values", frame_start);
+                        }
                         pop();
                         push(obj->get_field(name));
                         vm.mem.gc_unpin(obj);
@@ -183,17 +189,17 @@ namespace funscript {
                     fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                     if (get(-1).type == Type::SEP) {
                         pop();
-                        if (get(-1).type == Type::SEP) assertion_failed("not enough values to assign");
+                        if (get(-1).type == Type::SEP) raise_err("not enough values to assign", frame_start);
                         scope->set_var(name, get(-1));
                         pop();
                     } else {
-                        if (get(-1).type != Type::OBJ) assertion_failed("only objects are able to be indexed");
+                        if (get(-1).type != Type::OBJ) raise_err("only objects are able to be indexed", frame_start);
                         Object *obj = get(-1).data.obj;
                         vm.mem.gc_pin(obj);
                         pop();
-                        if (get(-1).type != Type::SEP) assertion_failed("can't index multiple values");
+                        if (get(-1).type != Type::SEP) raise_err("can't index multiple values", frame_start);
                         pop();
-                        if (get(-1).type == Type::SEP) assertion_failed("not enough values to assign");
+                        if (get(-1).type == Type::SEP) raise_err("not enough values to assign", frame_start);
                         obj->set_field(name, get(-1));
                         pop();
                         vm.mem.gc_unpin(obj);
@@ -222,6 +228,14 @@ namespace funscript {
                 case Opcode::OPR: {
                     auto op = static_cast<Operator>(ins.u16);
                     call_operator(op, nullptr);
+                    if (get(-1).type == Type::ERR) {
+                        Error *err = get(-1).data.err;
+                        vm.mem.gc_pin(err);
+                        pop(frame_start);
+                        push_err(err);
+                        vm.mem.gc_unpin(err);
+                        return;
+                    }
                     ip++;
                     break;
                 }
@@ -260,7 +274,7 @@ namespace funscript {
         switch (op) {
             case Operator::TIMES: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -269,7 +283,7 @@ namespace funscript {
             }
             case Operator::DIVIDE: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -286,7 +300,7 @@ namespace funscript {
                     break;
                 }
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -296,7 +310,7 @@ namespace funscript {
             case Operator::MINUS: {
                 if (cnt_a == 0) {
                     if (cnt_b != 1 || get(pos_b).type != Type::INT) {
-                        assertion_failed("invalid operands");
+                        return raise_op_err(op);
                     }
                     fint num = get(pos_b).data.num;
                     pop(-3);
@@ -304,7 +318,7 @@ namespace funscript {
                     break;
                 }
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -313,7 +327,7 @@ namespace funscript {
             }
             case Operator::CALL: {
                 if (cnt_a != 1 || get(pos_a).type != Type::FUN) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 Function *fn = get(pos_a).data.fun;
                 vm.mem.gc_pin(fn);
@@ -324,7 +338,7 @@ namespace funscript {
             }
             case Operator::MODULO: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -333,7 +347,7 @@ namespace funscript {
             }
             case Operator::EQUALS: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -342,7 +356,7 @@ namespace funscript {
             }
             case Operator::DIFFERS: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -351,7 +365,7 @@ namespace funscript {
             }
             case Operator::NOT: {
                 if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 bool bln = get(pos_b).data.bln;
                 pop(-3);
@@ -360,7 +374,7 @@ namespace funscript {
             }
             case Operator::LESS: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -369,7 +383,7 @@ namespace funscript {
             }
             case Operator::GREATER: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -378,7 +392,7 @@ namespace funscript {
             }
             case Operator::LESS_EQUAL: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -387,7 +401,7 @@ namespace funscript {
             }
             case Operator::GREATER_EQUAL: {
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                    assertion_failed("invalid operands");
+                    return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
@@ -418,6 +432,18 @@ namespace funscript {
             cont_fn->call(*this, frames[pos]);
             vm.mem.gc_unpin(cont_fn);
         }
+    }
+
+    void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
+        pop(frame_start);
+        auto *err = vm.mem.gc_new<Error>(fstr(msg, vm.mem.std_alloc<char>()));
+        push_err(err);
+        vm.mem.gc_unpin(err);
+    }
+
+    void VM::Stack::raise_op_err(Operator op) {
+        pos_t pos = find_sep(find_sep());
+        raise_err("operator is not defined for these operands", pos);
     }
 
     VM::Stack::~Stack() = default;
@@ -476,7 +502,7 @@ namespace funscript {
     }
 
     void BytecodeFunction::call(VM::Stack &stack, funscript::Frame *frame) {
-        stack.exec_bytecode(scope, bytecode, offset);
+        stack.exec_bytecode(scope, bytecode, offset, stack.find_sep());
     }
 
     BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
@@ -486,4 +512,8 @@ namespace funscript {
     String::String(fstr bytes) : bytes(std::move(bytes)) {}
 
     void String::get_refs(const std::function<void(Allocation * )> &callback) {}
+
+    void Error::get_refs(const std::function<void(Allocation * )> &callback) {}
+
+    Error::Error(fstr desc) : desc(std::move(desc)) {}
 }

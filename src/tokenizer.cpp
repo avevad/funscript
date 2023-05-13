@@ -81,11 +81,6 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     return {Token::UNKNOWN};
 }
 
-class CodeReadingError : public std::runtime_error {
-public:
-    explicit CodeReadingError(const std::string &msg) : std::runtime_error(msg) {}
-};
-
 void funscript::tokenize(const std::string &code, const std::function<void(Token)> &cb) {
     size_t left = 0; // Position of leftmost character of current token
     // Skip whitespaces at the beginning

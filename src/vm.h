@@ -84,6 +84,8 @@ namespace funscript {
 
     class String;
 
+    class Error;
+
     class VM {
     public:
         VM(const VM &vm) = delete;
@@ -216,7 +218,7 @@ namespace funscript {
             [[nodiscard]] pos_t size() const;
             const Value &operator[](pos_t pos); // Value stack indexing.
 
-            void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset);
+            void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
             void call_operator(Operator op, Function *cont_fn);
             void call_function(Function *fun, Function *cont_fn);
             void continue_execution();
@@ -230,6 +232,11 @@ namespace funscript {
             void push_fun(Function *fun);
             void push_str(String *str);
             void push_bln(bool bln);
+            void push_err(Error *err);
+
+            void raise_err(const std::string &msg, pos_t frame_start);
+
+            void raise_op_err(Operator op);
 
             /**
              * Weak conversion of value pack to boolean.
@@ -285,6 +292,17 @@ namespace funscript {
         const fstr bytes;
 
         explicit String(fstr bytes);
+    };
+
+    /**
+     * Class of error value objects.
+     */
+    class Error : public VM::Allocation {
+        void get_refs(const std::function<void(Allocation * )> &callback) override;
+    public:
+        const fstr desc; // Human-readable description of the error.
+
+        explicit Error(fstr desc);
     };
 
     /**
@@ -407,6 +425,7 @@ namespace funscript {
             Function *fun;
             bool bln;
             String *str;
+            Error *err;
         };
         Type type = Type::NUL;
         Data data = {.obj = nullptr};
@@ -415,6 +434,7 @@ namespace funscript {
             if (type == Type::OBJ) callback(data.obj);
             if (type == Type::FUN) callback(data.fun);
             if (type == Type::STR) callback(data.str);
+            if (type == Type::ERR) callback(data.err);
         }
     };
 

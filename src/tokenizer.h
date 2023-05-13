@@ -199,6 +199,11 @@ namespace funscript {
      * @param cb Callback function to call for every parsed token.
      */
     void tokenize(const std::string &code, const std::function<void(Token)> &cb);
+
+    class CodeReadingError : public std::runtime_error {
+    public:
+        explicit CodeReadingError(const std::string &msg) : std::runtime_error(msg) {}
+    };
 }
 
 #endif //FUNSCRIPT_TOKENIZER_H

@@ -20,7 +20,7 @@ namespace funscript {
     }
 
     enum class Type : uint8_t {
-        NUL, SEP, INT, OBJ, FUN, BLN, STR
+        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR
     };
 
     /**
