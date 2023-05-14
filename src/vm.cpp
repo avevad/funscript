@@ -187,7 +187,7 @@ namespace funscript {
                         pop();
                         auto field = obj->get_field(name);
                         if (!field.has_value()) {
-                            return raise_err("no such field: '" + std::string() + "'", frame_start);
+                            return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                         }
                         push(field.value());
                         vm.mem.gc_unpin(obj);
