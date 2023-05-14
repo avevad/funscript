@@ -96,7 +96,8 @@ namespace funscript {
             case Operator::INDEX: {
                 ch.put_instruction(Opcode::SEP);
                 left->compile_eval(as, ch);
-                ch.put_instruction({Opcode::GET, false, as.add_string(right->get_identifier())});
+                ch.put_instruction({Opcode::GET, false, 0 /* Will be overwritten to actual name location */});
+                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
                 break;
             }
             case Operator::THEN: {
@@ -163,7 +164,8 @@ namespace funscript {
             case Operator::INDEX:
                 ch.put_instruction(Opcode::SEP);
                 left->compile_eval(as, ch);
-                ch.put_instruction({Opcode::SET, false, as.add_string(right->get_identifier())});
+                ch.put_instruction({Opcode::SET, false, 0 /* Will be overwritten to actual name location */});
+                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
                 break;
             default:
                 throw CompilationError("expression is not assignable");
@@ -201,12 +203,12 @@ namespace funscript {
                 if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, false});
                 break;
             case Bracket::CURLY:
-                ch.put_instruction({Opcode::SCP, true});
+                ch.put_instruction({Opcode::SCP, true}); // Create object scope
                 ch.put_instruction({Opcode::SEP});
                 child->compile_eval(as, ch);
-                ch.put_instruction({Opcode::DIS});
-                ch.put_instruction({Opcode::SCP, false});
-                ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::OBJ)});
+                ch.put_instruction({Opcode::DIS}); // Discard all values produced by sub-expression
+                ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::OBJ)}); // Create an object from scope
+                ch.put_instruction({Opcode::SCP, false}); // Discard object scope
                 break;
         }
     }
