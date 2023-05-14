@@ -189,9 +189,7 @@ namespace funscript {
 
     void VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {}
 
-    void VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
-        throw CompilationError("expression is not assignable");
-    }
+    void VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch) {}
 
     VoidAST::VoidAST() : AST({.no_scope = true}) {}
 
