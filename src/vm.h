@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <deque>
+#include <optional>
 #include "common.h"
 
 namespace funscript {
@@ -242,7 +243,7 @@ namespace funscript {
              * Weak conversion of value pack to boolean.
              * @return
              */
-            bool as_bln();
+            void as_boolean();
 
             /**
              * Discards values until (and including) the topmost separator.
@@ -319,7 +320,7 @@ namespace funscript {
         explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const fstr, Value>>()) {};
 
         [[nodiscard]] bool contains_field(const fstr &key) const;
-        [[nodiscard]] Value get_field(const fstr &key) const;
+        [[nodiscard]] std::optional<Value> get_field(const fstr &key) const;
         void set_field(const fstr &key, Value val);
 
         ~Object() override = default;
@@ -349,7 +350,7 @@ namespace funscript {
          * @param name Name of the variable to search.
          * @return The value of the requested variable.
          */
-        [[nodiscard]] Value get_var(const fstr &name) const;
+        [[nodiscard]] std::optional<Value> get_var(const funscript::fstr &name) const;
 
         /**
          * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.

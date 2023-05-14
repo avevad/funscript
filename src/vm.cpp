@@ -107,11 +107,13 @@ namespace funscript {
 
     void VM::Stack::push_err(funscript::Error *err) { push({Type::ERR, {.err = err}}); }
 
-    bool VM::Stack::as_bln() {
+    void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
-            assertion_failed("no implicit conversion to boolean");
+            return raise_err("no implicit conversion to boolean", find_sep());
         }
-        return get(-1).data.bln;
+        bool bln = get(-1).data.bln;
+        pop(find_sep());
+        push_bln(bln);
     }
 
     void VM::Stack::discard() { pop(find_sep()); }
@@ -167,7 +169,11 @@ namespace funscript {
                     fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                     if (get(-1).type == Type::SEP) {
                         pop();
-                        push(scope->get_var(name));
+                        auto var = scope->get_var(name);
+                        if (!var.has_value()) {
+                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                        }
+                        push(var.value());
                     } else {
                         if (get(-1).type != Type::OBJ) {
                             return raise_err("only objects are able to be indexed", frame_start);
@@ -179,7 +185,11 @@ namespace funscript {
                             return raise_err("can't index multiple values", frame_start);
                         }
                         pop();
-                        push(obj->get_field(name));
+                        auto field = obj->get_field(name);
+                        if (!field.has_value()) {
+                            return raise_err("no such field: '" + std::string() + "'", frame_start);
+                        }
+                        push(field.value());
                         vm.mem.gc_unpin(obj);
                     }
                     ip++;
@@ -189,17 +199,19 @@ namespace funscript {
                     fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                     if (get(-1).type == Type::SEP) {
                         pop();
-                        if (get(-1).type == Type::SEP) raise_err("not enough values to assign", frame_start);
+                        if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
                         scope->set_var(name, get(-1));
                         pop();
                     } else {
-                        if (get(-1).type != Type::OBJ) raise_err("only objects are able to be indexed", frame_start);
+                        if (get(-1).type != Type::OBJ) {
+                            return raise_err("only objects are able to be indexed", frame_start);
+                        }
                         Object *obj = get(-1).data.obj;
                         vm.mem.gc_pin(obj);
                         pop();
-                        if (get(-1).type != Type::SEP) raise_err("can't index multiple values", frame_start);
+                        if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                         pop();
-                        if (get(-1).type == Type::SEP) raise_err("not enough values to assign", frame_start);
+                        if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
                         obj->set_field(name, get(-1));
                         pop();
                         vm.mem.gc_unpin(obj);
@@ -243,10 +255,18 @@ namespace funscript {
                     return;
                 }
                 case Opcode::JNO: {
-                    bool bln = as_bln();
-                    discard();
-                    if (!bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
+                    as_boolean();
+                    if (get(-1).type == Type::ERR) {
+                        Error *err = get(-1).data.err;
+                        vm.mem.gc_pin(err);
+                        pop(frame_start);
+                        push_err(err);
+                        vm.mem.gc_unpin(err);
+                        return;
+                    }
+                    if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                     else ip++;
+                    pop();
                     break;
                 }
                 case Opcode::JMP: {
@@ -286,6 +306,7 @@ namespace funscript {
                     return raise_op_err(op);
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                if (b == 0) return raise_err("division by zero", -4);
                 pop(-4);
                 push_int(a / b);
                 break;
@@ -456,8 +477,8 @@ namespace funscript {
         return fields.contains(key);
     }
 
-    Value Object::get_field(const fstr &key) const {
-        if (!fields.contains(key)) assertion_failed("no such field");
+    std::optional<Value> Object::get_field(const fstr &key) const {
+        if (!fields.contains(key)) return std::nullopt;
         return fields.at(key);
     }
 
@@ -476,9 +497,9 @@ namespace funscript {
         else first.vars->set_field(name, val);
     }
 
-    Value Scope::get_var(const funscript::fstr &name) const {
+    std::optional<Value> Scope::get_var(const funscript::fstr &name) const {
         if (vars->contains_field(name)) return vars->get_field(name);
-        if (prev_scope == nullptr) assertion_failed("no such variable");
+        if (prev_scope == nullptr) return std::nullopt;
         return prev_scope->get_var(name);
     }
 

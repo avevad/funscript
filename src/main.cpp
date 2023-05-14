@@ -28,9 +28,6 @@ void print_stack_values(funscript::VM::Stack &stack) {
                 case funscript::Type::STR:
                     std::cout << "'" << val.data.str->bytes << "'";
                     break;
-                case funscript::Type::ERR:
-                    std::cout << "runtime error: " << val.data.err->desc;
-                    break;
                 default:
                     throw std::runtime_error("unknown value");
             }
@@ -72,9 +69,13 @@ int main() {
             // Evaluate the expression and print the result
             stack->continue_execution();
             if (stack->size() != 0) {
-                std::cout << "= ";
-                print_stack_values(*stack);
-                std::cout << std::endl;
+                if ((*stack)[-1].type == funscript::Type::ERR) {
+                    std::cout << "runtime error: " << (*stack)[-1].data.err->desc << std::endl;
+                } else {
+                    std::cout << "= ";
+                    print_stack_values(*stack);
+                    std::cout << std::endl;
+                }
             }
             // Intermediate cleanup
             vm.mem.gc_unpin(stack);
