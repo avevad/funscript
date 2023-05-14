@@ -16,7 +16,7 @@ namespace funscript {
     }
 
     void VM::MemoryManager::gc_pin(VM::Allocation *alloc) {
-        if (!gc_tracked.contains(alloc)) [[unlikely]] throw AssertionError("allocation is not tracked");
+        if (!gc_tracked.contains(alloc)) [[unlikely]] assertion_failed("allocation is not tracked");
         gc_pins[alloc]++;
     }
 

@@ -4,19 +4,16 @@
 #include <source_location>
 #include <stdexcept>
 #include <cstdint>
+#include <iostream>
 
 namespace funscript {
 
-    class AssertionError : public std::runtime_error {
-    public:
-        explicit AssertionError(const std::string &msg) : std::runtime_error(msg) {}
-    };
-
     [[noreturn]] static void assertion_failed(const std::string &what,
                                               std::source_location where = std::source_location::current()) {
-        throw AssertionError(std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
-                             std::to_string(where.column()) + ": function ‘" + where.function_name() +
-                             "’: assertion failed: " + what);
+        std::cerr << std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
+                     std::to_string(where.column()) + ": function ‘" + where.function_name() +
+                     "’: assertion failed: " + what << std::endl;
+        std::abort();
     }
 
     enum class Type : uint8_t {
