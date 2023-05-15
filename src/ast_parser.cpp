@@ -56,7 +56,17 @@ namespace funscript {
                 }
                 case Token::LEFT_BRACKET: {
                     // As it is with literal-like tokens, we need to insert call operator in the same cases
+                    // The operator is left-associative before brackets
                     if (pos != 0 && insert_call_after(tokens[pos - 1].type)) {
+                        while (!stack.empty()) {
+                            Token top = stack.back();
+                            if (top.type != Token::OPERATOR) break; // We found a bracket, so we need to stop
+                            OperatorMeta op2 = get_operators_meta().at(std::get<Operator>(top.data));
+                            if (op2.order == 0) {
+                                stack.pop_back();
+                                queue.push_back(top);
+                            } else break;
+                        }
                         stack.emplace_back(Token::OPERATOR, Operator::CALL);
                     }
                     stack.push_back(token);
