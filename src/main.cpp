@@ -8,7 +8,7 @@
 void print_stack_values(funscript::VM::Stack &stack) {
     if (stack.size() > 0) {
         for (funscript::VM::Stack::pos_t pos = 0; pos < stack.size(); pos++) {
-            funscript::Value val = stack[pos];
+            funscript::VM::Value val = stack[pos];
             switch (val.type) {
                 case funscript::Type::NUL:
                     std::cout << "nul";
@@ -41,8 +41,8 @@ int main() {
     funscript::DefaultAllocator allocator;
     funscript::VM vm({.allocator = &allocator});
     // Create the global environment for the expression evaluation
-    auto *globals = vm.mem.gc_new<funscript::Object>(vm);
-    auto *scope = vm.mem.gc_new<funscript::Scope>(globals, nullptr);
+    auto *globals = vm.mem.gc_new<funscript::VM::Object>(vm);
+    auto *scope = vm.mem.gc_new<funscript::VM::Scope>(globals, nullptr);
     while (true) {
         // Read expression from stdin
         std::cout << ": ";
@@ -60,9 +60,9 @@ int main() {
             // Assemble the whole expression bytecode
             std::string bytes(as.total_size(), '\0');
             as.assemble(bytes.data());
-            auto *bytecode = vm.mem.gc_new<funscript::Bytecode>(bytes);
+            auto *bytecode = vm.mem.gc_new<funscript::VM::Bytecode>(bytes);
             // Create temporary environment for expression evaluation
-            auto *start = vm.mem.gc_new<funscript::BytecodeFunction>(scope, bytecode);
+            auto *start = vm.mem.gc_new<funscript::VM::BytecodeFunction>(scope, bytecode);
             vm.mem.gc_unpin(bytecode);
             auto *stack = vm.mem.gc_new<funscript::VM::Stack>(vm, start);
             vm.mem.gc_unpin(start);

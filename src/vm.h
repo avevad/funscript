@@ -70,23 +70,6 @@ namespace funscript {
     using fdeq = std::deque<E, AllocatorWrapper<E>>;
     using fint = int64_t;
 
-
-    class Object;
-
-    class Function;
-
-    struct Value;
-
-    class Scope;
-
-    class Frame;
-
-    class Bytecode;
-
-    class String;
-
-    class Error;
-
     class VM {
     public:
         VM(const VM &vm) = delete;
@@ -110,6 +93,167 @@ namespace funscript {
             virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
         public:
             virtual ~Allocation() = default;
+        };
+
+        class Stack;
+
+        struct Value;
+
+        /**
+         * Class of string value objects.
+         */
+        class String : public VM::Allocation {
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            const fstr bytes;
+
+            explicit String(fstr bytes);
+        };
+
+        /**
+         * Class of error value objects.
+         */
+        class Error : public VM::Allocation {
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            const fstr desc; // Human-readable description of the error.
+
+            explicit Error(fstr desc);
+        };
+
+        /**
+         * Class of object value objects.
+         */
+        class Object : public VM::Allocation {
+        private:
+            fmap<fstr, Value> fields; // Dictionary of object's fields.
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            VM &vm;
+
+            explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const fstr, Value>>()) {};
+
+            [[nodiscard]] bool contains_field(const fstr &key) const;
+            [[nodiscard]] std::optional<Value> get_field(const fstr &key) const;
+            void set_field(const fstr &key, Value val);
+
+            ~Object() override = default;
+        };
+
+        /**
+         * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
+         */
+        class Scope : public VM::Allocation {
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+            /**
+             * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
+             * @param name Name of the variable to search.
+             * @param val The new value of the variable.
+             * @param first The scope where the variable should be created if wasn't found.
+             */
+            void set_var(const fstr &name, Value val, Scope &first);
+        public:
+            Object *const vars; // Object which contains all the variables of the scope.
+            Scope *const prev_scope; // Pointer to the parent scope.
+
+            Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+
+            /**
+             * Recursively searches the specified variable in the scope and all its parent scopes and retrieves the value of it.
+             * @param name Name of the variable to search.
+             * @return The value of the requested variable.
+             */
+            [[nodiscard]] std::optional<Value> get_var(const funscript::fstr &name) const;
+
+            /**
+             * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
+             * @param name Name of the variable to search.
+             * @param val The new value of the variable.
+             */
+            void set_var(const fstr &name, Value val);
+        };
+
+        class Function;
+
+        /**
+         * Objects of this class hold information about VM stack frame.
+         */
+        class Frame : public VM::Allocation {
+            friend VM::Stack;
+            Function *cont_fn; // The function to be called in this frame.
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            explicit Frame(Function *cont_fn);
+        };
+
+        /**
+         * Class of function value objects.
+         */
+        class Function : public VM::Allocation {
+            friend VM::Stack;
+
+            virtual void call(VM::Stack &stack, Frame *frame) = 0;
+        public:
+            Function() = default;
+            ~Function() override = default;
+        };
+
+        class BytecodeFunction;
+
+        /**
+         * Class of bytecode holder objects.
+         */
+        class Bytecode : public VM::Allocation {
+            friend BytecodeFunction;
+            friend VM::Stack;
+            const std::string bytes;
+        public:
+            explicit Bytecode(std::string data);
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+            ~Bytecode() = default;
+        };
+
+        /**
+         * Class of plain bytecode-compiled function value objects.
+         */
+        class BytecodeFunction : public Function {
+            Scope *scope;
+            Bytecode *bytecode;
+            size_t offset;
+
+            void call(VM::Stack &stack, Frame *frame) override;
+        public:
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+            BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
+        };
+
+        /**
+         * Structure that holds Funscript value of any type.
+         */
+        struct Value {
+            union Data {
+                fint num;
+                Object *obj;
+                Function *fun;
+                bool bln;
+                String *str;
+                Error *err;
+            };
+            Type type = Type::NUL;
+            Data data = {.obj = nullptr};
+
+            void get_ref(const std::function<void(VM::Allocation *)> &callback) const {
+                if (type == Type::OBJ) callback(data.obj);
+                if (type == Type::FUN) callback(data.fun);
+                if (type == Type::STR) callback(data.str);
+                if (type == Type::ERR) callback(data.err);
+            }
         };
 
         class MemoryManager {
@@ -282,161 +426,6 @@ namespace funscript {
              */
             Value &get(pos_t pos);
         };
-    };
-
-    /**
-     * Class of string value objects.
-     */
-    class String : public VM::Allocation {
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        const fstr bytes;
-
-        explicit String(fstr bytes);
-    };
-
-    /**
-     * Class of error value objects.
-     */
-    class Error : public VM::Allocation {
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        const fstr desc; // Human-readable description of the error.
-
-        explicit Error(fstr desc);
-    };
-
-    /**
-     * Class of object value objects.
-     */
-    class Object : public VM::Allocation {
-    private:
-        fmap<fstr, Value> fields; // Dictionary of object's fields.
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        VM &vm;
-
-        explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const fstr, Value>>()) {};
-
-        [[nodiscard]] bool contains_field(const fstr &key) const;
-        [[nodiscard]] std::optional<Value> get_field(const fstr &key) const;
-        void set_field(const fstr &key, Value val);
-
-        ~Object() override = default;
-    };
-
-    /**
-     * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
-     */
-    class Scope : public VM::Allocation {
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-
-        /**
-         * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
-         * @param name Name of the variable to search.
-         * @param val The new value of the variable.
-         * @param first The scope where the variable should be created if wasn't found.
-         */
-        void set_var(const fstr &name, Value val, Scope &first);
-    public:
-        Object *const vars; // Object which contains all the variables of the scope.
-        Scope *const prev_scope; // Pointer to the parent scope.
-
-        Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
-
-        /**
-         * Recursively searches the specified variable in the scope and all its parent scopes and retrieves the value of it.
-         * @param name Name of the variable to search.
-         * @return The value of the requested variable.
-         */
-        [[nodiscard]] std::optional<Value> get_var(const funscript::fstr &name) const;
-
-        /**
-         * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
-         * @param name Name of the variable to search.
-         * @param val The new value of the variable.
-         */
-        void set_var(const fstr &name, Value val);
-    };
-
-    /**
-     * Objects of this class hold information about VM stack frame.
-     */
-    class Frame : public VM::Allocation {
-        friend VM::Stack;
-        Function *cont_fn; // The function to be called in this frame.
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-    public:
-        explicit Frame(Function *cont_fn);
-    };
-
-    /**
-     * Class of function value objects.
-     */
-    class Function : public VM::Allocation {
-        friend VM::Stack;
-
-        virtual void call(VM::Stack &stack, Frame *frame) = 0;
-    public:
-        Function() = default;
-        ~Function() override = default;
-    };
-
-    class BytecodeFunction;
-
-    /**
-     * Class of bytecode holder objects.
-     */
-    class Bytecode : public VM::Allocation {
-        friend BytecodeFunction;
-        friend VM::Stack;
-        const std::string bytes;
-    public:
-        explicit Bytecode(std::string data);
-
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-
-        ~Bytecode() = default;
-    };
-
-    /**
-     * Class of plain bytecode-compiled function value objects.
-     */
-    class BytecodeFunction : public Function {
-        Scope *scope;
-        Bytecode *bytecode;
-        size_t offset;
-
-        void call(VM::Stack &stack, funscript::Frame *frame) override;
-    public:
-        void get_refs(const std::function<void(Allocation * )> &callback) override;
-
-        BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
-    };
-
-    /**
-     * Structure that holds Funscript value of any type.
-     */
-    struct Value {
-        union Data {
-            fint num;
-            Object *obj;
-            Function *fun;
-            bool bln;
-            String *str;
-            Error *err;
-        };
-        Type type = Type::NUL;
-        Data data = {.obj = nullptr};
-
-        void get_ref(const std::function<void(VM::Allocation *)> &callback) const {
-            if (type == Type::OBJ) callback(data.obj);
-            if (type == Type::FUN) callback(data.fun);
-            if (type == Type::STR) callback(data.str);
-            if (type == Type::ERR) callback(data.err);
-        }
     };
 
     namespace {

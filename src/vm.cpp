@@ -86,7 +86,7 @@ namespace funscript {
         return values.size(); // NOLINT(cppcoreguidelines-narrowing-conversions)
     }
 
-    const Value &VM::Stack::operator[](VM::Stack::pos_t pos) {
+    const VM::Value &VM::Stack::operator[](VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
         return values[pos];
     }
@@ -105,7 +105,7 @@ namespace funscript {
 
     void VM::Stack::push_str(String *str) { push({Type::STR, {.str = str}}); }
 
-    void VM::Stack::push_err(funscript::Error *err) { push({Type::ERR, {.err = err}}); }
+    void VM::Stack::push_err(Error *err) { push({Type::ERR, {.err = err}}); }
 
     void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
@@ -132,12 +132,12 @@ namespace funscript {
 
     void VM::Stack::push(const Value &e) { values.push_back(e); }
 
-    Value &VM::Stack::get(VM::Stack::pos_t pos) {
+    VM::Value &VM::Stack::get(VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
         return values[pos];
     }
 
-    void VM::Stack::exec_bytecode(funscript::Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
+    void VM::Stack::exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         const auto *bytecode = bytecode_obj->bytes.data();
         const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
         while (true) {
@@ -469,72 +469,72 @@ namespace funscript {
 
     VM::Stack::~Stack() = default;
 
-    void Object::get_refs(const std::function<void(Allocation * )> &callback) {
+    void VM::Object::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &[key, val] : fields) val.get_ref(callback);
     }
 
-    bool Object::contains_field(const fstr &key) const {
+    bool VM::Object::contains_field(const fstr &key) const {
         return fields.contains(key);
     }
 
-    std::optional<Value> Object::get_field(const fstr &key) const {
+    std::optional<VM::Value> VM::Object::get_field(const fstr &key) const {
         if (!fields.contains(key)) return std::nullopt;
         return fields.at(key);
     }
 
-    void Object::set_field(const fstr &key, Value val) {
+    void VM::Object::set_field(const fstr &key, Value val) {
         fields[key] = val;
     }
 
-    void Scope::get_refs(const std::function<void(Allocation * )> &callback) {
+    void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(vars);
         callback(prev_scope);
     }
 
-    void Scope::set_var(const funscript::fstr &name, funscript::Value val, Scope &first) {
+    void VM::Scope::set_var(const fstr &name, Value val, Scope &first) {
         if (vars->contains_field(name)) vars->set_field(name, val);
         if (prev_scope) prev_scope->set_var(name, val, first);
         else first.vars->set_field(name, val);
     }
 
-    std::optional<Value> Scope::get_var(const funscript::fstr &name) const {
+    std::optional<VM::Value> VM::Scope::get_var(const funscript::fstr &name) const {
         if (vars->contains_field(name)) return vars->get_field(name);
         if (prev_scope == nullptr) return std::nullopt;
         return prev_scope->get_var(name);
     }
 
-    void Scope::set_var(const fstr &name, Value val) {
+    void VM::Scope::set_var(const fstr &name, Value val) {
         set_var(name, val, *this);
     }
 
-    Frame::Frame(Function *fn) : cont_fn(fn) {}
+    VM::Frame::Frame(Function *fn) : cont_fn(fn) {}
 
-    void Frame::get_refs(const std::function<void(Allocation * )> &callback) {
+    void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(cont_fn);
     }
 
-    Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
+    VM::Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
 
-    void Bytecode::get_refs(const std::function<void(Allocation * )> &callback) {}
+    void VM::Bytecode::get_refs(const std::function<void(Allocation *)> &callback) {}
 
-    void BytecodeFunction::get_refs(const std::function<void(Allocation * )> &callback) {
+    void VM::BytecodeFunction::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(bytecode);
         callback(scope);
     }
 
-    void BytecodeFunction::call(VM::Stack &stack, funscript::Frame *frame) {
+    void VM::BytecodeFunction::call(VM::Stack &stack, Frame *frame) {
         stack.exec_bytecode(scope, bytecode, offset, stack.find_sep());
     }
 
-    BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
-                                                                                          bytecode(bytecode),
-                                                                                          offset(offset) {}
+    VM::BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
+                                                                                              bytecode(bytecode),
+                                                                                              offset(offset) {}
 
-    String::String(fstr bytes) : bytes(std::move(bytes)) {}
+    VM::String::String(fstr bytes) : bytes(std::move(bytes)) {}
 
-    void String::get_refs(const std::function<void(Allocation * )> &callback) {}
+    void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
 
-    void Error::get_refs(const std::function<void(Allocation * )> &callback) {}
+    void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {}
 
-    Error::Error(fstr desc) : desc(std::move(desc)) {}
+    VM::Error::Error(fstr desc) : desc(std::move(desc)) {}
 }
