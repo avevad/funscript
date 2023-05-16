@@ -107,6 +107,8 @@ namespace funscript {
 
     void VM::Stack::push_err(Error *err) { push({Type::ERR, {.err = err}}); }
 
+    void VM::Stack::push_arr(VM::Array *arr) { push({Type::ARR, {.arr = arr}}); }
+
     void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
             return raise_err("no implicit conversion to boolean", find_sep());
@@ -283,6 +285,28 @@ namespace funscript {
                     ip++;
                     break;
                 }
+                case Opcode::ARR: {
+                    pos_t beg = find_sep() + 1;
+                    auto *arr = vm.mem.gc_new<Array>(vm, values.data() + beg, size() - beg);
+                    pop(beg - 1);
+                    ip++;
+                    push_arr(arr);
+                    vm.mem.gc_unpin(arr);
+                    break;
+                }
+                case Opcode::MOV: {
+                    call_assignment(nullptr);
+                    if (get(-1).type == Type::ERR) {
+                        Error *err = get(-1).data.err;
+                        vm.mem.gc_pin(err);
+                        pop(frame_start);
+                        push_err(err);
+                        vm.mem.gc_unpin(err);
+                        return;
+                    }
+                    ip++;
+                    break;
+                }
             }
         }
     }
@@ -320,6 +344,19 @@ namespace funscript {
                     vm.mem.gc_unpin(str);
                     break;
                 }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+                    size_t a_len = get(pos_a).data.arr->len();
+                    Value *a_dat = get(pos_a).data.arr->begin();
+                    size_t b_len = get(pos_b).data.arr->len();
+                    Value *b_dat = get(pos_b).data.arr->begin();
+                    auto *arr = vm.mem.gc_new<Array>(vm, a_len + b_len);
+                    std::copy(a_dat, a_dat + a_len, arr->begin());
+                    std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
+                    pop(-4);
+                    push_arr(arr);
+                    vm.mem.gc_unpin(arr);
+                    break;
+                }
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
                     return raise_op_err(op);
                 }
@@ -347,6 +384,25 @@ namespace funscript {
                 break;
             }
             case Operator::CALL: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+                    Array &arr = *get(pos_a).data.arr;
+                    Array &ind = *get(pos_b).data.arr;
+                    vm.mem.gc_pin(&arr);
+                    vm.mem.gc_pin(&ind);
+                    pop(-4);
+                    pos_t beg = size();
+                    for (const auto &val : ind) {
+                        if (val.type != Type::INT || val.data.num < 0 || arr.len() <= val.data.num) {
+                            vm.mem.gc_unpin(&arr);
+                            vm.mem.gc_unpin(&ind);
+                            return raise_err("invalid array index", beg);
+                        }
+                        push(arr[val.data.num]);
+                    }
+                    vm.mem.gc_unpin(&arr);
+                    vm.mem.gc_unpin(&ind);
+                    break;
+                }
                 if (cnt_a != 1 || get(pos_a).type != Type::FUN) {
                     return raise_op_err(op);
                 }
@@ -432,6 +488,38 @@ namespace funscript {
             default:
                 assertion_failed("unknown operator");
         }
+    }
+
+    void VM::Stack::call_assignment(funscript::VM::Function *cont_fn) {
+        // Calculate stack positions of operands and their lengths
+        pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
+        pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
+        if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+            Array &arr = *get(pos_a).data.arr;
+            Array &ind = *get(pos_b).data.arr;
+            vm.mem.gc_pin(&arr);
+            vm.mem.gc_pin(&ind);
+            pop(-4);
+            pos_t beg = size();
+            for (const auto &val : ind) {
+                if (val.type != Type::INT || val.data.num < 0 || arr.len() <= val.data.num) {
+                    vm.mem.gc_unpin(&arr);
+                    vm.mem.gc_unpin(&ind);
+                    return raise_err("invalid array index", beg);
+                }
+                if (get(-1).type == Type::SEP) {
+                    vm.mem.gc_unpin(&arr);
+                    vm.mem.gc_unpin(&ind);
+                    return raise_err("not enough values to assign", beg);
+                }
+                arr[val.data.num] = get(-1);
+                pop();
+            }
+            vm.mem.gc_unpin(&arr);
+            vm.mem.gc_unpin(&ind);
+            return;
+        }
+        return raise_op_err(Operator::CALL);
     }
 
     void VM::Stack::call_function(Function *fun, Function *cont_fn) {
@@ -537,4 +625,43 @@ namespace funscript {
     void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {}
 
     VM::Error::Error(fstr desc) : desc(std::move(desc)) {}
+
+    void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
+        for (const auto &val : values) val.get_ref(callback);
+    }
+
+    VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : values(len, Value{Type::NUL},
+                                                                             vm.mem.std_alloc<Value>()) {
+        std::copy(beg, beg + len, values.data());
+    }
+
+    VM::Array::Array(funscript::VM &vm, size_t len) : values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
+
+    VM::Value &VM::Array::operator[](size_t pos) {
+        return values[pos];
+    }
+
+    const VM::Value &VM::Array::operator[](size_t pos) const {
+        return values[pos];
+    }
+
+    VM::Value *VM::Array::begin() {
+        return values.data();
+    }
+
+    const VM::Value *VM::Array::begin() const {
+        return values.data();
+    }
+
+    VM::Value *VM::Array::end() {
+        return values.data() + len();
+    }
+
+    const VM::Value *VM::Array::end() const {
+        return values.data() + len();
+    }
+
+    size_t VM::Array::len() const {
+        return values.size();
+    }
 }

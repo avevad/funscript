@@ -17,7 +17,7 @@ namespace funscript {
     }
 
     enum class Type : uint8_t {
-        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR
+        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR
     };
 
     /**
@@ -81,6 +81,14 @@ namespace funscript {
          * @param u64 Bytecode offset of where the string is stored.
          */
         STR,
+        /**
+         * @brief Create and push an array.
+         */
+        ARR,
+        /**
+         * @brief Execute assignment call (as in `arr[5] = 1`)
+         */
+        MOV
     };
 
     struct Instruction {

@@ -100,6 +100,32 @@ namespace funscript {
         struct Value;
 
         /**
+         * Class of array value objects.
+         */
+        class Array : public VM::Allocation {
+            fvec<Value> values;
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            Array(VM &vm, Value *beg, size_t len);
+
+            Array(VM &vm, size_t len);
+
+            Value &operator[](size_t pos);
+
+            const Value &operator[](size_t pos) const;
+
+            Value *begin();
+
+            const Value *begin() const;
+
+            Value *end();
+
+            const Value *end() const;
+
+            [[nodiscard]] size_t len() const;
+        };
+
+        /**
          * Class of string value objects.
          */
         class String : public VM::Allocation {
@@ -244,6 +270,7 @@ namespace funscript {
                 bool bln;
                 String *str;
                 Error *err;
+                Array *arr;
             };
             Type type = Type::NUL;
             Data data = {.obj = nullptr};
@@ -253,6 +280,7 @@ namespace funscript {
                 if (type == Type::FUN) callback(data.fun);
                 if (type == Type::STR) callback(data.str);
                 if (type == Type::ERR) callback(data.err);
+                if (type == Type::ARR) callback(data.arr);
             }
         };
 
@@ -365,6 +393,7 @@ namespace funscript {
 
             void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
             void call_operator(Operator op, Function *cont_fn);
+            void call_assignment(Function *cont_fn);
             void call_function(Function *fun, Function *cont_fn);
             void continue_execution();
 
@@ -378,6 +407,7 @@ namespace funscript {
             void push_str(String *str);
             void push_bln(bool bln);
             void push_err(Error *err);
+            void push_arr(Array *arr);
 
             void raise_err(const std::string &msg, pos_t frame_start);
 

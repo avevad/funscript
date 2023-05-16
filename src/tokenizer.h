@@ -19,6 +19,7 @@ namespace funscript {
         ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, COLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
         EXCLAMATION_MARK, LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN, ARROW, QUESTION_MARK,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
+        LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET,
 
         THEN, ELSE, UNTIL, DO, YES, NO, NUL
     };
@@ -28,37 +29,38 @@ namespace funscript {
      */
     static const std::unordered_map<Keyword, std::string> &get_keyword_mapping() {
         static const std::unordered_map<Keyword, std::string> KEYWORD_STRINGS{
-                {Keyword::ASTERISK,            "*"},
-                {Keyword::SLASH,               "/"},
-                {Keyword::PLUS,                "+"},
-                {Keyword::MINUS,               "-"},
-                {Keyword::EQUAL_SIGN,          "="},
-                {Keyword::DOT,                 "."},
-                {Keyword::COMMA,               ","},
-                {Keyword::SEMICOLON,           ";"},
-                {Keyword::COLON,               ":"},
-                {Keyword::PERCENT,             "%"},
-                {Keyword::DOUBLE_EQUAL_SIGN,   "=="},
-                {Keyword::NOT_EQUAL,           "!="},
-                {Keyword::EXCLAMATION_MARK,    "!"},
-                {Keyword::LESS_SIGN,           "<"},
-                {Keyword::GREATER_SIGN,        ">"},
-                {Keyword::LESS_EQUAL_SIGN,     "<="},
-                {Keyword::GREATER_EQUAL_SIGN,  ">="},
-                {Keyword::ARROW,               "=>"},
-                {Keyword::QUESTION_MARK,       "?"},
-                {Keyword::LEFT_PLAIN_BRACKET,  "("},
-                {Keyword::RIGHT_PLAIN_BRACKET, ")"},
-                {Keyword::LEFT_CURLY_BRACKET,  "{"},
-                {Keyword::RIGHT_CURLY_BRACKET, "}"},
-
-                {Keyword::THEN,                "then"},
-                {Keyword::ELSE,                "else"},
-                {Keyword::UNTIL,               "until"},
-                {Keyword::DO,                  "do"},
-                {Keyword::YES,                 "yes"},
-                {Keyword::NO,                  "no"},
-                {Keyword::NUL,                 "nul"},
+                {Keyword::ASTERISK,             "*"},
+                {Keyword::SLASH,                "/"},
+                {Keyword::PLUS,                 "+"},
+                {Keyword::MINUS,                "-"},
+                {Keyword::EQUAL_SIGN,           "="},
+                {Keyword::DOT,                  "."},
+                {Keyword::COMMA,                ","},
+                {Keyword::SEMICOLON,            ";"},
+                {Keyword::COLON,                ":"},
+                {Keyword::PERCENT,              "%"},
+                {Keyword::DOUBLE_EQUAL_SIGN,    "=="},
+                {Keyword::NOT_EQUAL,            "!="},
+                {Keyword::EXCLAMATION_MARK,     "!"},
+                {Keyword::LESS_SIGN,            "<"},
+                {Keyword::GREATER_SIGN,         ">"},
+                {Keyword::LESS_EQUAL_SIGN,      "<="},
+                {Keyword::GREATER_EQUAL_SIGN,   ">="},
+                {Keyword::ARROW,                "=>"},
+                {Keyword::QUESTION_MARK,        "?"},
+                {Keyword::LEFT_PLAIN_BRACKET,   "("},
+                {Keyword::RIGHT_PLAIN_BRACKET,  ")"},
+                {Keyword::LEFT_CURLY_BRACKET,   "{"},
+                {Keyword::RIGHT_CURLY_BRACKET,  "}"},
+                {Keyword::LEFT_SQUARE_BRACKET,  "["},
+                {Keyword::RIGHT_SQUARE_BRACKET, "]"},
+                {Keyword::THEN,                 "then"},
+                {Keyword::ELSE,                 "else"},
+                {Keyword::UNTIL,                "until"},
+                {Keyword::DO,                   "do"},
+                {Keyword::YES,                  "yes"},
+                {Keyword::NO,                   "no"},
+                {Keyword::NUL,                  "nul"},
         };
         return KEYWORD_STRINGS;
     }
@@ -108,7 +110,7 @@ namespace funscript {
      * Enumeration of bracket expression types.
      */
     enum class Bracket {
-        PLAIN, CURLY
+        PLAIN, CURLY, SQUARE
     };
 
     /**
@@ -169,8 +171,9 @@ namespace funscript {
      */
     static const std::unordered_map<Keyword, Bracket> &get_left_bracket_keyword_mapping() {
         static const std::unordered_map<Keyword, Bracket> LEFT_BRACKET_KEYWORDS{
-                {Keyword::LEFT_PLAIN_BRACKET, Bracket::PLAIN},
-                {Keyword::LEFT_CURLY_BRACKET, Bracket::CURLY}
+                {Keyword::LEFT_PLAIN_BRACKET,  Bracket::PLAIN},
+                {Keyword::LEFT_CURLY_BRACKET,  Bracket::CURLY},
+                {Keyword::LEFT_SQUARE_BRACKET, Bracket::SQUARE}
         };
         return LEFT_BRACKET_KEYWORDS;
     }
@@ -180,8 +183,9 @@ namespace funscript {
      */
     static const std::unordered_map<Keyword, Bracket> &get_right_bracket_keyword_mapping() {
         static const std::unordered_map<Keyword, Bracket> RIGHT_BRACKET_KEYWORDS{
-                {Keyword::RIGHT_PLAIN_BRACKET, Bracket::PLAIN},
-                {Keyword::RIGHT_CURLY_BRACKET, Bracket::CURLY}
+                {Keyword::RIGHT_PLAIN_BRACKET,  Bracket::PLAIN},
+                {Keyword::RIGHT_CURLY_BRACKET,  Bracket::CURLY},
+                {Keyword::RIGHT_SQUARE_BRACKET, Bracket::SQUARE}
         };
         return RIGHT_BRACKET_KEYWORDS;
     }

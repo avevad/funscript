@@ -167,6 +167,13 @@ namespace funscript {
                 ch.put_instruction({Opcode::SET, false, 0 /* Will be overwritten to actual name location */});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
                 break;
+            case Operator::CALL:
+                ch.put_instruction(Opcode::SEP);
+                right->compile_eval(as, ch);
+                ch.put_instruction(Opcode::SEP);
+                left->compile_eval(as, ch);
+                ch.put_instruction(Opcode::MOV);
+                break;
             default:
                 throw CompilationError("expression is not assignable");
         }
@@ -210,6 +217,13 @@ namespace funscript {
                 ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::OBJ)}); // Create an object from scope
                 ch.put_instruction({Opcode::SCP, false}); // Discard object scope
                 break;
+            case Bracket::SQUARE:
+                ch.put_instruction({Opcode::SCP, true});
+                ch.put_instruction(Opcode::SEP);
+                child->compile_eval(as, ch);
+                ch.put_instruction(Opcode::ARR);
+                ch.put_instruction({Opcode::SCP, false});
+                break;
         }
     }
 
@@ -219,6 +233,7 @@ namespace funscript {
                 child->compile_move(as, ch);
                 break;
             case Bracket::CURLY:
+            case Bracket::SQUARE:
                 throw CompilationError("expression is not assignable");
         }
     }
