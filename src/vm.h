@@ -57,6 +57,16 @@ namespace funscript {
             if (&old != this) alloc = old.alloc;
             return *this;
         }
+
+        template<typename T1>
+        bool operator==(const AllocatorWrapper<T1> &other) const {
+            return true;
+        }
+
+        template<typename T1>
+        bool operator!=(const AllocatorWrapper<T1> &other) const {
+            return false;
+        }
     };
 
     using fstr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
@@ -84,6 +94,10 @@ namespace funscript {
          */
         class Allocation {
             friend MemoryManager;
+
+            size_t gc_pins = 0;
+            MemoryManager *mm = nullptr;
+
             /**
              * Enumerates all the outgoing references to other allocations from this allocation.
              * @param callback The callback which should be called for every reference.
@@ -286,8 +300,7 @@ namespace funscript {
         public:
             VM &vm; // Funscript VM instance which owns this memory manager.
         private:
-            fumap<Allocation *, size_t> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
-            fumap<Allocation *, size_t> gc_pins; // Dictionary of pins counts for every allocation.
+            fvec<Allocation *> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
         public:
 
             /**
@@ -320,13 +333,6 @@ namespace funscript {
             explicit MemoryManager(VM &vm);
 
             /**
-             * Begins GC-tracking of the allocation array and pins it.
-             * @param alloc The allocation to track.
-             * @param len The length of the array.
-             */
-            void gc_track(Allocation *alloc, size_t len = 1);
-
-            /**
              * Pins GC-tracked allocation.
              * @param alloc The allocation to pin.
              */
@@ -339,7 +345,7 @@ namespace funscript {
             void gc_unpin(Allocation *alloc);
 
             /**
-             * Shortcut for constructing and pinning a GC-tracked allocation.
+             * Constructs and pins a new GC-tracked allocation.
              * @tparam T Type of the allocation to create.
              * @tparam A Type of arguments to forward to `T`'s constructor.
              * @param args The arguments to forward to the constructor of the allocation.
@@ -348,7 +354,9 @@ namespace funscript {
             template<class T, typename... A>
             T *gc_new(A &&... args) {
                 T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
-                gc_track(ptr);
+                gc_tracked.push_back(ptr);
+                ptr->gc_pins++;
+                ptr->mm = this;
                 return ptr;
             }
 
@@ -356,7 +364,6 @@ namespace funscript {
              * Looks for unused GC-tracked allocations and destroys them.
              */
             void gc_cycle();
-
 
             ~MemoryManager();
         };
