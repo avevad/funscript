@@ -218,11 +218,11 @@ namespace funscript {
                 ch.put_instruction({Opcode::SCP, false}); // Discard object scope
                 break;
             case Bracket::SQUARE:
-                ch.put_instruction({Opcode::SCP, true});
+                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, true});
                 ch.put_instruction(Opcode::SEP);
                 child->compile_eval(as, ch);
                 ch.put_instruction(Opcode::ARR);
-                ch.put_instruction({Opcode::SCP, false});
+                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, false});
                 break;
         }
     }
