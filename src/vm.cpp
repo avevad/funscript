@@ -266,7 +266,7 @@ namespace funscript {
                         vm.mem.gc_unpin(err);
                         return;
                     }
-                    if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
+                    if (!get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                     else ip++;
                     pop();
                     break;
