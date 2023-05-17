@@ -61,9 +61,7 @@ namespace funscript {
 
     using fstr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
     template<typename K, typename V>
-    using fmap = std::map<K, V, std::less<K>, AllocatorWrapper<std::pair<const K, V>>>;
-    template<typename K>
-    using fset = std::set<K, std::less<>, AllocatorWrapper<K>>;
+    using fumap = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, AllocatorWrapper<std::pair<const K, V>>>;
     template<typename E>
     using fvec = std::vector<E, AllocatorWrapper<E>>;
     template<typename E>
@@ -152,7 +150,7 @@ namespace funscript {
          */
         class Object : public VM::Allocation {
         private:
-            fmap<fstr, Value> fields; // Dictionary of object's fields.
+            fumap<fstr, Value> fields; // Dictionary of object's fields.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
@@ -288,8 +286,8 @@ namespace funscript {
         public:
             VM &vm; // Funscript VM instance which owns this memory manager.
         private:
-            fmap<Allocation *, size_t> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
-            fmap<Allocation *, size_t> gc_pins; // Dictionary of pins counts for every allocation.
+            fumap<Allocation *, size_t> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
+            fumap<Allocation *, size_t> gc_pins; // Dictionary of pins counts for every allocation.
         public:
 
             /**

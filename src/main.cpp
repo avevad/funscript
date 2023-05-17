@@ -81,7 +81,6 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
         }
         // Intermediate cleanup
         vm.mem.gc_unpin(stack);
-        vm.mem.gc_cycle();
     } catch (const CodeReadingError &err) {
         std::cout << "! syntax error: " << err.what() << std::endl;
     } catch (const CompilationError &err) {
