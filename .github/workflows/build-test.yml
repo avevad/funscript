@@ -5,13 +5,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install latest GNU C and C++ compilers
-        run: sudo apt update && sudo apt install gcc-11 g++-11
+        run: sudo apt update && sudo apt install gcc-13 g++-13
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Generate CMake build files
         run: cd cmake-build-release; cmake -DCMAKE_BUILD_TYPE=Release ..
         env:
-          CC: gcc-11
-          CXX: g++-11
+          CC: gcc-13
+          CXX: g++-13
       - name: Build project
         run: cd cmake-build-release; make
