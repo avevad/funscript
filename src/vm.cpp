@@ -31,7 +31,7 @@ namespace funscript {
             auto *alloc = queue.front();
             queue.pop();
             alloc->get_refs([&queue, this](Allocation *ref) -> void {
-                if (ref->mm) return;
+                if (!ref || ref->mm) return;
                 ref->mm = this;
                 queue.push(ref);
             });
