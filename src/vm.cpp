@@ -70,7 +70,7 @@ namespace funscript {
                                                 frames(vm.mem.std_alloc<Frame *>()) {
         frames.push_back(vm.mem.gc_new<Frame>(start));
         vm.mem.gc_unpin(frames.back());
-        push_sep(); // Empty arguments for the start function.
+        if (!push_sep()) assertion_failed("stack size limit is too small"); // Empty arguments for the start function.
     }
 
     VM::Stack::pos_t VM::Stack::size() const {
@@ -82,23 +82,23 @@ namespace funscript {
         return values[pos];
     }
 
-    void VM::Stack::push_sep() { push({Type::SEP}); }
+    [[nodiscard]] bool VM::Stack::push_sep() { return push({Type::SEP}); }
 
-    void VM::Stack::push_nul() { push({Type::NUL}); }
+    [[nodiscard]] bool VM::Stack::push_nul() { return push({Type::NUL}); }
 
-    void VM::Stack::push_int(fint num) { push({Type::INT, num}); }
+    [[nodiscard]] bool VM::Stack::push_int(fint num) { return push({Type::INT, num}); }
 
-    void VM::Stack::push_obj(Object *obj) { push({Type::OBJ, {.obj = obj}}); }
+    [[nodiscard]] bool VM::Stack::push_obj(Object *obj) { return push({Type::OBJ, {.obj = obj}}); }
 
-    void VM::Stack::push_fun(Function *fun) { push({Type::FUN, {.fun = fun}}); }
+    [[nodiscard]] bool VM::Stack::push_fun(Function *fun) { return push({Type::FUN, {.fun = fun}}); }
 
-    void VM::Stack::push_bln(bool bln) { push({Type::BLN, {.bln = bln}}); }
+    [[nodiscard]] bool VM::Stack::push_bln(bool bln) { return push({Type::BLN, {.bln = bln}}); }
 
-    void VM::Stack::push_str(String *str) { push({Type::STR, {.str = str}}); }
+    [[nodiscard]] bool VM::Stack::push_str(String *str) { return push({Type::STR, {.str = str}}); }
 
-    void VM::Stack::push_err(Error *err) { push({Type::ERR, {.err = err}}); }
+    [[nodiscard]] bool VM::Stack::push_err(Error *err) { return push({Type::ERR, {.err = err}}); }
 
-    void VM::Stack::push_arr(VM::Array *arr) { push({Type::ARR, {.arr = arr}}); }
+    [[nodiscard]] bool VM::Stack::push_arr(VM::Array *arr) { return push({Type::ARR, {.arr = arr}}); }
 
     void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
@@ -106,7 +106,7 @@ namespace funscript {
         }
         bool bln = get(-1).data.bln;
         pop(find_sep());
-        push_bln(bln);
+        if (!push_bln(bln)) assertion_failed("failed push() after pop()");
     }
 
     void VM::Stack::discard() { pop(find_sep()); }
@@ -123,7 +123,13 @@ namespace funscript {
         return pos;
     }
 
-    void VM::Stack::push(const Value &e) { values.push_back(e); }
+    bool VM::Stack::push(const Value &e) {
+        if (values.size() >= vm.config.stack_values_max) return false;
+        else {
+            values.push_back(e);
+            return true;
+        }
+    }
 
     VM::Value &VM::Stack::get(VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
@@ -146,15 +152,16 @@ namespace funscript {
                         auto *fun = vm.mem.gc_new<BytecodeFunction>(scope, bytecode_obj, size_t(ins.u64));
                         val.data.fun = fun;
                     }
-                    push(val);
-                    if (val.type == Type::FUN) {
-                        vm.mem.gc_unpin(val.data.fun);
+                    if (!push(val)) {
+                        if (val.type == Type::FUN) vm.mem.gc_unpin(val.data.fun);
+                        return raise_err("value stack overflow", frame_start);
                     }
+                    if (val.type == Type::FUN) vm.mem.gc_unpin(val.data.fun);
                     ip++;
                     break;
                 }
                 case Opcode::SEP: {
-                    push_sep();
+                    if (!push_sep()) return raise_err("value stack overflow", frame_start);
                     ip++;
                     break;
                 }
@@ -166,7 +173,7 @@ namespace funscript {
                         if (!var.has_value()) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
                         }
-                        push(var.value());
+                        if (!push(var.value())) assertion_failed("failed push() after pop()");
                     } else {
                         if (get(-1).type != Type::OBJ) {
                             return raise_err("only objects are able to be indexed", frame_start);
@@ -182,7 +189,7 @@ namespace funscript {
                         if (!field.has_value()) {
                             return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                         }
-                        push(field.value());
+                        if (!push(field.value())) assertion_failed("failed push() after pop()");
                         vm.mem.gc_unpin(obj);
                     }
                     ip++;
@@ -237,7 +244,7 @@ namespace funscript {
                         Error *err = get(-1).data.err;
                         vm.mem.gc_pin(err);
                         pop(frame_start);
-                        push_err(err);
+                        if (!push_err(err)) assertion_failed("failed push() after pop()");
                         vm.mem.gc_unpin(err);
                         return;
                     }
@@ -253,7 +260,7 @@ namespace funscript {
                         Error *err = get(-1).data.err;
                         vm.mem.gc_pin(err);
                         pop(frame_start);
-                        push_err(err);
+                        if (!push_err(err)) assertion_failed("failed push() after pop()");
                         vm.mem.gc_unpin(err);
                         return;
                     }
@@ -271,7 +278,10 @@ namespace funscript {
                              reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64 + ins.u16),
                              vm.mem.str_alloc());
                     auto *str_obj = vm.mem.gc_new<String>(str);
-                    push_str(str_obj);
+                    if (!push_str(str_obj)) {
+                        vm.mem.gc_unpin(str_obj);
+                        return raise_err("value stack overflow", frame_start);
+                    }
                     vm.mem.gc_unpin(str_obj);
                     ip++;
                     break;
@@ -281,7 +291,7 @@ namespace funscript {
                     auto *arr = vm.mem.gc_new<Array>(vm, values.data() + beg, size() - beg);
                     pop(beg - 1);
                     ip++;
-                    push_arr(arr);
+                    if (!push_arr(arr)) assertion_failed("failed push() after pop()");
                     vm.mem.gc_unpin(arr);
                     break;
                 }
@@ -291,7 +301,7 @@ namespace funscript {
                         Error *err = get(-1).data.err;
                         vm.mem.gc_pin(err);
                         pop(frame_start);
-                        push_err(err);
+                        if (!push_err(err)) assertion_failed("failed push() after pop()");
                         vm.mem.gc_unpin(err);
                         return;
                     }
@@ -313,7 +323,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_int(a * b);
+                if (!push_int(a * b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::DIVIDE: {
@@ -323,7 +333,7 @@ namespace funscript {
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 if (b == 0) return raise_err("division by zero", -4);
                 pop(-4);
-                push_int(a / b);
+                if (!push_int(a / b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::PLUS: {
@@ -331,7 +341,7 @@ namespace funscript {
                     fstr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
                     pop(-4);
                     auto *str = vm.mem.gc_new<String>(a + b);
-                    push_str(str);
+                    if (!push_str(str)) assertion_failed("failed push() after pop()");
                     vm.mem.gc_unpin(str);
                     break;
                 }
@@ -344,7 +354,7 @@ namespace funscript {
                     std::copy(a_dat, a_dat + a_len, arr->begin());
                     std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
                     pop(-4);
-                    push_arr(arr);
+                    if (!push_arr(arr)) assertion_failed("failed push() after pop()");
                     vm.mem.gc_unpin(arr);
                     break;
                 }
@@ -353,7 +363,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_int(a + b);
+                if (!push_int(a + b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::MINUS: {
@@ -363,7 +373,7 @@ namespace funscript {
                     }
                     fint num = get(pos_b).data.num;
                     pop(-3);
-                    push_int(-num);
+                    if (!push_int(-num)) assertion_failed("failed push() after pop()");
                     break;
                 }
                 if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
@@ -371,7 +381,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_int(a - b);
+                if (!push_int(a - b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::CALL: {
@@ -388,7 +398,11 @@ namespace funscript {
                             vm.mem.gc_unpin(&ind);
                             return raise_err("invalid array index", beg);
                         }
-                        push(arr[val.data.num]);
+                        if (!push(arr[val.data.num])) {
+                            vm.mem.gc_unpin(&arr);
+                            vm.mem.gc_unpin(&ind);
+                            return raise_err("value stack overflow", beg);
+                        }
                     }
                     vm.mem.gc_unpin(&arr);
                     vm.mem.gc_unpin(&ind);
@@ -410,7 +424,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_int(a % b);
+                if (!push_int(a % b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::EQUALS: {
@@ -419,7 +433,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a == b);
+                if (!push_bln(a == b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::DIFFERS: {
@@ -428,7 +442,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a != b);
+                if (!push_bln(a != b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::NOT: {
@@ -437,7 +451,7 @@ namespace funscript {
                 }
                 bool bln = get(pos_b).data.bln;
                 pop(-3);
-                push_bln(!bln);
+                if (!push_bln(!bln)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::LESS: {
@@ -446,7 +460,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a < b);
+                if (!push_bln(a < b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::GREATER: {
@@ -455,7 +469,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a > b);
+                if (!push_bln(a > b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::LESS_EQUAL: {
@@ -464,7 +478,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a <= b);
+                if (!push_bln(a <= b)) assertion_failed("failed push() after pop()");
                 break;
             }
             case Operator::GREATER_EQUAL: {
@@ -473,7 +487,7 @@ namespace funscript {
                 }
                 fint a = get(pos_a).data.num, b = get(pos_b).data.num;
                 pop(-4);
-                push_bln(a >= b);
+                if (!push_bln(a >= b)) assertion_failed("failed push() after pop()");
                 break;
             }
             default:
@@ -514,6 +528,7 @@ namespace funscript {
     }
 
     void VM::Stack::call_function(Function *fun, Function *cont_fn) {
+        if (frames.size() >= vm.config.stack_frames_max) return raise_err("stack overflow", find_sep());
         frames.back()->cont_fn = cont_fn;
         auto *frame = vm.mem.gc_new<Frame>(nullptr);
         frames.push_back(frame);
@@ -537,7 +552,7 @@ namespace funscript {
     void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
         pop(frame_start);
         auto *err = vm.mem.gc_new<Error>(fstr(msg, vm.mem.std_alloc<char>()));
-        push_err(err);
+        if (!push_err(err)) assertion_failed("value stack overflow while trying to push error object");
         vm.mem.gc_unpin(err);
     }
 

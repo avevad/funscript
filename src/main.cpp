@@ -96,7 +96,11 @@ int main(int argc, char **argv) {
     }
     // Create a VM instance
     DefaultAllocator allocator;
-    VM vm({.allocator = &allocator});
+    VM vm({
+                  .allocator = &allocator,
+                  .stack_values_max = 67108864,
+                  .stack_frames_max = 1024
+          });
     // Create the global environment for the expression evaluation
     auto *globals = vm.mem.gc_new<VM::Object>(vm);
     auto *scope = vm.mem.gc_new<VM::Scope>(globals, nullptr);
