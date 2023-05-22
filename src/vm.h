@@ -368,6 +368,67 @@ namespace funscript {
             void gc_cycle();
 
             ~MemoryManager();
+
+            /**
+             * Class of smart allocation pointers which pin and unpin the allocation automatically.
+             * @tparam A
+             */
+            template<typename A>
+            class AutoPtr {
+            private:
+                MemoryManager &mm;
+                A *alloc;
+            public:
+                AutoPtr(MemoryManager &mm, A *alloc) : mm(mm), alloc(alloc) {
+                    if (alloc) mm.gc_pin(alloc);
+                }
+
+                AutoPtr(AutoPtr &&other) noexcept: mm(other.mm), alloc(other.alloc) {
+                    other.alloc = nullptr;
+                }
+
+                AutoPtr &operator=(AutoPtr &&other) noexcept {
+                    if (&other != this) {
+                        if (alloc) mm.gc_unpin(alloc);
+                        alloc = other.alloc;
+                        other.alloc = nullptr;
+                    }
+                    return *this;
+                }
+
+                AutoPtr(AutoPtr &) = delete;
+                AutoPtr &operator=(const AutoPtr &) = delete;
+
+                A *get() const { return alloc; }
+
+                void set(A *alloc) {
+                    if (this->alloc) mm.gc_unpin(this->alloc);
+                    this->alloc = alloc;
+                }
+
+                A &operator*() const { return *alloc; }
+
+                A *operator->() const { return alloc; }
+
+                ~AutoPtr() {
+                    if (alloc) mm.gc_unpin(alloc);
+                }
+            };
+
+            /**
+             * Constructs and pins a new GC-tracked allocation.
+             * @tparam T Type of the allocation to create.
+             * @tparam A Type of arguments to forward to `T`'s constructor.
+             * @param args The arguments to forward to the constructor of the allocation.
+             * @return The smart pointer to newly created GC-tracked allocation.
+             */
+            template<class T, typename... A>
+            AutoPtr<T> gc_new_auto(A &&... args) {
+                auto *alloc = gc_new<T, A...>(std::forward<A>(args)...);
+                AutoPtr<T> ptr(*this, alloc);
+                gc_unpin(alloc);
+                return ptr;
+            }
         };
 
         const Config config; // Configuration of current VM instance.

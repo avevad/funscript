@@ -139,6 +139,7 @@ namespace funscript {
     void VM::Stack::exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         const auto *bytecode = bytecode_obj->bytes.data();
         const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
+        auto cur_scope = VM::MemoryManager::AutoPtr<Scope>(vm.mem, scope);
         while (true) {
             Instruction ins = *ip;
             switch (ins.op) {
@@ -147,9 +148,9 @@ namespace funscript {
                     break;
                 case Opcode::VAL: {
                     Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
-                    if (val.type == Type::OBJ) val.data.obj = scope->vars;
+                    if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
                     if (val.type == Type::FUN) {
-                        auto *fun = vm.mem.gc_new<BytecodeFunction>(scope, bytecode_obj, size_t(ins.u64));
+                        auto *fun = vm.mem.gc_new<BytecodeFunction>(cur_scope.get(), bytecode_obj, size_t(ins.u64));
                         val.data.fun = fun;
                     }
                     if (!push(val)) {
@@ -169,7 +170,7 @@ namespace funscript {
                     fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                     if (get(-1).type == Type::SEP) {
                         pop();
-                        auto var = scope->get_var(name);
+                        auto var = cur_scope->get_var(name);
                         if (!var.has_value()) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
                         }
@@ -200,7 +201,7 @@ namespace funscript {
                     if (get(-1).type == Type::SEP) {
                         pop();
                         if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
-                        scope->set_var(name, get(-1));
+                        cur_scope->set_var(name, get(-1));
                         pop();
                     } else {
                         if (get(-1).type != Type::OBJ) {
@@ -222,12 +223,10 @@ namespace funscript {
                 case Opcode::SCP: {
                     if (ins.u16) {
                         auto *vars = vm.mem.gc_new<Object>(vm);
-                        scope = vm.mem.gc_new<Scope>(vars, scope);
+                        cur_scope = vm.mem.gc_new_auto<Scope>(vars, cur_scope.get());
                         vm.mem.gc_unpin(vars);
                     } else {
-                        Scope *prev = scope->prev_scope;
-                        vm.mem.gc_unpin(scope);
-                        scope = prev;
+                        cur_scope.set(cur_scope->prev_scope);
                     }
                     ip++;
                     break;
