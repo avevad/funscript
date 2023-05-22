@@ -9,6 +9,7 @@
 #include <set>
 #include <deque>
 #include <optional>
+#include <csignal>
 #include "common.h"
 
 namespace funscript {
@@ -458,6 +459,8 @@ namespace funscript {
 
             [[nodiscard]] pos_t size() const;
             const Value &operator[](pos_t pos); // Value stack indexing.
+
+            static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 
             void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
             void call_operator(Operator op, Function *cont_fn);

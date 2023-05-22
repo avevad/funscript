@@ -46,7 +46,14 @@ std::string display(const VM::Value &val) {
     return out.str();
 }
 
+void sigint_handler(int) {
+    VM::Stack::kbd_int = 1;
+}
+
 void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
+    struct sigaction act{}, act_old{};
+    act.sa_handler = sigint_handler;
+    sigaction(SIGINT, &act, &act_old);
     try {
         // Split expression into array of tokens
         std::vector<Token> tokens;
@@ -87,6 +94,7 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
     } catch (const CompilationError &err) {
         std::cout << "! compilation error: " << err.what() << std::endl;
     }
+    sigaction(SIGINT, &act_old, nullptr);
 }
 
 int main(int argc, char **argv) {

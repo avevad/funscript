@@ -136,11 +136,17 @@ namespace funscript {
         return values[pos];
     }
 
+    volatile sig_atomic_t VM::Stack::kbd_int = 0;
+
     void VM::Stack::exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         const auto *bytecode = bytecode_obj->bytes.data();
         const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
         auto cur_scope = VM::MemoryManager::AutoPtr<Scope>(vm.mem, scope);
         while (true) {
+            if (kbd_int) {
+                kbd_int = 0;
+                return raise_err("keyboard interrupt", frame_start);
+            }
             Instruction ins = *ip;
             switch (ins.op) {
                 case Opcode::NOP:
