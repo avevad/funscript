@@ -10,18 +10,11 @@
 #include <deque>
 #include <optional>
 #include <csignal>
+
 #include "common.h"
+#include "mm.h"
 
 namespace funscript {
-
-    /**
-     * Interface for memory allocation and deallocation. Every instance of Funscript VM manages memory through this interface.
-     */
-    class Allocator {
-    public:
-        virtual void *allocate(size_t size) = 0;
-        virtual void free(void *ptr) = 0;
-    };
 
     /**
      * Default Funscript allocator which uses C memory management functions.
@@ -33,81 +26,15 @@ namespace funscript {
         void free(void *ptr) override { std::free(ptr); }
     };
 
-    /**
-     * Funscript allocator wrapper for C++ STL containers.
-     * @tparam T The type which the allocator can allocate memory for.
-     */
-    template<typename T>
-    class AllocatorWrapper {
-    public:
-        Allocator *alloc;
-        typedef T value_type;
-
-        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
-
-        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
-
-        template<typename E>
-        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
-
-        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
-
-        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
-
-        AllocatorWrapper &operator=(const AllocatorWrapper &old) {
-            if (&old != this) alloc = old.alloc;
-            return *this;
-        }
-
-        template<typename T1>
-        bool operator==(const AllocatorWrapper<T1> &other) const {
-            return true;
-        }
-
-        template<typename T1>
-        bool operator!=(const AllocatorWrapper<T1> &other) const {
-            return false;
-        }
-    };
-
-    using fstr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
-    template<typename K, typename V>
-    using fumap = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, AllocatorWrapper<std::pair<const K, V>>>;
-    template<typename E>
-    using fvec = std::vector<E, AllocatorWrapper<E>>;
-    template<typename E>
-    using fdeq = std::deque<E, AllocatorWrapper<E>>;
-    using fint = int64_t;
-
     class VM {
     public:
         VM(const VM &vm) = delete;
         VM &operator=(const VM &vm) = delete;
 
         struct Config {
-            Allocator *allocator = nullptr; // The allocator for this VM instance.
+            MemoryManager::Config mm;
             size_t stack_values_max = SIZE_MAX; // Maximum amount of stack values allowed in each execution stack.
             size_t stack_frames_max = SIZE_MAX; // Maximum amount of stack frames allowed in each execution stack.
-        };
-
-        class MemoryManager;
-
-        /**
-         * Abstract class of every allocation managed by VM's MM.
-         */
-        class Allocation {
-            friend MemoryManager;
-
-            size_t gc_pins = 0;
-            MemoryManager *mm = nullptr;
-
-            /**
-             * Enumerates all the outgoing references to other allocations from this allocation.
-             * @param callback The callback which should be called for every reference.
-             */
-            virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
-        public:
-            virtual ~Allocation() = default;
         };
 
         class Stack;
@@ -117,7 +44,7 @@ namespace funscript {
         /**
          * Class of array value objects.
          */
-        class Array : public VM::Allocation {
+        class Array : public Allocation {
             fvec<Value> values;
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
@@ -143,7 +70,7 @@ namespace funscript {
         /**
          * Class of string value objects.
          */
-        class String : public VM::Allocation {
+        class String : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             const fstr bytes;
@@ -154,7 +81,7 @@ namespace funscript {
         /**
          * Class of error value objects.
          */
-        class Error : public VM::Allocation {
+        class Error : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             const fstr desc; // Human-readable description of the error.
@@ -165,7 +92,7 @@ namespace funscript {
         /**
          * Class of object value objects.
          */
-        class Object : public VM::Allocation {
+        class Object : public Allocation {
         private:
             fumap<fstr, Value> fields; // Dictionary of object's fields.
 
@@ -185,7 +112,7 @@ namespace funscript {
         /**
          * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
          */
-        class Scope : public VM::Allocation {
+        class Scope : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
             /**
@@ -221,7 +148,7 @@ namespace funscript {
         /**
          * Objects of this class hold information about VM stack frame.
          */
-        class Frame : public VM::Allocation {
+        class Frame : public Allocation {
             friend VM::Stack;
             Function *cont_fn; // The function to be called in this frame.
 
@@ -233,7 +160,7 @@ namespace funscript {
         /**
          * Class of function value objects.
          */
-        class Function : public VM::Allocation {
+        class Function : public Allocation {
             friend VM::Stack;
 
             virtual void call(VM::Stack &stack, Frame *frame) = 0;
@@ -247,7 +174,7 @@ namespace funscript {
         /**
          * Class of bytecode holder objects.
          */
-        class Bytecode : public VM::Allocation {
+        class Bytecode : public Allocation {
             friend BytecodeFunction;
             friend VM::Stack;
             const std::string bytes;
@@ -290,145 +217,12 @@ namespace funscript {
             Type type = Type::NUL;
             Data data = {.obj = nullptr};
 
-            void get_ref(const std::function<void(VM::Allocation *)> &callback) const {
+            void get_ref(const std::function<void(Allocation *)> &callback) const {
                 if (type == Type::OBJ) callback(data.obj);
                 if (type == Type::FUN) callback(data.fun);
                 if (type == Type::STR) callback(data.str);
                 if (type == Type::ERR) callback(data.err);
                 if (type == Type::ARR) callback(data.arr);
-            }
-        };
-
-        class MemoryManager {
-        public:
-            VM &vm; // Funscript VM instance which owns this memory manager.
-        private:
-            fvec<Allocation *> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
-        public:
-
-            /**
-             * @tparam T Any type.
-             * @return STL allocator for the specified type.
-             */
-            template<typename T>
-            AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(vm.config.allocator); }
-
-            /**
-             * @return STL string allocator.
-             */
-            AllocatorWrapper<fstr::value_type> str_alloc() { return std_alloc<fstr::value_type>(); }
-
-            /**
-             * Allocates memory for `n` values of type `T`
-             * @tparam T Type of values to allocate memory for.
-             * @param n Number of values.
-             * @return Pointer to allocated memory.
-             */
-            template<typename T>
-            T *allocate(size_t n = 1) { return reinterpret_cast<T *>(vm.config.allocator->allocate(n * sizeof(T))); }
-
-            /**
-             * Frees previously `allocate`'d memory.
-             * @param ptr Pointer to memory to deallocate.
-             */
-            void free(void *ptr);
-
-            explicit MemoryManager(VM &vm);
-
-            /**
-             * Pins GC-tracked allocation.
-             * @param alloc The allocation to pin.
-             */
-            void gc_pin(Allocation *alloc);
-
-            /**
-             * Unpins GC-tracked allocation.
-             * @param alloc The allocation to unpin.
-             */
-            void gc_unpin(Allocation *alloc);
-
-            /**
-             * Constructs and pins a new GC-tracked allocation.
-             * @tparam T Type of the allocation to create.
-             * @tparam A Type of arguments to forward to `T`'s constructor.
-             * @param args The arguments to forward to the constructor of the allocation.
-             * @return The pointer to newly created GC-tracked allocation.
-             */
-            template<class T, typename... A>
-            T *gc_new(A &&... args) {
-                T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
-                gc_tracked.push_back(ptr);
-                ptr->gc_pins++;
-                ptr->mm = this;
-                return ptr;
-            }
-
-            /**
-             * Looks for unused GC-tracked allocations and destroys them.
-             */
-            void gc_cycle();
-
-            ~MemoryManager();
-
-            /**
-             * Class of smart allocation pointers which pin and unpin the allocation automatically.
-             * @tparam A
-             */
-            template<typename A>
-            class AutoPtr {
-            private:
-                MemoryManager &mm;
-                A *alloc;
-            public:
-                AutoPtr(MemoryManager &mm, A *alloc) : mm(mm), alloc(alloc) {
-                    if (alloc) mm.gc_pin(alloc);
-                }
-
-                AutoPtr(AutoPtr &&other) noexcept: mm(other.mm), alloc(other.alloc) {
-                    other.alloc = nullptr;
-                }
-
-                AutoPtr &operator=(AutoPtr &&other) noexcept {
-                    if (&other != this) {
-                        if (alloc) mm.gc_unpin(alloc);
-                        alloc = other.alloc;
-                        other.alloc = nullptr;
-                    }
-                    return *this;
-                }
-
-                AutoPtr(AutoPtr &) = delete;
-                AutoPtr &operator=(const AutoPtr &) = delete;
-
-                A *get() const { return alloc; }
-
-                void set(A *alloc) {
-                    if (this->alloc) mm.gc_unpin(this->alloc);
-                    this->alloc = alloc;
-                }
-
-                A &operator*() const { return *alloc; }
-
-                A *operator->() const { return alloc; }
-
-                ~AutoPtr() {
-                    if (alloc) mm.gc_unpin(alloc);
-                }
-            };
-
-            /**
-             * Constructs and pins a new GC-tracked allocation.
-             * @tparam T Type of the allocation to create.
-             * @tparam A Type of arguments to forward to `T`'s constructor.
-             * @param args The arguments to forward to the constructor of the allocation.
-             * @return The smart pointer to newly created GC-tracked allocation.
-             */
-            template<class T, typename... A>
-            AutoPtr<T> gc_new_auto(A &&... args) {
-                auto *alloc = gc_new<T, A...>(std::forward<A>(args)...);
-                AutoPtr<T> ptr(*this, alloc);
-                gc_unpin(alloc);
-                return ptr;
             }
         };
 
