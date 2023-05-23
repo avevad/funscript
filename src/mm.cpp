@@ -3,10 +3,9 @@
 #include "common.h"
 
 namespace funscript {
-    MemoryManager::MemoryManager(MemoryManager::Config config) : config(config),
-                                                                 gc_tracked(std_alloc<Allocation *>()) {}
+    MemoryManager::MemoryManager(MemoryManager::Config config) : config(config) {}
 
-    void MemoryManager::free(void *ptr) { config.allocator->free(ptr); }
+    void MemoryManager::free(void *ptr, size_t size) { config.allocator->free(ptr, size); }
 
     void MemoryManager::gc_pin(Allocation *alloc) {
         if (alloc->mm != this) [[unlikely]] assertion_failed("allocation is not tracked");
@@ -20,7 +19,7 @@ namespace funscript {
     }
 
     void MemoryManager::gc_cycle() {
-        std::queue<Allocation *, fdeq<Allocation *>> queue(std_alloc<Allocation *>()); // Allocations to be marked.
+        std::queue<Allocation *> queue;
         // Populate the queue with GC roots, unmark other allocations
         for (auto *alloc : gc_tracked) {
             if (alloc->gc_pins) queue.push(alloc);
@@ -36,13 +35,13 @@ namespace funscript {
                 queue.push(ref);
             });
         }
-        fvec<Allocation *> gc_tracked_new(std_alloc<Allocation *>());
+        std::vector<Allocation *> gc_tracked_new;
         // Remove track of unreachable allocations and destroy them
         for (auto *alloc : gc_tracked) {
             if (alloc->mm) gc_tracked_new.push_back(alloc);
             else {
                 alloc->~Allocation();
-                free(alloc);
+                free(alloc, alloc->mm_size);
             }
         }
         gc_tracked = gc_tracked_new;
@@ -52,7 +51,7 @@ namespace funscript {
         for (auto *alloc : gc_tracked) {
             if (alloc->gc_pins) assertion_failed("destructing memory manager with pinned allocations");
             alloc->~Allocation();
-            free(alloc);
+            free(alloc, alloc->mm_size);
         }
     }
 }

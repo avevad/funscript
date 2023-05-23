@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <deque>
+#include <cstdint>
 
 namespace funscript {
 
@@ -13,7 +14,7 @@ namespace funscript {
     class Allocator {
     public:
         virtual void *allocate(size_t size) noexcept = 0;
-        virtual void free(void *ptr) noexcept = 0;
+        virtual void free(void *ptr, size_t size) noexcept = 0;
     };
 
     class MemoryManager;
@@ -24,6 +25,7 @@ namespace funscript {
     class Allocation {
         friend MemoryManager;
 
+        size_t mm_size = 0;
         size_t gc_pins = 0;
         MemoryManager *mm = nullptr;
 
@@ -80,7 +82,7 @@ namespace funscript {
         } config;
 
     private:
-        std::vector<Allocation *, AllocatorWrapper<Allocation *>> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
+        std::vector<Allocation *> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
 
     public:
         /**
@@ -102,13 +104,20 @@ namespace funscript {
          * @return Pointer to allocated memory.
          */
         template<typename T>
-        T *allocate(size_t n = 1) { return reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T))); }
+        T *allocate(size_t n = 1) {
+            auto *ptr = reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
+            if (!ptr) {
+                gc_cycle();
+                ptr = reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
+            }
+            return ptr;
+        }
 
         /**
          * Frees previously `allocate`'d memory.
          * @param ptr Pointer to memory to deallocate.
          */
-        void free(void *ptr);
+        void free(void *ptr, size_t size);
 
         MemoryManager(Config config);
 
@@ -133,8 +142,16 @@ namespace funscript {
          */
         template<class T, typename... A>
         T *gc_new(A &&... args) {
-            T *ptr = new(allocate<T>()) T(std::forward<A>(args)...);
+            T *ptr = allocate<T>();
+            if (!ptr) return nullptr;
+            try {
+                new(ptr) T(std::forward<A>(args)...);
+            } catch (...) {
+                free(ptr, sizeof(T));
+                throw;
+            }
             gc_tracked.push_back(ptr);
+            ptr->mm_size = sizeof(T);
             ptr->gc_pins++;
             ptr->mm = this;
             return ptr;
@@ -189,6 +206,8 @@ namespace funscript {
 
             A *operator->() const { return alloc; }
 
+            operator bool() const { return alloc != nullptr; }
+
             ~AutoPtr() {
                 if (alloc) mm.gc_unpin(alloc);
             }
@@ -205,7 +224,7 @@ namespace funscript {
         AutoPtr<T> gc_new_auto(A &&... args) {
             auto *alloc = gc_new<T, A...>(std::forward<A>(args)...);
             AutoPtr<T> ptr(*this, alloc);
-            gc_unpin(alloc);
+            if (alloc) gc_unpin(alloc);
             return ptr;
         }
     };
@@ -228,17 +247,29 @@ namespace funscript {
 
     template<typename T>
     void AllocatorWrapper<T>::deallocate(T *ptr, size_t n) noexcept {
-        mm->free(ptr);
+        mm->free(ptr, n * sizeof(T));
     }
 
     /**
      * Default Funscript allocator which uses C memory management functions.
      */
     class DefaultAllocator : public Allocator {
+    private:
+        size_t limit_bytes, used_bytes = 0;
     public:
-        void *allocate(size_t size) noexcept override { return std::malloc(size); }
+        explicit DefaultAllocator(size_t limit_bytes = SIZE_MAX) : limit_bytes(limit_bytes) {}
 
-        void free(void *ptr) noexcept override { std::free(ptr); }
+        void *allocate(size_t size) noexcept override {
+            if (limit_bytes - used_bytes < size) return nullptr;
+            void *ptr = std::malloc(size);
+            if (ptr) used_bytes += size;
+            return ptr;
+        }
+
+        void free(void *ptr, size_t size) noexcept override {
+            if (ptr) used_bytes -= size;
+            std::free(ptr);
+        }
     };
 }
 
