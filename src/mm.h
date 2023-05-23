@@ -25,9 +25,8 @@ namespace funscript {
     class Allocation {
         friend MemoryManager;
 
-        size_t mm_size = 0; // Size of the allocation.
-        size_t gc_pins = 0; // Count of allocation pins.
-        size_t gc_refc = 0; // Count of incoming references.
+        size_t mm_size = 0;
+        size_t gc_pins = 0;
         MemoryManager *mm = nullptr;
 
         /**
@@ -84,7 +83,6 @@ namespace funscript {
 
     private:
         std::vector<Allocation *> gc_tracked; // Collection of all the allocation arrays tracked by the MM (and their sizes).
-        std::vector<Allocation *> gc_deleted; // Collection of all the allocations deleted between GC cycles.
 
     public:
         /**
@@ -134,18 +132,6 @@ namespace funscript {
          * @param alloc The allocation to unpin.
          */
         void gc_unpin(Allocation *alloc);
-
-        /**
-         * Registers a reference to `alloc`.
-         * @param alloc The target of the reference to register.
-         */
-        void gc_add_ref(Allocation *alloc);
-
-        /**
-         * Unregisters a reference to `alloc`.
-         * @param alloc The target of the reference to unregister.
-         */
-        void gc_del_ref(Allocation *alloc);
 
         /**
          * Constructs and pins a new GC-tracked allocation.
