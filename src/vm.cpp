@@ -13,7 +13,9 @@ namespace funscript {
 
     VM::Stack::Stack(VM &vm, Function *start) : vm(vm), values(vm.mem.std_alloc<Value>()),
                                                 frames(vm.mem.std_alloc<Frame *>()) {
-        frames.push_back(vm.mem.gc_new_auto<Frame>(start).get());
+        auto frame = vm.mem.gc_new_auto<Frame>(*this, start);
+        vm.mem.gc_add_ref(frame.get());
+        frames.push_back(frame.get());
         if (!push_sep()) assertion_failed("stack size limit is too small"); // Empty arguments for the start function.
     }
 
@@ -57,6 +59,9 @@ namespace funscript {
 
     void VM::Stack::pop(VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
+        for (pos_t cur_pos = pos; cur_pos < size(); cur_pos++) {
+            values[cur_pos].get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
+        }
         values.resize(pos);
     }
 
@@ -71,11 +76,12 @@ namespace funscript {
         if (values.size() >= vm.config.stack_values_max) return false;
         else {
             values.push_back(e);
+            e.get_ref([this](auto *ref) { vm.mem.gc_add_ref(ref); });
             return true;
         }
     }
 
-    VM::Value &VM::Stack::get(VM::Stack::pos_t pos) {
+    const VM::Value &VM::Stack::get(VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
         return values[pos];
     }
@@ -299,14 +305,8 @@ namespace funscript {
                         break;
                     }
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
-                        size_t a_len = get(pos_a).data.arr->len();
-                        Value *a_dat = get(pos_a).data.arr->begin();
-                        size_t b_len = get(pos_b).data.arr->len();
-                        Value *b_dat = get(pos_b).data.arr->begin();
-                        auto arr = vm.mem.gc_new_auto<Array>(vm, a_len + b_len);
+                        auto arr = vm.mem.gc_new_auto<Array>(vm, get(pos_a).data.arr, get(pos_b).data.arr);
                         if (!arr) return raise_err("out of memory", pos_b - 1);
-                        std::copy(a_dat, a_dat + a_len, arr->begin());
-                        std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
                         pop(-4);
                         if (!push_arr(arr.get())) assertion_failed("failed push() after pop()");
                         break;
@@ -474,7 +474,7 @@ namespace funscript {
                         vm.mem.gc_unpin(&ind);
                         return raise_err("not enough values to assign", beg);
                     }
-                    arr[val.data.num] = get(-1);
+                    arr.set(val.data.num, get(-1));
                     pop();
                 }
                 vm.mem.gc_unpin(&arr);
@@ -489,21 +489,23 @@ namespace funscript {
 
     void VM::Stack::call_function(Function *fun, Function *cont_fn) {
         if (frames.size() >= vm.config.stack_frames_max) return raise_err("stack overflow", find_sep());
-        frames.back()->cont_fn = cont_fn;
-        auto frame = vm.mem.gc_new_auto<Frame>(nullptr);
+        frames.back()->set_cont_fn(cont_fn);
+        auto frame = vm.mem.gc_new_auto<Frame>(*this, nullptr);
         if (!frame) return raise_err("out of memory", find_sep());
         frames.push_back(frame.get());
+        vm.mem.gc_add_ref(frame.get());
         fun->call(*this, frame.get());
+        vm.mem.gc_del_ref(frame.get());
         frames.pop_back();
-        frames.back()->cont_fn = nullptr;
+        frames.back()->set_cont_fn(nullptr);
     }
 
     void VM::Stack::continue_execution() {
         if (frames.empty()) assertion_failed("the routine is no longer alive");
         for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
-            Function *cont_fn = frames[pos]->cont_fn;
+            Function *cont_fn = frames[pos]->get_cont_fn();
             vm.mem.gc_pin(cont_fn);
-            frames[pos]->cont_fn = nullptr;
+            frames[pos]->set_cont_fn(nullptr);
             cont_fn->call(*this, frames[pos]);
             vm.mem.gc_unpin(cont_fn);
         }
@@ -521,7 +523,10 @@ namespace funscript {
         raise_err("operator is not defined for these operands", pos);
     }
 
-    VM::Stack::~Stack() = default;
+    VM::Stack::~Stack() {
+        for (const auto &val : values) val.get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
+        for (auto *frame : frames) vm.mem.gc_del_ref(frame);
+    }
 
     void VM::Object::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &[key, val] : fields) val.get_ref(callback);
@@ -537,7 +542,15 @@ namespace funscript {
     }
 
     void VM::Object::set_field(const fstr &key, Value val) {
+        if (fields.contains(key)) fields[key].get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
         fields[key] = val;
+        val.get_ref([this](auto *ref) { vm.mem.gc_add_ref(ref); });
+    }
+
+    VM::Object::~Object() {
+        for (const auto &[key, val] : fields) {
+            val.get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
+        }
     }
 
     void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {
@@ -561,10 +574,36 @@ namespace funscript {
         set_var(name, val, *this);
     }
 
-    VM::Frame::Frame(Function *fn) : cont_fn(fn) {}
+    VM::Scope::Scope(VM::Object *vars, VM::Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {
+        vars->vm.mem.gc_add_ref(vars);
+        if (prev_scope) vars->vm.mem.gc_add_ref(prev_scope);
+    }
+
+    VM::Scope::~Scope() {
+        if (prev_scope) vars->vm.mem.gc_del_ref(prev_scope);
+        vars->vm.mem.gc_del_ref(vars);
+    }
+
+    VM::Frame::Frame(Stack &stack, Function *fn) : stack(stack), cont_fn(fn) {
+        if (fn) stack.vm.mem.gc_add_ref(fn);
+    }
 
     void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(cont_fn);
+    }
+
+    void VM::Frame::set_cont_fn(funscript::VM::Function *cont_fn1) {
+        if (cont_fn) stack.vm.mem.gc_del_ref(cont_fn);
+        cont_fn = cont_fn1;
+        if (cont_fn) stack.vm.mem.gc_add_ref(cont_fn);
+    }
+
+    VM::Function *VM::Frame::get_cont_fn() const {
+        return cont_fn;
+    }
+
+    VM::Frame::~Frame() {
+        if (cont_fn) stack.vm.mem.gc_del_ref(cont_fn);
     }
 
     VM::Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
@@ -582,7 +621,15 @@ namespace funscript {
 
     VM::BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
                                                                                               bytecode(bytecode),
-                                                                                              offset(offset) {}
+                                                                                              offset(offset) {
+        scope->vars->vm.mem.gc_add_ref(scope);
+        scope->vars->vm.mem.gc_add_ref(bytecode);
+    }
+
+    VM::BytecodeFunction::~BytecodeFunction() {
+        scope->vars->vm.mem.gc_del_ref(scope);
+        scope->vars->vm.mem.gc_del_ref(bytecode);
+    }
 
     VM::String::String(fstr bytes) : bytes(std::move(bytes)) {}
 
@@ -596,31 +643,20 @@ namespace funscript {
         for (const auto &val : values) val.get_ref(callback);
     }
 
-    VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : values(len, Value{Type::NUL},
-                                                                             vm.mem.std_alloc<Value>()) {
+    VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : vm(vm), values(len, Value{Type::NUL},
+                                                                                     vm.mem.std_alloc<Value>()) {
         std::copy(beg, beg + len, values.data());
+        for (const auto &val : values) val.get_ref([&vm](auto *ref) { vm.mem.gc_add_ref(ref); });
     }
 
-    VM::Array::Array(funscript::VM &vm, size_t len) : values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
-
-    VM::Value &VM::Array::operator[](size_t pos) {
-        return values[pos];
-    }
+    VM::Array::Array(funscript::VM &vm, size_t len) : vm(vm), values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
 
     const VM::Value &VM::Array::operator[](size_t pos) const {
         return values[pos];
     }
 
-    VM::Value *VM::Array::begin() {
-        return values.data();
-    }
-
     const VM::Value *VM::Array::begin() const {
         return values.data();
-    }
-
-    VM::Value *VM::Array::end() {
-        return values.data() + len();
     }
 
     const VM::Value *VM::Array::end() const {
@@ -629,5 +665,23 @@ namespace funscript {
 
     size_t VM::Array::len() const {
         return values.size();
+    }
+
+    VM::Array::Array(VM &vm, const VM::Array *arr1, const VM::Array *arr2) : vm(vm), values(arr1->len() + arr2->len(),
+                                                                                            Value{Type::NUL},
+                                                                                            vm.mem.std_alloc<Value>()) {
+        std::copy(arr1->values.data(), arr1->values.data() + arr1->len(), values.data());
+        std::copy(arr2->values.data(), arr2->values.data() + arr2->len(), values.data() + arr1->len());
+        for (const auto &val : values) val.get_ref([&vm](auto *ref) { vm.mem.gc_add_ref(ref); });
+    }
+
+    void VM::Array::set(size_t pos, const funscript::VM::Value &val) {
+        values[pos].get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
+        values[pos] = val;
+        val.get_ref([this](auto *ref) { vm.mem.gc_add_ref(ref); });
+    }
+
+    VM::Array::~Array() {
+        for (const auto &val : values) val.get_ref([this](auto *ref) { vm.mem.gc_del_ref(ref); });
     }
 }

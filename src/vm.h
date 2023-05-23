@@ -35,6 +35,7 @@ namespace funscript {
          * Class of array value objects.
          */
         class Array : public Allocation {
+            VM &vm;
             fvec<Value> values;
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
@@ -42,19 +43,19 @@ namespace funscript {
 
             Array(VM &vm, size_t len);
 
-            Value &operator[](size_t pos);
+            Array(VM &vm, const Array *arr1, const Array *arr2);
 
             const Value &operator[](size_t pos) const;
 
-            Value *begin();
+            void set(size_t pos, const Value &val);
 
             const Value *begin() const;
-
-            Value *end();
 
             const Value *end() const;
 
             [[nodiscard]] size_t len() const;
+
+            ~Array();
         };
 
         /**
@@ -96,7 +97,7 @@ namespace funscript {
             [[nodiscard]] std::optional<Value> get_field(const fstr &key) const;
             void set_field(const fstr &key, Value val);
 
-            ~Object() override = default;
+            ~Object() override;
         };
 
         /**
@@ -116,7 +117,7 @@ namespace funscript {
             Object *const vars; // Object which contains all the variables of the scope.
             Scope *const prev_scope; // Pointer to the parent scope.
 
-            Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+            Scope(Object *vars, Scope *prev_scope);
 
             /**
              * Recursively searches the specified variable in the scope and all its parent scopes and retrieves the value of it.
@@ -131,6 +132,8 @@ namespace funscript {
              * @param val The new value of the variable.
              */
             void set_var(const fstr &name, Value val);
+
+            ~Scope();
         };
 
         class Function;
@@ -139,12 +142,18 @@ namespace funscript {
          * Objects of this class hold information about VM stack frame.
          */
         class Frame : public Allocation {
-            friend VM::Stack;
+            Stack &stack;
             Function *cont_fn; // The function to be called in this frame.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            explicit Frame(Function *cont_fn);
+            explicit Frame(Stack &stack, Function *cont_fn);
+
+            void set_cont_fn(Function *cont_fn);
+
+            Function *get_cont_fn() const;
+
+            ~Frame();
         };
 
         /**
@@ -189,6 +198,8 @@ namespace funscript {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
             BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
+
+            ~BytecodeFunction();
         };
 
         /**
@@ -309,7 +320,7 @@ namespace funscript {
              * @param pos Position to index.
              * @return The value at the specified position of value stack.
              */
-            Value &get(pos_t pos);
+            const Value &get(pos_t pos);
         };
     };
 
