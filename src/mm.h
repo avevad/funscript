@@ -12,8 +12,8 @@ namespace funscript {
      */
     class Allocator {
     public:
-        virtual void *allocate(size_t size) = 0;
-        virtual void free(void *ptr) = 0;
+        virtual void *allocate(size_t size) noexcept = 0;
+        virtual void free(void *ptr) noexcept = 0;
     };
 
     class MemoryManager;
@@ -43,33 +43,33 @@ namespace funscript {
     template<typename T>
     class AllocatorWrapper {
     public:
-        Allocator *alloc;
+        MemoryManager *mm;
         typedef T value_type;
 
-        explicit AllocatorWrapper(Allocator *alloc) : alloc(alloc) {}
+        explicit AllocatorWrapper(MemoryManager *mem) : mm(mem) {}
 
-        AllocatorWrapper(const AllocatorWrapper &old) : alloc(old.alloc) {}
+        AllocatorWrapper(const AllocatorWrapper &old) : mm(old.mm) {}
 
         template<typename E>
-        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : alloc(old.alloc) {}
+        explicit AllocatorWrapper(const AllocatorWrapper<E> &old) : mm(old.mm) {}
 
-        [[nodiscard]] T *allocate(size_t n) { return reinterpret_cast<T *>(alloc->allocate(sizeof(T) * n)); }
+        [[nodiscard]] T *allocate(size_t n);
 
-        void deallocate(T *ptr, size_t n) noexcept { alloc->free(ptr); }
+        void deallocate(T *ptr, size_t n) noexcept;
 
         AllocatorWrapper &operator=(const AllocatorWrapper &old) {
-            if (&old != this) alloc = old.alloc;
+            if (&old != this) mm = old.mm;
             return *this;
         }
 
         template<typename T1>
         bool operator==(const AllocatorWrapper<T1> &other) const {
-            return true;
+            return mm == other.mm;
         }
 
         template<typename T1>
         bool operator!=(const AllocatorWrapper<T1> &other) const {
-            return false;
+            return mm != other.mm;
         }
     };
 
@@ -88,7 +88,7 @@ namespace funscript {
          * @return STL allocator for the specified type.
          */
         template<typename T>
-        AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(config.allocator); }
+        AllocatorWrapper<T> std_alloc() { return AllocatorWrapper<T>(this); }
 
         /**
          * @return STL string allocator.
@@ -219,14 +219,26 @@ namespace funscript {
     using fdeq = std::deque<E, AllocatorWrapper<E>>;
     using fint = int64_t;
 
+    template<typename T>
+    T *AllocatorWrapper<T>::allocate(size_t n) {
+        auto *ptr = mm->allocate<T>(n);
+        if (!ptr) throw std::bad_alloc();
+        return ptr;
+    }
+
+    template<typename T>
+    void AllocatorWrapper<T>::deallocate(T *ptr, size_t n) noexcept {
+        mm->free(ptr);
+    }
+
     /**
      * Default Funscript allocator which uses C memory management functions.
      */
     class DefaultAllocator : public Allocator {
     public:
-        void *allocate(size_t size) override { return std::malloc(size); }
+        void *allocate(size_t size) noexcept override { return std::malloc(size); }
 
-        void free(void *ptr) override { std::free(ptr); }
+        void free(void *ptr) noexcept override { std::free(ptr); }
     };
 }
 
