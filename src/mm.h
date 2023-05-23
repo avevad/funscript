@@ -179,9 +179,10 @@ namespace funscript {
 
             A *get() const { return alloc; }
 
-            void set(A *alloc) {
-                if (this->alloc) mm.gc_unpin(this->alloc);
-                this->alloc = alloc;
+            void set(A *alloc1) {
+                if (alloc) mm.gc_unpin(alloc);
+                alloc = alloc1;
+                if (alloc) mm.gc_pin(alloc);
             }
 
             A &operator*() const { return *alloc; }
@@ -218,6 +219,15 @@ namespace funscript {
     using fdeq = std::deque<E, AllocatorWrapper<E>>;
     using fint = int64_t;
 
+    /**
+     * Default Funscript allocator which uses C memory management functions.
+     */
+    class DefaultAllocator : public Allocator {
+    public:
+        void *allocate(size_t size) override { return std::malloc(size); }
+
+        void free(void *ptr) override { std::free(ptr); }
+    };
 }
 
 #endif //FUNSCRIPT_MM_H

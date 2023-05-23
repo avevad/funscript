@@ -16,16 +16,6 @@
 
 namespace funscript {
 
-    /**
-     * Default Funscript allocator which uses C memory management functions.
-     */
-    class DefaultAllocator : public Allocator {
-    public:
-        void *allocate(size_t size) override { return std::malloc(size); }
-
-        void free(void *ptr) override { std::free(ptr); }
-    };
-
     class VM {
     public:
         VM(const VM &vm) = delete;
