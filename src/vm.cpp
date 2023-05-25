@@ -122,9 +122,9 @@ namespace funscript {
                         fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
-                            auto var = cur_scope->get_var(name);
+                            auto var = cur_scope->vars->get_field(name);
                             if (!var.has_value()) {
-                                return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                                return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                             }
                             if (!push(var.value())) assertion_failed("failed push() after pop()");
                         } else {
@@ -153,7 +153,7 @@ namespace funscript {
                         if (get(-1).type == Type::SEP) {
                             pop();
                             if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
-                            cur_scope->set_var(name, get(-1));
+                            cur_scope->vars->set_field(name, get(-1));
                             pop();
                         } else {
                             if (get(-1).type != Type::OBJ) {
@@ -169,6 +169,26 @@ namespace funscript {
                             pop();
                             vm.mem.gc_unpin(obj);
                         }
+                        ip++;
+                        break;
+                    }
+                    case Opcode::VGT: {
+                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        auto var = cur_scope->get_var(name);
+                        if (!var.has_value()) {
+                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                        }
+                        if (!push(var.value())) return raise_err("stack overflow", frame_start);
+                        ip++;
+                        break;
+                    }
+                    case Opcode::VST: {
+                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
+                        if (!cur_scope->set_var(name, get(-1))) {
+                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                        }
+                        pop();
                         ip++;
                         break;
                     }
@@ -545,20 +565,16 @@ namespace funscript {
         callback(prev_scope);
     }
 
-    void VM::Scope::set_var(const fstr &name, Value val, Scope &first) {
-        if (vars->contains_field(name)) vars->set_field(name, val);
-        if (prev_scope) prev_scope->set_var(name, val, first);
-        else first.vars->set_field(name, val);
-    }
-
     std::optional<VM::Value> VM::Scope::get_var(const funscript::fstr &name) const {
         if (vars->contains_field(name)) return vars->get_field(name);
         if (prev_scope == nullptr) return std::nullopt;
         return prev_scope->get_var(name);
     }
 
-    void VM::Scope::set_var(const fstr &name, Value val) {
-        set_var(name, val, *this);
+    bool VM::Scope::set_var(const fstr &name, Value val) {
+        if (vars->contains_field(name)) return vars->set_field(name, val), true;
+        if (prev_scope == nullptr) return false;
+        return prev_scope->set_var(name, val);
     }
 
     VM::Frame::Frame(Function *fn) : cont_fn(fn) {}

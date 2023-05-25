@@ -23,14 +23,12 @@ namespace funscript {
     IntegerAST::IntegerAST(int64_t num) : AST({.no_scope = true}), num(num) {}
 
     void IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
-        ch.put_instruction({Opcode::SEP});
-        ch.put_instruction({Opcode::GET, false, 0 /* Will be overwritten to actual name location */});
+        ch.put_instruction({Opcode::VGT, false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
     }
 
     void IdentifierAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
-        ch.put_instruction({Opcode::SEP});
-        ch.put_instruction({Opcode::SET, false, 0 /* Will be overwritten to actual name location */});
+        ch.put_instruction({Opcode::VST, false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
     }
 
@@ -53,6 +51,8 @@ namespace funscript {
                 return {.no_scope = true}; // We don't need redundant scopes for any lambda expressions
             case Operator::ASSIGN:
                 return {.no_scope = false}; // Assignment operator can create a variable in current sub-scope, so we should create it
+            case Operator::INDEX:
+                return {.no_scope = false}; // Index operator can access a variable in current sub-scope
             default:
                 // We should create a scope if either of operands require it
                 return {.no_scope = a.no_scope && b.no_scope};

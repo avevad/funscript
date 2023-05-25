@@ -36,17 +36,25 @@ namespace funscript {
          */
         SEP,
         /**
-         * @brief Get a field of an object or the scope.
-         * @param u16 Bool `true` if the alternative lookup method should be used.
+         * @brief Get a field of an object.
          * @param u64 The offset of identifier string.
          */
         GET,
         /**
-         * @brief Set a field of an object or the scope.
-         * @param u16 Bool `true` if the alternative lookup method should be used.
+         * @brief Set a field of an object.
          * @param u64 The offset of identifier string.
          */
         SET,
+        /**
+         * @brief Get a variable in current scope.
+         * @param u64 The offset of identifier string.
+         */
+        VGT,
+        /**
+         * @brief Set a variable in current scope.
+         * @param u64 The offset of identifier string.
+         */
+        VST,
         /**
          * @brief Change current scope.
          * @param u16 Bool `true` if the action is creating a new scope and `false` if the action is to discard the scope.

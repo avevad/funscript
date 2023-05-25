@@ -105,13 +105,6 @@ namespace funscript {
         class Scope : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
-            /**
-             * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
-             * @param name Name of the variable to search.
-             * @param val The new value of the variable.
-             * @param first The scope where the variable should be created if wasn't found.
-             */
-            void set_var(const fstr &name, Value val, Scope &first);
         public:
             Object *const vars; // Object which contains all the variables of the scope.
             Scope *const prev_scope; // Pointer to the parent scope.
@@ -129,8 +122,9 @@ namespace funscript {
              * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
              * @param name Name of the variable to search.
              * @param val The new value of the variable.
+             * @return Whether the variable exists or not (if not, it won't be created).
              */
-            void set_var(const fstr &name, Value val);
+            bool set_var(const fstr &name, Value val);
         };
 
         class Function;
