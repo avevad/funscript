@@ -10,7 +10,7 @@ namespace funscript {
         throw CompilationError("not a `then` operator");
     }
 
-    AST::AST(const funscript::eval_opt_info &eval_opt) : eval_opt(eval_opt) {}
+    AST::AST() = default;
 
     void IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::INT), static_cast<uint64_t>(num)});
@@ -20,7 +20,7 @@ namespace funscript {
         throw CompilationError("expression is not assignable");
     }
 
-    IntegerAST::IntegerAST(int64_t num) : AST({.no_scope = true}), num(num) {}
+    IntegerAST::IntegerAST(int64_t num) : num(num) {}
 
     void IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         ch.put_instruction({Opcode::VGT, false, 0 /* Will be overwritten to actual name location */});
@@ -32,31 +32,10 @@ namespace funscript {
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
     }
 
-    IdentifierAST::IdentifierAST(std::string name) : AST({.no_scope = true}), name(std::move(name)) {}
+    IdentifierAST::IdentifierAST(std::string name) : name(std::move(name)) {}
 
     std::string IdentifierAST::get_identifier() const {
         return name;
-    }
-
-    /**
-     * Calculates optimization info of operator expression by combining its operands' optimization info.
-     * @param op Operator of the expression.
-     * @param a Optimization info of the left operand.
-     * @param b Optimization info of the right operand.
-     * @return Resulting optimization info.
-     */
-    static eval_opt_info merge_opt_info(Operator op, const eval_opt_info &a, const eval_opt_info &b) {
-        switch (op) {
-            case Operator::LAMBDA:
-                return {.no_scope = true}; // We don't need redundant scopes for any lambda expressions
-            case Operator::ASSIGN:
-                return {.no_scope = false}; // Assignment operator can create a variable in current sub-scope, so we should create it
-            case Operator::INDEX:
-                return {.no_scope = false}; // Index operator can access a variable in current sub-scope
-            default:
-                // We should create a scope if either of operands require it
-                return {.no_scope = a.no_scope && b.no_scope};
-        }
     }
 
     void OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
@@ -180,8 +159,9 @@ namespace funscript {
         }
     }
 
-    OperatorAST::OperatorAST(funscript::AST *left, funscript::AST *right, funscript::Operator op) :
-            AST(merge_opt_info(op, left->eval_opt, right->eval_opt)), left(left), right(right), op(op) {}
+    OperatorAST::OperatorAST(funscript::AST *left, funscript::AST *right, funscript::Operator op) : left(left),
+                                                                                                    right(right),
+                                                                                                    op(op) {}
 
     std::pair<AST *, AST *> OperatorAST::get_then() const {
         return {left.get(), right.get()};
@@ -195,20 +175,20 @@ namespace funscript {
         throw CompilationError("expression is not assignable");
     }
 
-    NulAST::NulAST() : AST({.no_scope = true}) {}
+    NulAST::NulAST() = default;
 
     void VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {}
 
     void VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch) {}
 
-    VoidAST::VoidAST() : AST({.no_scope = true}) {}
+    VoidAST::VoidAST() = default;
 
     void BracketAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         switch (type) {
             case Bracket::PLAIN:
-                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, true});
+                ch.put_instruction({Opcode::SCP, true});
                 child->compile_eval(as, ch);
-                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, false});
+                ch.put_instruction({Opcode::SCP, false});
                 break;
             case Bracket::CURLY:
                 ch.put_instruction({Opcode::SCP, true}); // Create object scope
@@ -219,11 +199,11 @@ namespace funscript {
                 ch.put_instruction({Opcode::SCP, false}); // Discard object scope
                 break;
             case Bracket::SQUARE:
-                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, true});
+                ch.put_instruction({Opcode::SCP, true});
                 ch.put_instruction(Opcode::SEP);
                 child->compile_eval(as, ch);
                 ch.put_instruction(Opcode::ARR);
-                if (!child->eval_opt.no_scope) ch.put_instruction({Opcode::SCP, false});
+                ch.put_instruction({Opcode::SCP, false});
                 break;
         }
     }
@@ -239,8 +219,7 @@ namespace funscript {
         }
     }
 
-    BracketAST::BracketAST(funscript::AST *child, funscript::Bracket type) : AST({.no_scope = true}),
-                                                                             type(type), child(child) {}
+    BracketAST::BracketAST(funscript::AST *child, funscript::Bracket type) : type(type), child(child) {}
 
     void BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::BLN), static_cast<uint64_t>(bln)});
@@ -250,9 +229,9 @@ namespace funscript {
         throw CompilationError("expression is not assignable");
     }
 
-    BooleanAST::BooleanAST(bool bln) : AST({.no_scope = true}), bln(bln) {}
+    BooleanAST::BooleanAST(bool bln) : bln(bln) {}
 
-    StringAST::StringAST(std::string str) : AST({.no_scope = true}), str(std::move(str)) {}
+    StringAST::StringAST(std::string str) : str(std::move(str)) {}
 
     void StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
         ch.put_instruction({Opcode::STR,

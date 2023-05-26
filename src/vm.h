@@ -312,15 +312,6 @@ namespace funscript {
             Value &get(pos_t pos);
         };
     };
-
-    namespace {
-        /**
-         * Stub class used to implement routine yielding via stack unwinding.
-         * The objects of this class are thrown in case of yield.
-         */
-        class __yield {
-        };
-    }
 }
 
 #endif //FUNSCRIPT_VM_H

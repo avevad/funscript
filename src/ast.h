@@ -112,14 +112,6 @@ namespace funscript {
         void assemble(char *buffer) const;
     };
 
-
-    /**
-     * A structure that holds optimization info of an AST node.
-     */
-    struct eval_opt_info {
-        bool no_scope = false; // If there is no point in creating a scope when evaluating expression represented by the node
-    };
-
     class CompilationError : public std::runtime_error {
     public:
         explicit CompilationError(const std::string &msg);
@@ -131,15 +123,13 @@ namespace funscript {
     class AST {
         friend Assembler;
     public:
-        const eval_opt_info eval_opt; // Optimization info of this node
-
         virtual void compile_eval(Assembler &as, Assembler::Chunk &chunk) = 0;
         virtual void compile_move(Assembler &as, Assembler::Chunk &chunk) = 0;
 
-        virtual std::string get_identifier() const;
-        virtual std::pair<AST *, AST *> get_then() const;
+        [[nodiscard]] virtual std::string get_identifier() const;
+        [[nodiscard]] virtual std::pair<AST *, AST *> get_then() const;
 
-        explicit AST(const eval_opt_info &eval_opt);
+        explicit AST();
 
         virtual ~AST() = default;
     };
