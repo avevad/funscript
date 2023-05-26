@@ -39,7 +39,7 @@ namespace funscript {
         new_chunk(); // Data chunk
         auto &ch = new_chunk(); // Main chunk
         ch.put_instruction({Opcode::DIS}); // Discard any arguments in the main function
-        ast->compile_eval(*this, ch);
+        ast->compile_eval(*this, ch, {});
         ch.put_instruction({Opcode::END});
     }
 

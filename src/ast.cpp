@@ -12,24 +12,27 @@ namespace funscript {
 
     AST::AST() = default;
 
-    void IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::INT), static_cast<uint64_t>(num)});
+        return {.no_scope = true};
     }
 
-    void IntegerAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info IntegerAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         throw CompilationError("expression is not assignable");
     }
 
     IntegerAST::IntegerAST(int64_t num) : num(num) {}
 
-    void IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VGT, false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
+        return {.no_scope = true};
     }
 
-    void IdentifierAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info IdentifierAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         ch.put_instruction({Opcode::VST, false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
+        return {.no_scope = true};
     }
 
     IdentifierAST::IdentifierAST(std::string name) : name(std::move(name)) {}
@@ -38,27 +41,27 @@ namespace funscript {
         return name;
     }
 
-    void OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         switch (op) {
             case Operator::ASSIGN: {
                 ch.put_instruction(Opcode::SEP);
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::REV);
-                left->compile_move(as, ch);
+                u_mv_opt_info u_opt2 = left->compile_move(as, ch, {});
                 ch.put_instruction({Opcode::DIS, true});
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::APPEND: {
-                left->compile_eval(as, ch);
-                right->compile_eval(as, ch);
-                break;
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::DISCARD: {
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::DIS);
-                right->compile_eval(as, ch);
-                break;
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::LAMBDA: {
                 auto &new_ch = as.new_chunk(); // Chunk of the new function
@@ -66,94 +69,97 @@ namespace funscript {
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), new_ch.id, 0);
                 // Here goes the bytecode of new function
                 new_ch.put_instruction({Opcode::SCP, true}); // Create the scope of the function
-                left->compile_move(as, new_ch); // Assign function arguments
+                u_mv_opt_info u_opt1 = left->compile_move(as, new_ch, {}); // Assign function arguments
                 new_ch.put_instruction({Opcode::DIS, true}); // Discard the separator after the arguments
-                right->compile_eval(as, new_ch); // Evaluate function body
+                u_ev_opt_info u_opt2 = right->compile_eval(as, new_ch, {}); // Evaluate function body
                 new_ch.put_instruction({Opcode::SCP, false}); // Discard the scope ot the function
                 new_ch.put_instruction(Opcode::END);
-                break;
+                return {.no_scope = true};
             }
             case Operator::INDEX: {
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::GET, false, 0 /* Will be overwritten to actual name location */});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
-                break;
+                return {.no_scope = false};
             }
             case Operator::THEN: {
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 auto pos = ch.put_instruction(); // Position of jump instruction (over `then` expression)
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
                 ch.set_instruction(pos, Opcode::JNO);
                 as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::ELSE: {
                 auto [cond, then] = left->get_then();
                 ch.put_instruction(Opcode::SEP);
-                cond->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = cond->compile_eval(as, ch, {});
                 auto pos1 = ch.put_instruction(); // Position of jump instruction (over `then` expression)
-                then->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = then->compile_eval(as, ch, {});
                 auto pos2 = ch.put_instruction(); // Position of jump instruction (over `else` expression)
                 ch.set_instruction(pos1, Opcode::JNO);
                 as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt3 = right->compile_eval(as, ch, {});
                 ch.set_instruction(pos2, Opcode::JMP);
                 as.add_pointer(ch.id, pos2 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope && u_opt3.no_scope};
             }
             case Operator::UNTIL: {
                 auto pos = ch.size(); // Position of where to jump back
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::SEP);
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::JNO);
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos);
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::DO: {
                 auto pos0 = ch.size(); // Position of where to jump back
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 auto pos1 = ch.put_instruction(); // Position of jump instruction (over the body of the cycle)
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::JMP);
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos0);
                 ch.set_instruction(pos1, Opcode::JNO);
                 as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             default: {
                 ch.put_instruction({Opcode::SEP});
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::SEP});
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::OPR, static_cast<uint16_t>(op)});
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
         }
     }
 
-    void OperatorAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info OperatorAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         switch (op) {
-            case Operator::APPEND:
-                left->compile_move(as, ch);
-                right->compile_move(as, ch);
-                break;
-            case Operator::INDEX:
+            case Operator::APPEND: {
+                u_mv_opt_info u_opt1 = left->compile_move(as, ch, {});
+                u_mv_opt_info u_opt2 = right->compile_move(as, ch, {});
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
+            case Operator::INDEX: {
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::SET, false, 0 /* Will be overwritten to actual name location */});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
-                break;
-            case Operator::CALL:
+                return {.no_scope = false};
+            }
+            case Operator::CALL: {
                 ch.put_instruction(Opcode::SEP);
-                right->compile_eval(as, ch);
+                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::SEP);
-                left->compile_eval(as, ch);
+                u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::MOV);
-                break;
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
             default:
                 throw CompilationError("expression is not assignable");
         }
@@ -167,65 +173,80 @@ namespace funscript {
         return {left.get(), right.get()};
     }
 
-    void NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::NUL)});
+        return {.no_scope = true};
     }
 
-    void NulAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info NulAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         throw CompilationError("expression is not assignable");
     }
 
     NulAST::NulAST() = default;
 
-    void VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {}
+    u_ev_opt_info VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
+        return {.no_scope = true};
+    }
 
-    void VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch) {}
+    u_mv_opt_info VoidAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
+        return {.no_scope = true};
+    }
 
     VoidAST::VoidAST() = default;
 
-    void BracketAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info BracketAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
+        u_ev_opt_info u_opt0;
         switch (type) {
-            case Bracket::PLAIN:
-                ch.put_instruction({Opcode::SCP, true});
-                child->compile_eval(as, ch);
-                ch.put_instruction({Opcode::SCP, false});
+            case Bracket::PLAIN: {
+                size_t scp_pos = ch.put_instruction({Opcode::SCP, true});
+                u_opt0 = child->compile_eval(as, ch, {});
+                ch.put_instruction({u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, false});
+                if (u_opt0.no_scope) ch.set_instruction(scp_pos, Opcode::NOP);
                 break;
-            case Bracket::CURLY:
+            }
+            case Bracket::CURLY: {
                 ch.put_instruction({Opcode::SCP, true}); // Create object scope
                 ch.put_instruction({Opcode::SEP});
-                child->compile_eval(as, ch);
+                u_opt0 = child->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::DIS}); // Discard all values produced by sub-expression
                 ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::OBJ)}); // Create an object from scope
                 ch.put_instruction({Opcode::SCP, false}); // Discard object scope
                 break;
-            case Bracket::SQUARE:
-                ch.put_instruction({Opcode::SCP, true});
+            }
+            case Bracket::SQUARE: {
+                size_t scp_pos = ch.put_instruction({Opcode::SCP, true});
                 ch.put_instruction(Opcode::SEP);
-                child->compile_eval(as, ch);
+                u_opt0 = child->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::ARR);
-                ch.put_instruction({Opcode::SCP, false});
+                ch.put_instruction({u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, false});
+                if (u_opt0.no_scope) ch.set_instruction(scp_pos, Opcode::NOP);
                 break;
+            }
         }
+        return {.no_scope = true};
     }
 
-    void BracketAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info BracketAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
+        u_mv_opt_info u_opt0;
         switch (type) {
             case Bracket::PLAIN:
-                child->compile_move(as, ch);
+                u_opt0 = child->compile_move(as, ch, {});
                 break;
             case Bracket::CURLY:
             case Bracket::SQUARE:
                 throw CompilationError("expression is not assignable");
         }
+        return {.no_scope = u_opt0.no_scope};
     }
 
     BracketAST::BracketAST(funscript::AST *child, funscript::Bracket type) : type(type), child(child) {}
 
-    void BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::BLN), static_cast<uint64_t>(bln)});
+        return {.no_scope = true};
     }
 
-    void BooleanAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
+    u_mv_opt_info BooleanAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         throw CompilationError("expression is not assignable");
     }
 
@@ -233,13 +254,14 @@ namespace funscript {
 
     StringAST::StringAST(std::string str) : str(std::move(str)) {}
 
-    void StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch) {
+    u_ev_opt_info StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::STR,
                             static_cast<uint16_t>(str.size()), 0 /* Will be overwritten to actual string location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(str));
+        return {.no_scope = true};
     }
 
-    void StringAST::compile_move(Assembler &as, Assembler::Chunk &chunk) {
+    u_mv_opt_info StringAST::compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) {
         throw CompilationError("expression is not assignable");
     }
 }

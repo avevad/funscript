@@ -118,13 +118,39 @@ namespace funscript {
     };
 
     /**
+     * Structure that holds optimization info passed up to the higher level expression when generating evaluation bytecode.
+     */
+    struct u_ev_opt_info {
+        bool no_scope = false;
+    };
+
+    /**
+     * Structure that holds optimization info passed up to the higher level expression when generating assignment bytecode.
+     */
+    struct u_mv_opt_info {
+        bool no_scope = false;
+    };
+
+    /**
+     * Structure that holds optimization info passed down to the subexpressions when generating evaluation bytecode.
+     */
+    struct d_ev_opt_info {
+    };
+
+    /**
+     * Structure that holds optimization info passed down to the subexpressions when generating assignment bytecode.
+     */
+    struct d_mv_opt_info {
+    };
+
+    /**
      * Abstract class of an AST node, which represents some sub-expression of code.
      */
     class AST {
         friend Assembler;
     public:
-        virtual void compile_eval(Assembler &as, Assembler::Chunk &chunk) = 0;
-        virtual void compile_move(Assembler &as, Assembler::Chunk &chunk) = 0;
+        virtual u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) = 0;
+        virtual u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) = 0;
 
         [[nodiscard]] virtual std::string get_identifier() const;
         [[nodiscard]] virtual std::pair<AST *, AST *> get_then() const;
@@ -191,8 +217,8 @@ namespace funscript {
     class IntegerAST : public AST {
         int64_t num; // Number represented by the literal.
 
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         explicit IntegerAST(int64_t num);
     };
@@ -203,8 +229,8 @@ namespace funscript {
     class IdentifierAST : public AST {
         std::string name; // Name of the identifier.
 
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
 
         std::string get_identifier() const override;
     public:
@@ -219,8 +245,8 @@ namespace funscript {
         Operator op; // The operator of this expression.
         ast_ptr left{}, right{}; // Operands of the operator.
 
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
 
         std::pair<AST *, AST *> get_then() const override;
     public:
@@ -231,8 +257,8 @@ namespace funscript {
      * Class of AST leaves which represent `nul` literals.
      */
     class NulAST : public AST {
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         NulAST();
     };
@@ -241,8 +267,8 @@ namespace funscript {
      * Class of AST leaves which represent void literal.
      */
     class VoidAST : public AST {
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         VoidAST();
     };
@@ -254,8 +280,8 @@ namespace funscript {
     class BracketAST : public AST {
         Bracket type; // Type of the brackets in this expression.
         ast_ptr child; // The sub-expression which is enclosed by brackets.
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         BracketAST(AST *child, Bracket type);
     };
@@ -266,8 +292,8 @@ namespace funscript {
     class BooleanAST : public AST {
         bool bln; // Whether the literal represents `yes` value.
 
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         explicit BooleanAST(bool bln);
     };
@@ -278,8 +304,8 @@ namespace funscript {
     class StringAST : public AST {
         std::string str;
 
-        void compile_eval(Assembler &as, Assembler::Chunk &chunk) override;
-        void compile_move(Assembler &as, Assembler::Chunk &chunk) override;
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
         explicit StringAST(std::string str);
     };
