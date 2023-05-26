@@ -64,8 +64,9 @@ namespace funscript {
             case Operator::ASSIGN: {
                 ch.put_instruction(Opcode::SEP);
                 right->compile_eval(as, ch);
+                ch.put_instruction(Opcode::REV);
                 left->compile_move(as, ch);
-                ch.put_instruction(Opcode::DIS);
+                ch.put_instruction({Opcode::DIS, true});
                 break;
             }
             case Operator::APPEND: {
@@ -87,7 +88,7 @@ namespace funscript {
                 // Here goes the bytecode of new function
                 new_ch.put_instruction({Opcode::SCP, true}); // Create the scope of the function
                 left->compile_move(as, new_ch); // Assign function arguments
-                new_ch.put_instruction(Opcode::DIS); // Discard the separator after the arguments
+                new_ch.put_instruction({Opcode::DIS, true}); // Discard the separator after the arguments
                 right->compile_eval(as, new_ch); // Evaluate function body
                 new_ch.put_instruction({Opcode::SCP, false}); // Discard the scope ot the function
                 new_ch.put_instruction(Opcode::END);
@@ -158,8 +159,8 @@ namespace funscript {
     void OperatorAST::compile_move(Assembler &as, Assembler::Chunk &ch) {
         switch (op) {
             case Operator::APPEND:
-                right->compile_move(as, ch);
                 left->compile_move(as, ch);
+                right->compile_move(as, ch);
                 break;
             case Operator::INDEX:
                 ch.put_instruction(Opcode::SEP);

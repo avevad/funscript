@@ -270,8 +270,14 @@ namespace funscript {
 
             /**
              * Discards values until (and including) the topmost separator.
+             * @return `true` if any values were actually discarded.
              */
-            void discard();
+            bool discard();
+
+            /**
+             * Reverses values until the topmost separator.
+             */
+            void reverse();
 
             /**
              * Pops values until (and including) the value at position `pos`.

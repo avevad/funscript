@@ -53,7 +53,11 @@ namespace funscript {
         if (!push_bln(bln)) assertion_failed("failed push() after pop()");
     }
 
-    void VM::Stack::discard() { pop(find_sep()); }
+    bool VM::Stack::discard() {
+        bool res = values.back().type != Type::SEP;
+        pop(find_sep());
+        return res;
+    }
 
     void VM::Stack::pop(VM::Stack::pos_t pos) {
         if (pos < 0) pos += size();
@@ -152,7 +156,7 @@ namespace funscript {
                         fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
-                            if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
+                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                             cur_scope->vars->set_field(name, get(-1));
                             pop();
                         } else {
@@ -164,7 +168,7 @@ namespace funscript {
                             pop();
                             if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                             pop();
-                            if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
+                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                             obj->set_field(name, get(-1));
                             pop();
                             vm.mem.gc_unpin(obj);
@@ -184,7 +188,7 @@ namespace funscript {
                     }
                     case Opcode::VST: {
                         fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
-                        if (get(-1).type == Type::SEP) return raise_err("not enough values to assign", frame_start);
+                        if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                         if (!cur_scope->set_var(name, get(-1))) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
                         }
@@ -205,7 +209,12 @@ namespace funscript {
                         break;
                     }
                     case Opcode::DIS: {
-                        discard();
+                        if (discard() && ins.u16) return raise_err("too many values", frame_start);
+                        ip++;
+                        break;
+                    }
+                    case Opcode::REV: {
+                        reverse();
                         ip++;
                         break;
                     }
@@ -492,7 +501,7 @@ namespace funscript {
                     if (get(-1).type == Type::SEP) {
                         vm.mem.gc_unpin(&arr);
                         vm.mem.gc_unpin(&ind);
-                        return raise_err("not enough values to assign", beg);
+                        return raise_err("not enough values", beg);
                     }
                     arr[val.data.num] = get(-1);
                     pop();
@@ -539,6 +548,12 @@ namespace funscript {
     void VM::Stack::raise_op_err(Operator op) {
         pos_t pos = find_sep(find_sep());
         raise_err("operator is not defined for these operands", pos);
+    }
+
+    void VM::Stack::reverse() {
+        for (pos_t pos1 = find_sep() + 1, pos2 = size() - 1; pos1 < pos2; pos1++, pos2--) {
+            std::swap(values[pos1], values[pos2]);
+        }
     }
 
     VM::Stack::~Stack() = default;

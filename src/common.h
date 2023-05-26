@@ -62,8 +62,13 @@ namespace funscript {
         SCP,
         /**
          * @brief Discard values until (and including) the topmost separator.
+         * @param u16 Bool `true` to throw an error if any values were actually discarded.
          */
         DIS,
+        /**
+         * @brief Reverse values until the topmost separator.
+         */
+        REV,
         /**
          * @brief Execute an operator call.
          * @param u16 Operator type (enum funscript::Operator)
