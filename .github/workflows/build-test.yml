@@ -16,4 +16,4 @@ jobs:
       - name: Build project
         run: cd cmake-build-debug; make
       - name: Run tests
-        run: make test
+        run: cd cmake-build-debug; make test
