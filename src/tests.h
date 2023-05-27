@@ -1,9 +1,9 @@
 #ifndef FUNSCRIPT_TESTS_H
 #define FUNSCRIPT_TESTS_H
 
-#include "mm.h"
-#include "vm.h"
-#include "utils.h"
+#include "../include/mm.h"
+#include "../include/vm.h"
+#include "../include/utils.h"
 #include "catch2/matchers/catch_matchers_templated.hpp"
 
 using namespace funscript;

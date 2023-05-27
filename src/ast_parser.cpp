@@ -1,5 +1,5 @@
-#include "ast.h"
-#include "common.h"
+#include "../include/ast.h"
+#include "../include/common.h"
 
 namespace funscript {
 

@@ -1,7 +1,7 @@
 #include <optional>
 #include <algorithm>
 #include <stdexcept>
-#include "tokenizer.h"
+#include "../include/tokenizer.h"
 
 funscript::TokenAutomaton::TokenAutomaton() {
     // Populate the collection of all possible keywords

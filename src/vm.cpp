@@ -1,6 +1,6 @@
 #include <queue>
 #include <utility>
-#include "vm.h"
+#include "../include/vm.h"
 
 namespace funscript {
 
