@@ -215,6 +215,11 @@ namespace funscript {
 
         explicit VM(Config config);
 
+        class StackOverflowError : std::runtime_error {
+        public:
+            StackOverflowError();
+        };
+
         /**
          * Class of Funscript execution stack.
          */
@@ -248,15 +253,15 @@ namespace funscript {
 
             // Some functions for pushing values onto the value stack.
 
-            [[nodiscard]] bool push_sep();
-            [[nodiscard]] bool push_nul();
-            [[nodiscard]] bool push_int(fint num);
-            [[nodiscard]] bool push_obj(Object *obj);
-            [[nodiscard]] bool push_fun(Function *fun);
-            [[nodiscard]] bool push_str(String *str);
-            [[nodiscard]] bool push_bln(bool bln);
-            [[nodiscard]] bool push_err(Error *err);
-            [[nodiscard]] bool push_arr(Array *arr);
+            void push_sep();
+            void push_nul();
+            void push_int(fint num);
+            void push_obj(Object *obj);
+            void push_fun(Function *fun);
+            void push_str(String *str);
+            void push_bln(bool bln);
+            void push_err(Error *err);
+            void push_arr(Array *arr);
 
             void raise_err(const std::string &msg, pos_t frame_start);
 
@@ -302,7 +307,7 @@ namespace funscript {
              * Pushes any value onto the value stack.
              * @param e Value to push.
              */
-            [[nodiscard]] bool push(const Value &e);
+            void push(const Value &e);
 
             /**
              * Returns mutable reference to the value stack element at the specified position.
