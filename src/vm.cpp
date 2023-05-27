@@ -17,11 +17,14 @@ namespace funscript {
         push_sep(); // Empty arguments for the start function.
     }
 
+    VM::Stack::Stack(funscript::VM &vm) : vm(vm), values(vm.mem.std_alloc<Value>()),
+                                          frames(vm.mem.std_alloc<Frame *>()) {}
+
     VM::Stack::pos_t VM::Stack::size() const {
         return values.size(); // NOLINT(cppcoreguidelines-narrowing-conversions)
     }
 
-    const VM::Value &VM::Stack::operator[](VM::Stack::pos_t pos) {
+    const VM::Value &VM::Stack::operator[](VM::Stack::pos_t pos) const {
         if (pos < 0) pos += size();
         return values[pos];
     }
@@ -650,5 +653,5 @@ namespace funscript {
         return values.size();
     }
 
-    VM::StackOverflowError::StackOverflowError() : std::runtime_error("stack overflow") {}
+    VM::StackOverflowError::StackOverflowError() {}
 }

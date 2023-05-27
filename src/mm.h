@@ -41,10 +41,6 @@ namespace funscript {
     class OutOfMemoryError : std::bad_alloc {
     public:
         OutOfMemoryError() = default;
-
-        [[nodiscard]] const char *what() const noexcept override {
-            return "out of memory";
-        }
     };
 
     /**

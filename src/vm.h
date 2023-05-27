@@ -215,7 +215,7 @@ namespace funscript {
 
         explicit VM(Config config);
 
-        class StackOverflowError : std::runtime_error {
+        class StackOverflowError : std::exception {
         public:
             StackOverflowError();
         };
@@ -235,13 +235,21 @@ namespace funscript {
             Stack(const Stack &) = delete;
 
             /**
+             * Creates new runnable execution stack.
              * @param vm The VM instance which owns the stack.
              * @param start The main function of this routine.
              */
             explicit Stack(VM &vm, Function *start);
 
+            /**
+             * Creates dead execution stack.
+             * @param vm The VM instance which owns the stack.
+             * @param start The main function of this routine.
+             */
+            explicit Stack(VM &vm);
+
             [[nodiscard]] pos_t size() const;
-            const Value &operator[](pos_t pos); // Value stack indexing.
+            const Value &operator[](pos_t pos) const; // Value stack indexing.
 
             static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 

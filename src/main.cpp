@@ -6,6 +6,7 @@
 #include "tokenizer.h"
 #include "ast.h"
 #include "vm.h"
+#include "utils.h"
 
 using namespace funscript;
 
@@ -51,49 +52,26 @@ void sigint_handler(int) {
 }
 
 void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
+    // Register Ctrl+C handler
     struct sigaction act{}, act_old{};
     act.sa_handler = sigint_handler;
     sigaction(SIGINT, &act, &act_old);
-    try {
-        {
-            // Split expression into array of tokens
-            std::vector<Token> tokens;
-            tokenize(code, [&tokens](auto token) { tokens.push_back(token); });
-            // Parse array of tokens
-            ast_ptr ast = parse(tokens);
-            // Compile the expression AST
-            Assembler as;
-            as.compile_expression(ast.get());
-            // Assemble the whole expression bytecode
-            std::string bytes(as.total_size(), '\0');
-            as.assemble(bytes.data());
-            auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(bytes);
-            // Create temporary environment for expression evaluation
-            auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(scope, bytecode.get());
-            auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start.get());
-            // Evaluate the expression and print the result
-            stack->continue_execution();
-            if (stack->size() != 0) {
-                if ((*stack)[-1].type == Type::ERR) {
-                    std::cout << "! " << (*stack)[-1].data.err->desc << std::endl;
-                } else {
-                    std::cout << "= ";
-                    for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
-                        if (pos != 0) std::cout << ", ";
-                        std::cout << display((*stack)[pos]);
-                    }
-                    std::cout << std::endl;
-                }
+    // Evaluate the expression and display its result
+    auto stack = util::eval_expr(vm, scope, code);
+    if (stack->size() != 0) {
+        if ((*stack)[-1].type == Type::ERR) {
+            std::cout << "! " << (*stack)[-1].data.err->desc << std::endl;
+        } else {
+            std::cout << "= ";
+            for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
+                if (pos != 0) std::cout << ", ";
+                std::cout << display((*stack)[pos]);
             }
-            // Intermediate cleanup
+            std::cout << std::endl;
         }
-        vm.mem.gc_cycle();
-    } catch (const CodeReadingError &err) {
-        std::cout << "! syntax error: " << err.what() << std::endl;
-    } catch (const CompilationError &err) {
-        std::cout << "! compilation error: " << err.what() << std::endl;
     }
-    end:;
+    // Clean up & unregister handler
+    vm.mem.gc_cycle();
     sigaction(SIGINT, &act_old, nullptr);
 }
 
