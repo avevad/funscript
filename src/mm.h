@@ -13,7 +13,7 @@ namespace funscript {
      */
     class Allocator {
     public:
-        virtual void *allocate(size_t size) noexcept = 0;
+        virtual void *allocate(size_t size) = 0;
         virtual void free(void *ptr, size_t size) noexcept = 0;
     };
 
@@ -36,6 +36,15 @@ namespace funscript {
         virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
     public:
         virtual ~Allocation() = default;
+    };
+
+    class OutOfMemoryError : std::bad_alloc {
+    public:
+        OutOfMemoryError() = default;
+
+        [[nodiscard]] const char *what() const noexcept override {
+            return "out of memory";
+        }
     };
 
     /**
@@ -105,12 +114,12 @@ namespace funscript {
          */
         template<typename T>
         T *allocate(size_t n = 1) {
-            auto *ptr = reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
-            if (!ptr) {
+            try {
+                return reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
+            } catch (const OutOfMemoryError &e) {
                 gc_cycle();
-                ptr = reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
+                return reinterpret_cast<T *>(config.allocator->allocate(n * sizeof(T)));
             }
-            return ptr;
         }
 
         /**
@@ -143,7 +152,6 @@ namespace funscript {
         template<class T, typename... A>
         T *gc_new(A &&... args) {
             T *ptr = allocate<T>();
-            if (!ptr) return nullptr;
             try {
                 new(ptr) T(std::forward<A>(args)...);
             } catch (...) {
@@ -240,9 +248,7 @@ namespace funscript {
 
     template<typename T>
     T *AllocatorWrapper<T>::allocate(size_t n) {
-        auto *ptr = mm->allocate<T>(n);
-        if (!ptr) throw std::bad_alloc();
-        return ptr;
+        return mm->allocate<T>(n);
     }
 
     template<typename T>
@@ -259,10 +265,11 @@ namespace funscript {
     public:
         explicit DefaultAllocator(size_t limit_bytes = SIZE_MAX) : limit_bytes(limit_bytes) {}
 
-        void *allocate(size_t size) noexcept override {
-            if (limit_bytes - used_bytes < size) return nullptr;
+        void *allocate(size_t size) override {
+            if (limit_bytes - used_bytes < size) throw OutOfMemoryError();
             void *ptr = std::malloc(size);
-            if (ptr) used_bytes += size;
+            if (!ptr) throw OutOfMemoryError();
+            used_bytes += size;
             return ptr;
         }
 

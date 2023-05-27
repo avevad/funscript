@@ -68,21 +68,9 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
             std::string bytes(as.total_size(), '\0');
             as.assemble(bytes.data());
             auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(bytes);
-            if (!bytecode) {
-                std::cout << "! out of memory" << std::endl;
-                goto end;
-            }
             // Create temporary environment for expression evaluation
             auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(scope, bytecode.get());
-            if (!start) {
-                std::cout << "! out of memory" << std::endl;
-                goto end;
-            }
             auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start.get());
-            if (!stack) {
-                std::cout << "! out of memory" << std::endl;
-                goto end;
-            }
             // Evaluate the expression and print the result
             stack->continue_execution();
             if (stack->size() != 0) {

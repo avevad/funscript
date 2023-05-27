@@ -103,7 +103,6 @@ namespace funscript {
                         if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
                         if (val.type == Type::FUN) {
                             auto *fun = vm.mem.gc_new<BytecodeFunction>(cur_scope.get(), bytecode_obj, size_t(ins.u64));
-                            if (!fun) return raise_err("out of memory", frame_start);
                             val.data.fun = fun;
                         }
                         try {
@@ -198,9 +197,7 @@ namespace funscript {
                     case Opcode::SCP: {
                         if (ins.u16) {
                             auto vars = vm.mem.gc_new_auto<Object>(vm);
-                            if (!vars) return raise_err("out of memory", frame_start);
                             cur_scope = vm.mem.gc_new_auto<Scope>(vars.get(), cur_scope.get());
-                            if (!cur_scope) return raise_err("out of memory", frame_start);
                         } else {
                             cur_scope.set(cur_scope->prev_scope);
                         }
@@ -258,7 +255,6 @@ namespace funscript {
                                  reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64 + ins.u16),
                                  vm.mem.str_alloc());
                         auto str_obj = vm.mem.gc_new_auto<String>(str);
-                        if (!str_obj) return raise_err("out of memory", frame_start);
                         push_str(str_obj.get());
                         ip++;
                         break;
@@ -266,7 +262,6 @@ namespace funscript {
                     case Opcode::ARR: {
                         pos_t beg = find_sep() + 1;
                         auto arr = vm.mem.gc_new_auto<Array>(vm, values.data() + beg, size() - beg);
-                        if (!arr) return raise_err("out of memory", frame_start);
                         pop(beg - 1);
                         ip++;
                         push_arr(arr.get());
@@ -287,7 +282,7 @@ namespace funscript {
                     }
                 }
             }
-        } catch (const std::bad_alloc &e) {
+        } catch (const OutOfMemoryError &e) {
             return raise_err("out of memory", frame_start);
         } catch (const StackOverflowError &e) {
             return raise_err("stack overflow", frame_start);
@@ -324,7 +319,6 @@ namespace funscript {
                         fstr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
                         pop(-4);
                         auto str = vm.mem.gc_new_auto<String>(a + b);
-                        if (!str) return raise_err("out of memory", pos_b - 1);
                         push_str(str.get());
                         break;
                     }
@@ -334,7 +328,6 @@ namespace funscript {
                         size_t b_len = get(pos_b).data.arr->len();
                         Value *b_dat = get(pos_b).data.arr->begin();
                         auto arr = vm.mem.gc_new_auto<Array>(vm, a_len + b_len);
-                        if (!arr) return raise_err("out of memory", pos_b - 1);
                         std::copy(a_dat, a_dat + a_len, arr->begin());
                         std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
                         pop(-4);
@@ -466,8 +459,10 @@ namespace funscript {
                 default:
                     assertion_failed("unknown operator");
             }
-        } catch (const std::bad_alloc &e) {
+        } catch (const OutOfMemoryError &e) {
             return raise_err("out of memory", pos_b - 1);
+        } catch (const StackOverflowError &e) {
+            return raise_err("stack overflow", pos_b - 1);
         }
     }
 
@@ -502,7 +497,7 @@ namespace funscript {
                 return;
             }
             return raise_op_err(Operator::CALL);
-        } catch (const std::bad_alloc &e) {
+        } catch (const OutOfMemoryError &e) {
             return raise_err("out of memory", pos_b - 1);
         }
     }
@@ -511,7 +506,6 @@ namespace funscript {
         if (frames.size() >= vm.config.stack_frames_max) return raise_err("stack overflow", find_sep());
         frames.back()->cont_fn = cont_fn;
         auto frame = vm.mem.gc_new_auto<Frame>(nullptr);
-        if (!frame) return raise_err("out of memory", find_sep());
         frames.push_back(frame.get());
         fun->call(*this, frame.get());
         frames.pop_back();
@@ -531,9 +525,12 @@ namespace funscript {
 
     void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
         pop(frame_start);
-        auto err = vm.mem.gc_new_auto<Error>(fstr(msg, vm.mem.std_alloc<char>()));
-        if (!err) assertion_failed("not enough memory to raise an error");
-        push_err(err.get());
+        try {
+            auto err = vm.mem.gc_new_auto<Error>(fstr(msg, vm.mem.std_alloc<char>()));
+            push_err(err.get());
+        } catch (const OutOfMemoryError &) {
+            assertion_failed("not enough memory to raise an error");
+        }
     }
 
     void VM::Stack::raise_op_err(Operator op) {
