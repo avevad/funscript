@@ -1,4 +1,4 @@
-name: Build test
+name: Debug build and tests
 on: [ push ]
 jobs:
   Build-Ubuntu:
@@ -9,9 +9,11 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Generate CMake build files
-        run: cd cmake-build-release; cmake -DCMAKE_BUILD_TYPE=Release ..
+        run: cd cmake-build-debug; cmake -DCMAKE_BUILD_TYPE=Debug ..
         env:
           CC: gcc-13
           CXX: g++-13
       - name: Build project
-        run: cd cmake-build-release; make
+        run: cd cmake-build-debug; make
+      - name: Run tests
+        run: make test
