@@ -5,15 +5,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install latest GNU C and C++ compilers
-        run: sudo apt update && sudo apt install gcc-13 g++-13
+        run: sudo apt update && sudo apt install gcc g++
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Generate CMake build files
         run: cd cmake-build-debug; cmake -DCMAKE_BUILD_TYPE=Debug ..
         env:
-          CC: gcc-13
-          CXX: g++-13
+          CC: gcc
+          CXX: g++
       - name: Build project
-        run: cd cmake-build-debug; make
+        run: cd cmake-build-debug; make -j$(nproc)
       - name: Run tests
         run: cd cmake-build-debug; make test
