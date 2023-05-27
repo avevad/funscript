@@ -4,8 +4,8 @@ jobs:
   Build-Ubuntu:
     runs-on: ubuntu-latest
     steps:
-      - name: Install latest GNU C and C++ compilers
-        run: sudo apt update && sudo apt install gcc g++
+      - name: Install fresh GNU C and C++ compilers
+        run: sudo apt update && sudo apt install gcc-13 g++-13
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Generate CMake build files
