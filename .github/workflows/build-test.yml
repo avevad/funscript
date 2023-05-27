@@ -6,8 +6,6 @@ jobs:
     steps:
       - name: Install latest GNU C and C++ compilers
         run: sudo apt update && sudo apt install gcc-13 g++-13
-      - name: Install Catch2 testing framework
-        run: sudo apt install catch2
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Generate CMake build files

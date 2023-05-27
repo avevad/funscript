@@ -10,7 +10,17 @@ ENDIF ()
 
 add_library(funscript src/tokenizer.cpp src/ast.cpp src/ast_parser.cpp src/ast_assembler.cpp src/mm.cpp src/vm.cpp)
 
-find_package(Catch2 3 REQUIRED)
+find_package(Catch2 3 QUIET)
+
+if (NOT Catch2_FOUND)
+    Include(FetchContent)
+    FetchContent_Declare(
+            Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.0.1
+    )
+    FetchContent_MakeAvailable(Catch2)
+endif ()
 
 add_executable(tests-catch src/tests.cpp)
 target_link_libraries(tests-catch PRIVATE funscript)
