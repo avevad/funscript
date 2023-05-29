@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:lunar
 
 RUN apt update && apt install -yq git git-lfs sudo cmake gcc-13 g++-13 && apt clean && rm -rf /var/lib/apt/lists/* /tmp/*
 
