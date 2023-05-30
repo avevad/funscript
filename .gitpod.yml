@@ -3,3 +3,6 @@ image:
 tasks:
   - init: cd cmake-build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build .
     command: ./funscript
+vscode:
+  extensions:
+    - webfreak.debug
