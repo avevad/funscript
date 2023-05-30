@@ -66,7 +66,8 @@ struct EvaluatesTo : Catch::Matchers::MatcherGenericBase {
     std::tuple<Values...> values_exp;
     TestEnv &env;
 
-    explicit EvaluatesTo(TestEnv &env, Values &&... values_exp) : env(env), values_exp(values_exp...) {}
+    explicit EvaluatesTo(TestEnv &env, Values... values_exp) :
+        env(env), values_exp(std::move(values_exp)...) {}
 
     bool match(const std::string &expr) const {
         return std::apply([this, &expr](const Values &... values_exp_pack) -> bool {

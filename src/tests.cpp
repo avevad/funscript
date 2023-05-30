@@ -40,3 +40,15 @@ TEST_CASE("Functions", "[functions]") {
     CHECK_THAT("a", FAILS);
     CHECK_THAT("n", FAILS);
 }
+
+TEST_CASE("Conditionals", "[conditionals]") {
+    TestEnv env;
+    REQUIRE_THAT(".max = (.a, .b): (a > b then a else b)", SUCCEEDS);
+    REQUIRE_THAT(".val1 = 349 * 512", SUCCEEDS);
+    REQUIRE_THAT(".val2 = 237 * 601", SUCCEEDS);
+    CHECK_THAT("max(val1, val2)", EVALUATES_TO(std::max(349 * 512, 237 * 601)));
+    REQUIRE_THAT(".filter = .pred: .val: (pred(val) then val)", SUCCEEDS);
+    REQUIRE_THAT(".not7 = .val: val != 7", SUCCEEDS);
+    CHECK_THAT("filter(not7)(5)", EVALUATES_TO(5));
+    CHECK_THAT("filter(not7)(7)", EVALUATES_TO());
+}
