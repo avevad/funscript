@@ -23,3 +23,20 @@ TEST_CASE("Variables and scopes", "[scopes]") {
     CHECK_THAT("(.var = 2; var)", EVALUATES_TO(2));
     CHECK_THAT("var", EVALUATES_TO(1));
 }
+
+TEST_CASE("Functions", "[functions]") {
+    TestEnv env;
+    REQUIRE_THAT(".sum = (.a, .b): a + b", SUCCEEDS);
+    CHECK_THAT("sum(13, 27)", EVALUATES_TO(13 +27));
+    REQUIRE_THAT(".sum3 = (.a, .b, .c): sum(a, b) + c", SUCCEEDS);
+    CHECK_THAT("sum3(1, 10, 15)", EVALUATES_TO(1 + 10 + 15));
+    CHECK_THAT("sum3(1, 5)", FAILS);
+    CHECK_THAT("sum3()", FAILS);
+    CHECK_THAT("sum3(1, 2, 3, 4)", FAILS);
+    REQUIRE_THAT(".plus_minus = .n: (n - 1, n + 1)", SUCCEEDS);
+    CHECK_THAT("plus_minus 5", EVALUATES_TO(4, 6));
+    CHECK_THAT("plus_minus(5, 6)", FAILS);
+    CHECK_THAT("sum3(1, plus_minus 9)", EVALUATES_TO(1 + 8 + 10));
+    CHECK_THAT("a", FAILS);
+    CHECK_THAT("n", FAILS);
+}

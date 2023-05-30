@@ -2,3 +2,4 @@ image:
   file: .gitpod.Dockerfile
 tasks:
   - init: cd cmake-build-debug && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build .
+    command: ./funscript
