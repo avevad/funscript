@@ -14,6 +14,6 @@ jobs:
           CC: gcc-13
           CXX: g++-13
       - name: Build project
-        run: cd cmake-build-debug; make -j$(nproc)
+        run: cd cmake-build-debug; cmake --build . -j$(nproc)
       - name: Run tests
-        run: cd cmake-build-debug; make test
+        run: cd cmake-build-debug; ctest
