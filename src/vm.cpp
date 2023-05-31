@@ -220,7 +220,7 @@ namespace funscript {
                     case Opcode::OPR: {
                         auto op = static_cast<Operator>(ins.u16);
                         call_operator(op, nullptr);
-                        if (get(-1).type == Type::ERR) {
+                        if (size() != 0 && get(-1).type == Type::ERR) {
                             Error *err = get(-1).data.err;
                             vm.mem.gc_pin(err);
                             pop(frame_start);
