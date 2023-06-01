@@ -52,3 +52,21 @@ TEST_CASE("Conditionals", "[conditionals]") {
     CHECK_THAT("filter(not7)(5)", EVALUATES_TO(5));
     CHECK_THAT("filter(not7)(7)", EVALUATES_TO());
 }
+
+TEST_CASE("Assignment expressions", "[assignments]") {
+    TestEnv env;
+    REQUIRE_THAT(".a, .b = 1, 2", SUCCEEDS);
+    REQUIRE_THAT("a, b", EVALUATES_TO(1, 2));
+    REQUIRE_THAT("a, b = b, a", SUCCEEDS);
+    REQUIRE_THAT("a, b", EVALUATES_TO(2, 1));
+    REQUIRE_THAT(".x, .y, .z = a, b", FAILS);
+    CHECK_THAT("x, y", EVALUATES_TO(2, 1));
+    REQUIRE_THAT("a, b, x = x, a, b, c", FAILS);
+}
+
+TEST_CASE("Strings", "[strings]") {
+    TestEnv env;
+    REQUIRE_THAT(".str1 = 'amogus'", SUCCEEDS);
+    REQUIRE_THAT(".str2 = 'is sus'", SUCCEEDS);
+    CHECK_THAT("str1 + ' ' + str2", EVALUATES_TO("amogus is sus"));
+}

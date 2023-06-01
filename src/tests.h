@@ -12,6 +12,10 @@ bool check_value(const VM::Value &value, fint value_exp) {
     return value.type == Type::INT && value.data.num == value_exp;
 }
 
+bool check_value(const VM::Value &value, const std::string &value_exp) {
+    return value.type == Type::STR && std::string(value.data.str->bytes) == value_exp;
+}
+
 bool check_values(const VM::Stack &values, size_t pos) {
     return pos == values.size();
 }
@@ -122,9 +126,5 @@ struct Succeeds : Catch::Matchers::MatcherGenericBase {
         return "succeeds";
     }
 };
-
-std::string operator ""_s(const char *str, size_t len) {
-    return {str, len};
-}
 
 #endif //FUNSCRIPT_TESTS_H
