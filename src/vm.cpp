@@ -249,6 +249,21 @@ namespace funscript {
                         pop();
                         break;
                     }
+                    case Opcode::JYS: {
+                        as_boolean();
+                        if (get(-1).type == Type::ERR) {
+                            Error *err = get(-1).data.err;
+                            vm.mem.gc_pin(err);
+                            pop(frame_start);
+                            push_err(err);
+                            vm.mem.gc_unpin(err);
+                            return;
+                        }
+                        if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
+                        else ip++;
+                        pop();
+                        break;
+                    }
                     case Opcode::JMP: {
                         ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         break;
@@ -280,6 +295,16 @@ namespace funscript {
                             vm.mem.gc_unpin(err);
                             return;
                         }
+                        ip++;
+                        break;
+                    }
+                    case Opcode::DUP: {
+                        duplicate();
+                        ip++;
+                        break;
+                    }
+                    case Opcode::REM: {
+                        remove();
                         ip++;
                         break;
                     }
@@ -545,6 +570,20 @@ namespace funscript {
         for (pos_t pos1 = find_sep() + 1, pos2 = size() - 1; pos1 < pos2; pos1++, pos2--) {
             std::swap(values[pos1], values[pos2]);
         }
+    }
+
+    void VM::Stack::duplicate() {
+        pos_t beg = find_sep();
+        pos_t len = size() - beg;
+        if (size() + len > vm.config.stack_values_max) throw StackOverflowError();
+        values.resize(values.size() + len);
+        std::copy(values.data() + beg, values.data() + beg + len, values.data() + beg + len);
+    }
+
+    void VM::Stack::remove() {
+        pos_t pos = find_sep();
+        std::move(values.data() + pos + 1, values.data() + size(), values.data() + pos);
+        values.pop_back();
     }
 
     VM::Stack::~Stack() = default;

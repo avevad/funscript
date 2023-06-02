@@ -293,6 +293,16 @@ namespace funscript {
             void reverse();
 
             /**
+             * Duplicates values until (and including) the topmost separator.
+             */
+            void duplicate();
+
+            /**
+             * Removes the topmost separator.
+             */
+            void remove();
+
+            /**
              * Pops values until (and including) the value at position `pos`.
              * @param pos The position of bottommost element to pop.
              */

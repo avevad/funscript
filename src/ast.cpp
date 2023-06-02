@@ -127,6 +127,32 @@ namespace funscript {
                 as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
+            case Operator::AND: {
+                ch.put_instruction(Opcode::SEP);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
+                ch.put_instruction(Opcode::DUP); // Preserve the value before implicitly converting it to boolean
+                auto pos = ch.put_instruction(); // Position of jump instruction (over the right operand)
+                ch.put_instruction(Opcode::DIS);
+                ch.put_instruction(Opcode::SEP);
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
+                ch.set_instruction(pos, Opcode::JNO);
+                as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
+                ch.put_instruction(Opcode::REM);
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
+            case Operator::OR: {
+                ch.put_instruction(Opcode::SEP);
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
+                ch.put_instruction(Opcode::DUP); // Preserve the value before implicitly converting it to boolean
+                auto pos = ch.put_instruction(); // Position of jump instruction (over the right operand)
+                ch.put_instruction(Opcode::DIS);
+                ch.put_instruction(Opcode::SEP);
+                u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
+                ch.set_instruction(pos, Opcode::JYS);
+                as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
+                ch.put_instruction(Opcode::REM);
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
             default: {
                 ch.put_instruction({Opcode::SEP});
                 u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});

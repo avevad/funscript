@@ -84,6 +84,11 @@ namespace funscript {
          */
         JNO,
         /**
+         * @brief Jump if the value is boolean `yes`.
+         * @param u64 Bytecode offset of where to jump.
+         */
+        JYS,
+        /**
          * @brief Jump unconditionally.
          * @param u64 Bytecode offset of where to jump.
          */
@@ -99,9 +104,17 @@ namespace funscript {
          */
         ARR,
         /**
-         * @brief Execute assignment call (as in `arr[5] = 1`)
+         * @brief Execute assignment call (as in `arr[5] = 1`).
          */
-        MOV
+        MOV,
+        /**
+         * @brief Duplicate value pack at the top of the stack.
+         */
+        DUP,
+        /**
+         * @brief Remove the topmost separator.
+         */
+        REM
     };
 
     struct Instruction {
@@ -138,7 +151,9 @@ namespace funscript {
         THEN,
         ELSE,
         UNTIL,
-        DO
+        DO,
+        AND,
+        OR
     };
 }
 

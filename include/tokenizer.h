@@ -17,11 +17,11 @@ namespace funscript {
      */
     enum class Keyword {
         ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, COLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
-        EXCLAMATION_MARK, LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN, ARROW, QUESTION_MARK,
+        EXCLAMATION_MARK, LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET,
 
-        THEN, ELSE, UNTIL, DO, YES, NO, NUL
+        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR
     };
 
     /**
@@ -46,8 +46,6 @@ namespace funscript {
                 {Keyword::GREATER_SIGN,         ">"},
                 {Keyword::LESS_EQUAL_SIGN,      "<="},
                 {Keyword::GREATER_EQUAL_SIGN,   ">="},
-                {Keyword::ARROW,                "=>"},
-                {Keyword::QUESTION_MARK,        "?"},
                 {Keyword::LEFT_PLAIN_BRACKET,   "("},
                 {Keyword::RIGHT_PLAIN_BRACKET,  ")"},
                 {Keyword::LEFT_CURLY_BRACKET,   "{"},
@@ -61,6 +59,8 @@ namespace funscript {
                 {Keyword::YES,                  "yes"},
                 {Keyword::NO,                   "no"},
                 {Keyword::NUL,                  "nul"},
+                {Keyword::AND,                  "and"},
+                {Keyword::OR,                   "or"}
         };
         return KEYWORD_STRINGS;
     }
@@ -156,12 +156,12 @@ namespace funscript {
                 {Keyword::GREATER_SIGN,       Operator::GREATER},
                 {Keyword::LESS_EQUAL_SIGN,    Operator::LESS_EQUAL},
                 {Keyword::GREATER_EQUAL_SIGN, Operator::GREATER_EQUAL},
-                {Keyword::ARROW,              Operator::THEN},
                 {Keyword::THEN,               Operator::THEN},
-                {Keyword::QUESTION_MARK,      Operator::ELSE},
                 {Keyword::ELSE,               Operator::ELSE},
                 {Keyword::UNTIL,              Operator::UNTIL},
-                {Keyword::DO,                 Operator::DO}
+                {Keyword::DO,                 Operator::DO},
+                {Keyword::AND,                Operator::AND},
+                {Keyword::OR,                 Operator::OR},
         };
         return OPERATOR_KEYWORDS;
     }
