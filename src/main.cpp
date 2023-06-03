@@ -3,10 +3,10 @@
 #include <sstream>
 #include <fstream>
 
-#include "../include/tokenizer.h"
-#include "../include/ast.h"
-#include "../include/vm.h"
-#include "../include/utils.h"
+#include "tokenizer.hpp"
+#include "ast.hpp"
+#include "vm.hpp"
+#include "utils.hpp"
 
 using namespace funscript;
 

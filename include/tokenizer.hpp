@@ -1,5 +1,5 @@
-#ifndef FUNSCRIPT_TOKENIZER_H
-#define FUNSCRIPT_TOKENIZER_H
+#ifndef FUNSCRIPT_TOKENIZER_HPP
+#define FUNSCRIPT_TOKENIZER_HPP
 
 #include <cstddef>
 #include <string>
@@ -8,7 +8,7 @@
 #include <variant>
 #include <functional>
 
-#include "common.h"
+#include "common.hpp"
 
 namespace funscript {
 
@@ -210,4 +210,4 @@ namespace funscript {
     };
 }
 
-#endif //FUNSCRIPT_TOKENIZER_H
+#endif //FUNSCRIPT_TOKENIZER_HPP

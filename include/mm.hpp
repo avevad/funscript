@@ -1,5 +1,5 @@
-#ifndef FUNSCRIPT_MM_H
-#define FUNSCRIPT_MM_H
+#ifndef FUNSCRIPT_MM_HPP
+#define FUNSCRIPT_MM_HPP
 
 #include <string>
 #include <functional>
@@ -276,4 +276,4 @@ namespace funscript {
     };
 }
 
-#endif //FUNSCRIPT_MM_H
+#endif //FUNSCRIPT_MM_HPP

@@ -9,6 +9,7 @@ IF (CMAKE_BUILD_TYPE MATCHES Debug)
 ENDIF ()
 
 add_library(funscript src/tokenizer.cpp src/ast.cpp src/ast_parser.cpp src/ast_assembler.cpp src/mm.cpp src/vm.cpp)
+target_include_directories(funscript PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 find_package(Catch2 3 QUIET)
 
@@ -22,7 +23,8 @@ if (NOT Catch2_FOUND)
     FetchContent_MakeAvailable(Catch2)
 endif ()
 
-add_executable(tests-catch src/tests.cpp)
+add_executable(tests-catch tests/tests.cpp)
+target_include_directories(tests-catch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(tests-catch PRIVATE funscript)
 target_link_libraries(tests-catch PRIVATE Catch2::Catch2WithMain)
 
@@ -31,5 +33,6 @@ include(Catch)
 catch_discover_tests(tests-catch)
 
 add_executable(funscript-bin src/main.cpp)
+target_include_directories(funscript-bin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(funscript-bin PRIVATE funscript)
 set_target_properties(funscript-bin PROPERTIES OUTPUT_NAME funscript)

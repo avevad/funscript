@@ -1,8 +1,8 @@
-#ifndef FUNSCRIPT_AST_H
-#define FUNSCRIPT_AST_H
+#ifndef FUNSCRIPT_AST_HPP
+#define FUNSCRIPT_AST_HPP
 
-#include "tokenizer.h"
-#include "common.h"
+#include "tokenizer.hpp"
+#include "common.hpp"
 #include <memory>
 
 namespace funscript {
@@ -313,4 +313,4 @@ namespace funscript {
     };
 }
 
-#endif //FUNSCRIPT_AST_H
+#endif //FUNSCRIPT_AST_HPP

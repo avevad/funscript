@@ -1,9 +1,9 @@
-#ifndef FUNSCRIPT_UTILS_H
-#define FUNSCRIPT_UTILS_H
+#ifndef FUNSCRIPT_UTILS_HPP
+#define FUNSCRIPT_UTILS_HPP
 
-#include "tokenizer.h"
-#include "ast.h"
-#include "vm.h"
+#include "tokenizer.hpp"
+#include "ast.hpp"
+#include "vm.hpp"
 
 namespace funscript::util {
     MemoryManager::AutoPtr<VM::Stack> eval_expr(VM &vm, VM::Scope *scope, const std::string &expr) try {
@@ -44,4 +44,4 @@ namespace funscript::util {
     }
 }
 
-#endif //FUNSCRIPT_UTILS_H
+#endif //FUNSCRIPT_UTILS_HPP

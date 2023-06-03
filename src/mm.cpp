@@ -1,6 +1,6 @@
 #include <queue>
-#include "../include/mm.h"
-#include "../include/common.h"
+#include "mm.hpp"
+#include "common.hpp"
 
 namespace funscript {
     MemoryManager::MemoryManager(MemoryManager::Config config) : config(config) {}

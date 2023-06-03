@@ -1,5 +1,5 @@
-#ifndef FUNSCRIPT_COMMON_H
-#define FUNSCRIPT_COMMON_H
+#ifndef FUNSCRIPT_COMMON_HPP
+#define FUNSCRIPT_COMMON_HPP
 
 #include <source_location>
 #include <stdexcept>
@@ -157,4 +157,4 @@ namespace funscript {
     };
 }
 
-#endif //FUNSCRIPT_COMMON_H
+#endif //FUNSCRIPT_COMMON_HPP

@@ -1,7 +1,7 @@
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/matchers/catch_matchers_string.hpp>
+#include "catch2/catch_test_macros.hpp"
+#include "catch2/matchers/catch_matchers_string.hpp"
 
-#include "tests.h"
+#include "tests.hpp"
 
 #define EVALUATES_TO(...) EvaluatesTo(env, ##__VA_ARGS__)
 #define FAILS Fails(env)

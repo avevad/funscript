@@ -1,4 +1,4 @@
-#include "../include/ast.h"
+#include "ast.hpp"
 #include <cstring>
 
 namespace funscript {

@@ -1,5 +1,5 @@
-#ifndef FUNSCRIPT_VM_H
-#define FUNSCRIPT_VM_H
+#ifndef FUNSCRIPT_VM_HPP
+#define FUNSCRIPT_VM_HPP
 
 #include <cstddef>
 #include <cstdlib>
@@ -11,8 +11,8 @@
 #include <optional>
 #include <csignal>
 
-#include "common.h"
-#include "mm.h"
+#include "common.hpp"
+#include "mm.hpp"
 
 namespace funscript {
 
@@ -337,4 +337,4 @@ namespace funscript {
     };
 }
 
-#endif //FUNSCRIPT_VM_H
+#endif //FUNSCRIPT_VM_HPP

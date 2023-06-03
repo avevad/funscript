@@ -1,9 +1,9 @@
-#ifndef FUNSCRIPT_TESTS_H
-#define FUNSCRIPT_TESTS_H
+#ifndef FUNSCRIPT_TESTS_HPP
+#define FUNSCRIPT_TESTS_HPP
 
-#include "../include/mm.h"
-#include "../include/vm.h"
-#include "../include/utils.h"
+#include "mm.hpp"
+#include "vm.hpp"
+#include "utils.hpp"
 #include "catch2/matchers/catch_matchers_templated.hpp"
 
 using namespace funscript;
@@ -127,4 +127,4 @@ struct Succeeds : Catch::Matchers::MatcherGenericBase {
     }
 };
 
-#endif //FUNSCRIPT_TESTS_H
+#endif //FUNSCRIPT_TESTS_HPP
