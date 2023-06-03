@@ -19,6 +19,9 @@ std::string display(const VM::Value &val) {
         case Type::INT:
             out << val.data.num;
             break;
+        case Type::FLP:
+            out << val.data.flp;
+            break;
         case Type::OBJ:
             out << "object(" << val.data.obj << ")";
             break;

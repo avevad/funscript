@@ -17,7 +17,7 @@ namespace funscript {
     }
 
     enum class Type : uint8_t {
-        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR
+        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR, FLP
     };
 
     /**
@@ -155,6 +155,20 @@ namespace funscript {
         AND,
         OR
     };
+
+    using fint = int64_t;
+    using fflp = double;
+
+    static double nan() {
+        static const double NAN = std::stod("NAN");
+        return NAN;
+    }
+
+    static double inf() {
+        static const double INF = std::stod("INF");
+        return INF;
+    }
+
 }
 
 #endif //FUNSCRIPT_COMMON_HPP

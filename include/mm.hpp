@@ -233,14 +233,13 @@ namespace funscript {
         }
     };
 
-    using fstr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
+    using FStr = std::basic_string<char, std::char_traits<char>, AllocatorWrapper<char>>;
     template<typename K, typename V>
-    using fumap = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, AllocatorWrapper<std::pair<const K, V>>>;
+    using FMap = std::unordered_map<K, V, std::hash<K>, std::equal_to<K>, AllocatorWrapper<std::pair<const K, V>>>;
     template<typename E>
-    using fvec = std::vector<E, AllocatorWrapper<E>>;
+    using FVec = std::vector<E, AllocatorWrapper<E>>;
     template<typename E>
-    using fdeq = std::deque<E, AllocatorWrapper<E>>;
-    using fint = int64_t;
+    using FDeq = std::deque<E, AllocatorWrapper<E>>;
 
     template<typename T>
     T *AllocatorWrapper<T>::allocate(size_t n) {

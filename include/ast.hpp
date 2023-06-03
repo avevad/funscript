@@ -226,6 +226,18 @@ namespace funscript {
     };
 
     /**
+     * Class of AST leaves which represent integer literals.
+     */
+    class FloatAST : public AST {
+        double flp; // Number represented by the literal.
+
+        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
+        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
+    public:
+        explicit FloatAST(double flp);
+    };
+
+    /**
      * Class of AST leaves which represent identifiers.
      */
     class IdentifierAST : public AST {

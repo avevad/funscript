@@ -35,7 +35,7 @@ namespace funscript {
          * Class of array value objects.
          */
         class Array : public Allocation {
-            fvec<Value> values;
+            FVec<Value> values;
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             Array(VM &vm, Value *beg, size_t len);
@@ -63,9 +63,9 @@ namespace funscript {
         class String : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            const fstr bytes;
+            const FStr bytes;
 
-            explicit String(fstr bytes);
+            explicit String(FStr bytes);
         };
 
         /**
@@ -74,9 +74,9 @@ namespace funscript {
         class Error : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            const fstr desc; // Human-readable description of the error.
+            const FStr desc; // Human-readable description of the error.
 
-            explicit Error(fstr desc);
+            explicit Error(FStr desc);
         };
 
         /**
@@ -84,17 +84,17 @@ namespace funscript {
          */
         class Object : public Allocation {
         private:
-            fumap<fstr, Value> fields; // Dictionary of object's fields.
+            FMap<FStr, Value> fields; // Dictionary of object's fields.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             VM &vm;
 
-            explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const fstr, Value>>()) {};
+            explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()) {};
 
-            [[nodiscard]] bool contains_field(const fstr &key) const;
-            [[nodiscard]] std::optional<Value> get_field(const fstr &key) const;
-            void set_field(const fstr &key, Value val);
+            [[nodiscard]] bool contains_field(const FStr &key) const;
+            [[nodiscard]] std::optional<Value> get_field(const FStr &key) const;
+            void set_field(const FStr &key, Value val);
 
             ~Object() override = default;
         };
@@ -116,7 +116,7 @@ namespace funscript {
              * @param name Name of the variable to search.
              * @return The value of the requested variable.
              */
-            [[nodiscard]] std::optional<Value> get_var(const funscript::fstr &name) const;
+            [[nodiscard]] std::optional<Value> get_var(const funscript::FStr &name) const;
 
             /**
              * Recursively searches the specified variable in the scope and all its parent scopes and updates the value of it.
@@ -124,7 +124,7 @@ namespace funscript {
              * @param val The new value of the variable.
              * @return Whether the variable exists or not (if not, it won't be created).
              */
-            bool set_var(const fstr &name, Value val);
+            bool set_var(const FStr &name, Value val);
         };
 
         class Function;
@@ -191,6 +191,7 @@ namespace funscript {
         struct Value {
             union Data {
                 fint num;
+                fflp flp;
                 Object *obj;
                 Function *fun;
                 bool bln;
@@ -264,6 +265,7 @@ namespace funscript {
             void push_sep();
             void push_nul();
             void push_int(fint num);
+            void push_flp(fflp flp);
             void push_obj(Object *obj);
             void push_fun(Function *fun);
             void push_str(String *str);
@@ -318,8 +320,8 @@ namespace funscript {
             ~Stack() override;
 
         private:
-            fvec<Value> values; // Values stack.
-            fvec<Frame *> frames; // Frames stack.
+            FVec<Value> values; // Values stack.
+            FVec<Frame *> frames; // Frames stack.
 
             /**
              * Pushes any value onto the value stack.

@@ -290,4 +290,15 @@ namespace funscript {
     u_mv_opt_info StringAST::compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) {
         throw CompilationError("expression is not assignable");
     }
+
+    FloatAST::FloatAST(double flp) : flp(flp) {}
+
+    u_ev_opt_info FloatAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
+        ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::FLP), *reinterpret_cast<uint64_t *>(&flp)});
+        return {.no_scope = true};
+    }
+
+    u_mv_opt_info FloatAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
+        throw CompilationError("expression is not assignable");
+    }
 }

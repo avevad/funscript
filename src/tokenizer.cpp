@@ -22,6 +22,15 @@ void funscript::TokenAutomaton::append(char c) {
     else if (id_part) id_part = std::isalnum(c) || c == '_';
     // Every integer literal is just digits
     if (int_part) int_part = std::isdigit(c);
+    // Every floating-point literal is digits with maximum one dot
+    if (flp_part) {
+        if (std::isdigit(c)) {
+            flp_part = true;
+        } else if (c == '.') {
+            if (flp_dot) flp_part = false;
+            else flp_dot = true;
+        } else flp_part = false;
+    }
     // Iterate through all of currently possible keywords and remove those which doesn't match the new character
     decltype(kws_part) kws_part_new;
     kws_part_new.reserve(kws_part.size());
@@ -35,7 +44,7 @@ void funscript::TokenAutomaton::append(char c) {
 }
 
 bool funscript::TokenAutomaton::is_valid() const {
-    return str_part || id_part || int_part || !kws_part.empty();
+    return str_part || id_part || int_part || flp_part || !kws_part.empty();
 }
 
 namespace funscript {
@@ -59,6 +68,8 @@ funscript::Token funscript::get_token(const std::string &token_str) {
         if (keyword == Keyword::NUL) return {Token::NUL};
         if (keyword == Keyword::YES) return {Token::BOOLEAN, true};
         if (keyword == Keyword::NO) return {Token::BOOLEAN, false};
+        if (keyword == Keyword::NAN) return {Token::FLOAT, nan()};
+        if (keyword == Keyword::INF) return {Token::FLOAT, inf()};
         // Operator keywords
         if (get_operator_keyword_mapping().contains(keyword)) {
             return {Token::OPERATOR, get_operator_keyword_mapping().at(keyword)};
@@ -75,6 +86,12 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     }
     // Token can be an integer literal
     if (std::all_of(token_str.begin(), token_str.end(), isdigit)) return {Token::INTEGER, std::stoll(token_str)};
+    // Token can be a floating-point literal
+    if (std::all_of(token_str.begin(), token_str.end(), [](char c) -> bool { return isdigit(c) || c == '.'; })) {
+        if (std::count(token_str.begin(), token_str.end(), '.') <= 1) {
+            return {Token::FLOAT, std::stod(token_str)};
+        }
+    }
     // Token can be an identifier
     if (is_valid_id(token_str)) return {Token::ID, token_str};
     // No more known token types

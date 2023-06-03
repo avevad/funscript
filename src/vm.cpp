@@ -35,6 +35,8 @@ namespace funscript {
 
     void VM::Stack::push_int(fint num) { return push({Type::INT, num}); }
 
+    void VM::Stack::push_flp(fflp flp) { return push({Type::FLP, {.flp = flp}}); }
+
     void VM::Stack::push_obj(Object *obj) { return push({Type::OBJ, {.obj = obj}}); }
 
     void VM::Stack::push_fun(Function *fun) { return push({Type::FUN, {.fun = fun}}); }
@@ -124,7 +126,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::GET: {
-                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
                             auto var = cur_scope->vars->get_field(name);
@@ -154,7 +156,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::SET: {
-                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
                             if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
@@ -178,7 +180,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::VGT: {
-                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         auto var = cur_scope->get_var(name);
                         if (!var.has_value()) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
@@ -188,7 +190,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::VST: {
-                        fstr name(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                         if (!cur_scope->set_var(name, get(-1))) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
@@ -269,8 +271,8 @@ namespace funscript {
                         break;
                     }
                     case Opcode::STR: {
-                        fstr str(reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64),
-                                 reinterpret_cast<const fstr::value_type *>(bytecode + ins.u64 + ins.u16),
+                        FStr str(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64),
+                                 reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64 + ins.u16),
                                  vm.mem.str_alloc());
                         auto str_obj = vm.mem.gc_new_auto<String>(str);
                         push_str(str_obj.get());
@@ -324,27 +326,39 @@ namespace funscript {
         try {
             switch (op) {
                 case Operator::TIMES: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_int(a * b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_int(a * b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_flp(a * b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::DIVIDE: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        if (b == 0) return raise_err("division by zero", -4);
+                        pop(-4);
+                        push_int(a / b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    if (b == 0) return raise_err("division by zero", -4);
-                    pop(-4);
-                    push_int(a / b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_flp(a / b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::PLUS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
-                        fstr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
+                        FStr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
                         pop(-4);
                         auto str = vm.mem.gc_new_auto<String>(a + b);
                         push_str(str.get());
@@ -362,31 +376,44 @@ namespace funscript {
                         push_arr(arr.get());
                         break;
                     }
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_int(a + b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_int(a + b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_flp(a + b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::MINUS: {
                     if (cnt_a == 0) {
-                        if (cnt_b != 1 || get(pos_b).type != Type::INT) {
-                            return raise_op_err(op);
+                        if (cnt_b == 1 && get(pos_b).type == Type::INT) {
+                            fint num = get(pos_b).data.num;
+                            pop(-3);
+                            push_int(-num);
+                            break;
                         }
-                        fint num = get(pos_b).data.num;
-                        pop(-3);
-                        push_int(-num);
-                        break;
-                    }
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
+                        if (cnt_b == 1 && get(pos_b).type == Type::FLP) {
+                            fflp flp = get(pos_b).data.flp;
+                            pop(-3);
+                            push_flp(-flp);
+                            break;
+                        }
                         return raise_op_err(op);
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_int(a - b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_int(a - b);
+                        break;
+                    }
+                    return raise_op_err(op);
+
                 }
                 case Operator::CALL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
@@ -422,22 +449,34 @@ namespace funscript {
                     break;
                 }
                 case Operator::EQUALS: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a == b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a == b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a == b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::DIFFERS: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a != b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a != b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a != b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::NOT: {
                     if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::INT) {
@@ -449,40 +488,64 @@ namespace funscript {
                     break;
                 }
                 case Operator::LESS: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a < b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a < b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a < b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::GREATER: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a > b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a > b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a > b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::LESS_EQUAL: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a <= b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a <= b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a <= b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::GREATER_EQUAL: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_bln(a >= b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_bln(a >= b);
-                    break;
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_bln(a >= b);
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 default:
                     assertion_failed("unknown operator");
@@ -554,7 +617,7 @@ namespace funscript {
     void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
         pop(frame_start);
         try {
-            auto err = vm.mem.gc_new_auto<Error>(fstr(msg, vm.mem.std_alloc<char>()));
+            auto err = vm.mem.gc_new_auto<Error>(FStr(msg, vm.mem.std_alloc<char>()));
             push_err(err.get());
         } catch (const OutOfMemoryError &) {
             assertion_failed("not enough memory to raise an error");
@@ -592,16 +655,16 @@ namespace funscript {
         for (const auto &[key, val] : fields) val.get_ref(callback);
     }
 
-    bool VM::Object::contains_field(const fstr &key) const {
+    bool VM::Object::contains_field(const FStr &key) const {
         return fields.contains(key);
     }
 
-    std::optional<VM::Value> VM::Object::get_field(const fstr &key) const {
+    std::optional<VM::Value> VM::Object::get_field(const FStr &key) const {
         if (!fields.contains(key)) return std::nullopt;
         return fields.at(key);
     }
 
-    void VM::Object::set_field(const fstr &key, Value val) {
+    void VM::Object::set_field(const FStr &key, Value val) {
         fields[key] = val;
     }
 
@@ -610,13 +673,13 @@ namespace funscript {
         callback(prev_scope);
     }
 
-    std::optional<VM::Value> VM::Scope::get_var(const funscript::fstr &name) const {
+    std::optional<VM::Value> VM::Scope::get_var(const funscript::FStr &name) const {
         if (vars->contains_field(name)) return vars->get_field(name);
         if (prev_scope == nullptr) return std::nullopt;
         return prev_scope->get_var(name);
     }
 
-    bool VM::Scope::set_var(const fstr &name, Value val) {
+    bool VM::Scope::set_var(const FStr &name, Value val) {
         if (vars->contains_field(name)) return vars->set_field(name, val), true;
         if (prev_scope == nullptr) return false;
         return prev_scope->set_var(name, val);
@@ -645,13 +708,13 @@ namespace funscript {
                                                                                               bytecode(bytecode),
                                                                                               offset(offset) {}
 
-    VM::String::String(fstr bytes) : bytes(std::move(bytes)) {}
+    VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
 
     void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {}
 
-    VM::Error::Error(fstr desc) : desc(std::move(desc)) {}
+    VM::Error::Error(FStr desc) : desc(std::move(desc)) {}
 
     void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);

@@ -24,6 +24,7 @@ namespace funscript {
                 // These literal-like token types act the same
                 case Token::NUL:
                 case Token::INTEGER:
+                case Token::FLOAT:
                 case Token::BOOLEAN:
                 case Token::STRING:
                 case Token::ID: {
@@ -114,6 +115,10 @@ namespace funscript {
                 }
                 case Token::INTEGER: {
                     ast.push_back(new IntegerAST(get<int64_t>(token.data)));
+                    break;
+                }
+                case Token::FLOAT: {
+                    ast.push_back(new FloatAST(get<double>(token.data)));
                     break;
                 }
                 case Token::OPERATOR: {

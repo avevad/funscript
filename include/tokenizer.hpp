@@ -21,7 +21,7 @@ namespace funscript {
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET,
 
-        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR
+        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR, NAN, INF
     };
 
     /**
@@ -60,7 +60,9 @@ namespace funscript {
                 {Keyword::NO,                   "no"},
                 {Keyword::NUL,                  "nul"},
                 {Keyword::AND,                  "and"},
-                {Keyword::OR,                   "or"}
+                {Keyword::OR,                   "or"},
+                {Keyword::NAN,                  "nan"},
+                {Keyword::INF,                  "inf"}
         };
         return KEYWORD_STRINGS;
     }
@@ -84,12 +86,14 @@ namespace funscript {
      * A helper class which allows effective token parsing by appending single characters from code.
      */
     class TokenAutomaton {
-        size_t len = 0; // Current token part length
-        bool id_part = true; // Is current token part a prefix of an identifier
-        bool int_part = true; // Is current token part a prefix of an integer literal
-        bool str_part = true; // Is current token part a prefix of a string literal
-        bool str_end = false; // Was the closing quote of the string literal already found
-        std::vector<Keyword> kws_part; // Keywords which start with current token part
+        size_t len = 0; // Current token part length.
+        bool id_part = true; // Is current token part a prefix of an identifier.
+        bool int_part = true; // Is current token part a prefix of an integer literal.
+        bool flp_part = true; // Is current token part a prefix of a floating-point literal.
+        bool flp_dot = false; // Was the dot of the floating-point literal already found.
+        bool str_part = true; // Is current token part a prefix of a string literal.
+        bool str_end = false; // Was the closing quote of the string literal already found.
+        std::vector<Keyword> kws_part; // Keywords which start with current token part.
     public:
         TokenAutomaton();
 
@@ -121,6 +125,7 @@ namespace funscript {
             UNKNOWN = 0,
             ID,
             INTEGER,
+            FLOAT,
             OPERATOR,
             LEFT_BRACKET,
             RIGHT_BRACKET,
@@ -129,7 +134,7 @@ namespace funscript {
             BOOLEAN,
             STRING
         };
-        using Data = std::variant<Operator, Bracket, int64_t, std::string, bool>;
+        using Data = std::variant<Operator, Bracket, int64_t, std::string, bool, double>;
         Type type;
         Data data;
     };
