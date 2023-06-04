@@ -412,6 +412,12 @@ namespace funscript {
                         push_int(a - b);
                         break;
                     }
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                        pop(-4);
+                        push_flp(a - b);
+                        break;
+                    }
                     return raise_op_err(op);
 
                 }

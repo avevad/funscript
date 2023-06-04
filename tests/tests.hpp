@@ -1,6 +1,8 @@
 #ifndef FUNSCRIPT_TESTS_HPP
 #define FUNSCRIPT_TESTS_HPP
 
+#include <utility>
+
 #include "mm.hpp"
 #include "vm.hpp"
 #include "utils.hpp"
@@ -8,12 +10,57 @@
 
 using namespace funscript;
 
-bool check_value(const VM::Value &value, fint value_exp) {
-    return value.type == Type::INT && value.data.num == value_exp;
-}
+template<typename T>
+struct ValueChecker {
+};
 
-bool check_value(const VM::Value &value, const std::string &value_exp) {
-    return value.type == Type::STR && std::string(value.data.str->bytes) == value_exp;
+template<>
+class ValueChecker<bool> {
+    bool value_exp;
+public:
+    explicit ValueChecker(bool value_exp) : value_exp(value_exp) {}
+
+    [[nodiscard]] bool check_value(const VM::Value &value) const {
+        return value.type == Type::BLN && value.data.bln == value_exp;
+    }
+};
+
+template<>
+class ValueChecker<double> {
+    double value_exp;
+public:
+    explicit ValueChecker(double value_exp) : value_exp(value_exp) {}
+
+    [[nodiscard]] bool check_value(const VM::Value &value) const {
+        return value.type == Type::FLP && value.data.flp == value_exp;
+    }
+};
+
+template<>
+class ValueChecker<int> {
+    int value_exp;
+public:
+    explicit ValueChecker(int value_exp) : value_exp(value_exp) {}
+
+    [[nodiscard]] bool check_value(const VM::Value &value) const {
+        return value.type == Type::INT && value.data.num == value_exp;
+    }
+};
+
+template<>
+class ValueChecker<const char *> {
+    std::string value_exp;
+public:
+    explicit ValueChecker(const char *value_exp) : value_exp(value_exp) {}
+
+    [[nodiscard]] bool check_value(const VM::Value &value) const {
+        return value.type == Type::STR && std::string(value.data.str->bytes) == value_exp;
+    }
+};
+
+template<typename T>
+bool check_value(const VM::Value &value, const T &value_exp) {
+    return ValueChecker<T>(value_exp).check_value(value);
 }
 
 bool check_values(const VM::Stack &values, size_t pos) {
@@ -71,7 +118,7 @@ struct EvaluatesTo : Catch::Matchers::MatcherGenericBase {
     TestEnv &env;
 
     explicit EvaluatesTo(TestEnv &env, Values... values_exp) :
-        env(env), values_exp(std::move(values_exp)...) {}
+            env(env), values_exp(std::move(values_exp)...) {}
 
     bool match(const std::string &expr) const {
         return std::apply([this, &expr](const Values &... values_exp_pack) -> bool {

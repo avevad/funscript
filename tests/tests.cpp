@@ -7,10 +7,38 @@
 #define FAILS Fails(env)
 #define SUCCEEDS Succeeds(env)
 
+// Note: later tests can use features tested in earlier ones
+
 TEST_CASE("Integer expressions", "[expr_int]") {
     TestEnv env;
-    CHECK_THAT("(2 + 3) * 2", EVALUATES_TO(10));
-    CHECK_THAT("234 / 100, 234 % 100", EVALUATES_TO(2, 34));
+    SECTION("Arithmetic") {
+        CHECK_THAT("(2 + 3) * 2", EVALUATES_TO(10));
+        CHECK_THAT("234 / 100, 234 % 100", EVALUATES_TO(2, 34));
+        CHECK_THAT("1 / 0", FAILS);
+    };
+    SECTION("Comparisons") {
+        CHECK_THAT("50 > 10, 50 < 10", EVALUATES_TO(true, false));
+        CHECK_THAT("21 != 21, 21 == 21", EVALUATES_TO(false, true));
+        CHECK_THAT("-3 <= 10, -7 >= -7", EVALUATES_TO(true, true));
+    };
+}
+
+TEST_CASE("Floating point expressions", "[expr_flp]") {
+    TestEnv env;
+    SECTION("Arithmetic") {
+        CHECK_THAT("5. / 2., .5 * 2.", EVALUATES_TO(2.5, 1.));
+        CHECK_THAT("1. + 2., 1. - 2.", EVALUATES_TO(3., -1.));
+        CHECK_THAT("5. / 0.", EVALUATES_TO(inf()));
+    };
+    SECTION("Comparisons") {
+        CHECK_THAT("-10. < 5., 10. > 5.", EVALUATES_TO(true, true));
+        CHECK_THAT("inf <= 1000000., inf >= 0.", EVALUATES_TO(false, true));
+    };
+    SECTION("Type mixing") {
+        CHECK_THAT("2. + 1", FAILS);
+        CHECK_THAT("5 / 2.", FAILS);
+        CHECK_THAT("0. > 1", FAILS);
+    };
 }
 
 TEST_CASE("Variables and scopes", "[scopes]") {
@@ -27,7 +55,7 @@ TEST_CASE("Variables and scopes", "[scopes]") {
 TEST_CASE("Functions", "[functions]") {
     TestEnv env;
     REQUIRE_THAT(".sum = (.a, .b): a + b", SUCCEEDS);
-    CHECK_THAT("sum(13, 27)", EVALUATES_TO(13 +27));
+    CHECK_THAT("sum(13, 27)", EVALUATES_TO(13 + 27));
     REQUIRE_THAT(".sum3 = (.a, .b, .c): sum(a, b) + c", SUCCEEDS);
     CHECK_THAT("sum3(1, 10, 15)", EVALUATES_TO(1 + 10 + 15));
     CHECK_THAT("sum3(1, 5)", FAILS);
