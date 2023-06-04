@@ -94,6 +94,9 @@ namespace funscript {
         bool str_part = true; // Is current token part a prefix of a string literal.
         bool str_end = false; // Was the closing quote of the string literal already found.
         bool line_comm_part = true; // Is current token part a prefix of a line comment.
+        bool block_comm_part = true; // Is current token part a prefix of a block comment.
+        bool block_comm_end_bracket = false; // Was the closing square bracket of a block comment already found.
+        bool block_comm_end_sign = false; // Was the closing number sign of a block comment already found.
         std::vector<Keyword> kws_part; // Keywords which start with current token part.
     public:
         TokenAutomaton();

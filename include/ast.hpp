@@ -170,7 +170,7 @@ namespace funscript {
      * @param tokens Vector of code tokens.
      * @return Resulting AST node.
      */
-    ast_ptr parse(const std::vector<Token> &tokens);
+    ast_ptr parse(std::vector<Token> tokens);
 
     /**
      * A structure that holds some static operator metadata

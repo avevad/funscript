@@ -13,7 +13,14 @@ namespace funscript {
 
     CompilationError::CompilationError(const std::string &msg) : std::runtime_error(msg) {}
 
-    ast_ptr parse(const std::vector<Token> &tokens) {
+    ast_ptr parse(std::vector<Token> tokens) {
+        { // Filtering comments out
+            std::vector<Token> tokens_new;
+            for (const auto &token : tokens) if (token.type != Token::COMMENT) tokens_new.push_back(token);
+            tokens = tokens_new;
+        }
+        // Empty expressions should be treated as void expression `()`
+        if (tokens.empty()) return ast_ptr(new VoidAST());
         // Transformation into reverse Polish notation using https://en.m.wikipedia.org/wiki/Shunting_yard_algorithm
         std::vector<Token> stack; // Operator stack
         std::vector<Token> queue; // Output queue
@@ -88,10 +95,9 @@ namespace funscript {
                     break;
                 }
                 case Token::COMMENT:
-                    break;
                 case Token::VOID:
                 case Token::UNKNOWN:
-                    // These tokens are inserted implicitly, so they should not occur during parsing
+                    // These tokens should not occur during parsing
                     assertion_failed("unknown token");
             }
         }
@@ -103,8 +109,6 @@ namespace funscript {
             queue.push_back(stack.back());
             stack.pop_back();
         }
-        // Empty expressions should be treated as void expression `()`
-        if (queue.empty()) return ast_ptr(new VoidAST());
         // Construct AST from RPN using stack of AST parts
         std::vector<AST *> ast;
         for (const Token &token : queue) {
@@ -148,7 +152,7 @@ namespace funscript {
                     break;
                 }
                 case Token::UNKNOWN: {
-                    throw std::runtime_error("unknown token");
+                    assertion_failed("unknown token in output queue");
                 }
                 case Token::BOOLEAN: {
                     ast.push_back(new BooleanAST(get<bool>(token.data)));
@@ -159,7 +163,7 @@ namespace funscript {
                     break;
                 }
                 case Token::COMMENT: {
-                    break;
+                    assertion_failed("comment in output queue");
                 }
             }
         }

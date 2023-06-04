@@ -34,7 +34,18 @@ void funscript::TokenAutomaton::append(char c) {
     // Every line comment starts with a number sign and ends at the newline
     if (line_comm_part) {
         if (len == 0) line_comm_part = c == '#';
+        else if (len == 1) line_comm_part = c != '[' && c != '\n';
         else line_comm_part = c != '\n';
+    }
+    // Block comments start with `#[`
+    if (block_comm_part) {
+        if (len == 0) block_comm_part = c == '#';
+        else if (len == 1) block_comm_part = c == '[';
+        else if (!block_comm_end_bracket) { // Block comments end with `]#'
+            block_comm_end_bracket = c == ']';
+        } else if (!block_comm_end_sign) {
+            block_comm_end_sign = c == '#';
+        } else block_comm_part = false;
     }
     // Iterate through all of currently possible keywords and remove those which doesn't match the new character
     decltype(kws_part) kws_part_new;
@@ -49,7 +60,7 @@ void funscript::TokenAutomaton::append(char c) {
 }
 
 bool funscript::TokenAutomaton::is_valid() const {
-    return str_part || id_part || int_part || flp_part || line_comm_part || !kws_part.empty();
+    return str_part || id_part || int_part || flp_part || line_comm_part || block_comm_part || !kws_part.empty();
 }
 
 namespace funscript {
@@ -99,6 +110,8 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     }
     // Token can be an identifier
     if (is_valid_id(token_str)) return {Token::ID, token_str};
+    // Token can be a block comment
+    if (token_str.starts_with("#[") && token_str.ends_with("]#")) return {Token::COMMENT};
     // Token can be a line comment
     if (token_str[0] == '#') return {Token::COMMENT};
     // No more known token types
