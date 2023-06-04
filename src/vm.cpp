@@ -419,7 +419,6 @@ namespace funscript {
                         break;
                     }
                     return raise_op_err(op);
-
                 }
                 case Operator::CALL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
@@ -623,7 +622,10 @@ namespace funscript {
     void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
         pop(frame_start);
         try {
-            auto err = vm.mem.gc_new_auto<Error>(FStr(msg, vm.mem.std_alloc<char>()));
+            auto err_obj = vm.mem.gc_new_auto<Object>(vm);
+            err_obj->set_field(FStr("msg", vm.mem.str_alloc()),
+                               {Type::STR, {.str = vm.mem.gc_new_auto<String>(FStr(msg, vm.mem.str_alloc())).get()}});
+            auto err = vm.mem.gc_new_auto<Error>(err_obj.get());
             push_err(err.get());
         } catch (const OutOfMemoryError &) {
             assertion_failed("not enough memory to raise an error");
@@ -718,9 +720,11 @@ namespace funscript {
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
 
-    void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {}
+    void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {
+        callback(obj);
+    }
 
-    VM::Error::Error(FStr desc) : desc(std::move(desc)) {}
+    VM::Error::Error(Object *obj) : obj(obj) {}
 
     void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);

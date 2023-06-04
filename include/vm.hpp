@@ -69,17 +69,6 @@ namespace funscript {
         };
 
         /**
-         * Class of error value objects.
-         */
-        class Error : public Allocation {
-            void get_refs(const std::function<void(Allocation *)> &callback) override;
-        public:
-            const FStr desc; // Human-readable description of the error.
-
-            explicit Error(FStr desc);
-        };
-
-        /**
          * Class of object value objects.
          */
         class Object : public Allocation {
@@ -97,6 +86,17 @@ namespace funscript {
             void set_field(const FStr &key, Value val);
 
             ~Object() override = default;
+        };
+
+        /**
+         * Class of error value objects.
+         */
+        class Error : public Allocation {
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+        public:
+            Object *const obj; // Contents of the error.
+
+            explicit Error(Object *obj);
         };
 
         /**

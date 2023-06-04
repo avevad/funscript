@@ -63,7 +63,12 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
     auto stack = util::eval_expr(vm, scope, code);
     if (stack->size() != 0) {
         if ((*stack)[-1].type == Type::ERR) {
-            std::cout << "! " << (*stack)[-1].data.err->desc << std::endl;
+            std::cout << "! ";
+            auto err_val = (*stack)[-1].data.err->obj->get_field(FStr("msg", vm.mem.str_alloc()));
+            if (err_val.has_value() && err_val.value().type == Type::STR) {
+                std::cout << std::string(err_val.value().data.str->bytes);
+            }
+            std::cout << "\n";
         } else {
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {

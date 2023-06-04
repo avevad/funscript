@@ -83,9 +83,17 @@ bool check_values(const VM::Stack &values, size_t pos,
     return check_values(values, pos + 1, values_exp1, values_exp...);
 }
 
+static std::string extract_error_msg(VM::Error *err) {
+    auto msg_val = err->obj->get_field(FStr("msg", err->obj->vm.mem.str_alloc()));
+    if (msg_val.has_value() && msg_val.value().type == Type::STR) {
+        return std::string(msg_val.value().data.str->bytes);
+    }
+    return "";
+}
+
 class EvaluationError : std::runtime_error {
 public:
-    explicit EvaluationError(VM::Error *err) : std::runtime_error(std::string(err->desc)) {}
+    explicit EvaluationError(VM::Error *err) : std::runtime_error(extract_error_msg(err)) {}
 };
 
 class TestEnv {
