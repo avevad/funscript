@@ -31,6 +31,11 @@ void funscript::TokenAutomaton::append(char c) {
             else flp_dot = true;
         } else flp_part = false;
     }
+    // Every line comment starts with a number sign and ends at the newline
+    if (line_comm_part) {
+        if (len == 0) line_comm_part = c == '#';
+        else line_comm_part = c != '\n';
+    }
     // Iterate through all of currently possible keywords and remove those which doesn't match the new character
     decltype(kws_part) kws_part_new;
     kws_part_new.reserve(kws_part.size());
@@ -44,7 +49,7 @@ void funscript::TokenAutomaton::append(char c) {
 }
 
 bool funscript::TokenAutomaton::is_valid() const {
-    return str_part || id_part || int_part || flp_part || !kws_part.empty();
+    return str_part || id_part || int_part || flp_part || line_comm_part || !kws_part.empty();
 }
 
 namespace funscript {
@@ -94,6 +99,8 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     }
     // Token can be an identifier
     if (is_valid_id(token_str)) return {Token::ID, token_str};
+    // Token can be a line comment
+    if (token_str[0] == '#') return {Token::COMMENT};
     // No more known token types
     return {Token::UNKNOWN};
 }

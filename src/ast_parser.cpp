@@ -14,7 +14,6 @@ namespace funscript {
     CompilationError::CompilationError(const std::string &msg) : std::runtime_error(msg) {}
 
     ast_ptr parse(const std::vector<Token> &tokens) {
-        if (tokens.empty()) return ast_ptr(new VoidAST);
         // Transformation into reverse Polish notation using https://en.m.wikipedia.org/wiki/Shunting_yard_algorithm
         std::vector<Token> stack; // Operator stack
         std::vector<Token> queue; // Output queue
@@ -88,8 +87,11 @@ namespace funscript {
                     queue.push_back({Token::RIGHT_BRACKET, br});
                     break;
                 }
-                case Token::VOID: // These tokens are inserted implicitly, so they should not occur during parsing
+                case Token::COMMENT:
+                    break;
+                case Token::VOID:
                 case Token::UNKNOWN:
+                    // These tokens are inserted implicitly, so they should not occur during parsing
                     assertion_failed("unknown token");
             }
         }
@@ -101,6 +103,8 @@ namespace funscript {
             queue.push_back(stack.back());
             stack.pop_back();
         }
+        // Empty expressions should be treated as void expression `()`
+        if (queue.empty()) return ast_ptr(new VoidAST());
         // Construct AST from RPN using stack of AST parts
         std::vector<AST *> ast;
         for (const Token &token : queue) {
@@ -152,6 +156,9 @@ namespace funscript {
                 }
                 case Token::STRING: {
                     ast.push_back(new StringAST(get<std::string>(token.data)));
+                    break;
+                }
+                case Token::COMMENT: {
                     break;
                 }
             }

@@ -93,6 +93,7 @@ namespace funscript {
         bool flp_dot = false; // Was the dot of the floating-point literal already found.
         bool str_part = true; // Is current token part a prefix of a string literal.
         bool str_end = false; // Was the closing quote of the string literal already found.
+        bool line_comm_part = true; // Is current token part a prefix of a line comment.
         std::vector<Keyword> kws_part; // Keywords which start with current token part.
     public:
         TokenAutomaton();
@@ -132,7 +133,8 @@ namespace funscript {
             NUL,
             VOID, // Implicitly inserted during parsing.
             BOOLEAN,
-            STRING
+            STRING,
+            COMMENT
         };
         using Data = std::variant<Operator, Bracket, int64_t, std::string, bool, double>;
         Type type;
