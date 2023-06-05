@@ -118,12 +118,18 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     return {Token::UNKNOWN};
 }
 
-void funscript::tokenize(const std::string &code, const std::function<void(Token)> &cb) {
+void funscript::tokenize(const std::string &filename, const std::string &code, const std::function<void(Token)> &cb) {
     size_t left = 0; // Position of leftmost character of current token
+    code_pos_t left_pos = {1, 1};
     // Skip whitespaces at the beginning
-    while (left < code.length() && isspace(code[left])) left++;
+    while (left < code.length() && isspace(code[left])) {
+        if (code[left] == '\n') left_pos = {left_pos.row + 1, 1};
+        else left_pos.col++;
+        left++;
+    }
     while (left < code.length()) {
         size_t right = left; // Position of rightmost character of current token + 1
+        code_pos_t right_pos = left_pos;
         TokenAutomaton automaton;
         // Add characters one by one until the token is no longer valid
         while (automaton.is_valid()) {
@@ -134,13 +140,23 @@ void funscript::tokenize(const std::string &code, const std::function<void(Token
             automaton.append(code[right++]);
         }
         right--; // Now it points to the first character which doesn't belong to the current token
+        for (size_t right1 = left; right1 != right; right1++) { // Update right_pos by scanning through the token
+            if (code[right1] == '\n') right_pos = {right_pos.row + 1, 1};
+            else right_pos.col++;
+        }
         // Handle current token
         Token token = get_token(code.substr(left, right - left));
-        if (!token.type) throw CodeReadingError("unknown token");
+        if (!token.type) throw CodeReadingError(filename, left_pos, "unknown token");
+        token.location = {left_pos, right_pos};
         cb(token);
         // Move onto the next one
         left = right;
+        left_pos = right_pos;
         // Skip whitespaces again
-        while (left < code.length() && isspace(code[left])) left++;
+        while (left < code.length() && isspace(code[left])) {
+            if (code[left] == '\n') left_pos = {left_pos.row + 1, 1};
+            else left_pos.col++;
+            left++;
+        }
     }
 }

@@ -6,10 +6,11 @@
 #include "vm.hpp"
 
 namespace funscript::util {
-    MemoryManager::AutoPtr<VM::Stack> eval_expr(VM &vm, VM::Scope *scope, const std::string &expr) try {
+    MemoryManager::AutoPtr<VM::Stack>
+    eval_expr(VM &vm, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
         // Split expression into array of tokens
         std::vector<Token> tokens;
-        tokenize(expr, [&tokens](auto token) { tokens.push_back(token); });
+        tokenize(filename, expr, [&tokens](auto token) { tokens.push_back(token); });
         // Parse array of tokens
         ast_ptr ast = parse(tokens);
         // Compile the expression AST

@@ -142,6 +142,7 @@ namespace funscript {
         using Data = std::variant<Operator, Bracket, int64_t, std::string, bool, double>;
         Type type;
         Data data;
+        code_loc_t location;
     };
 
     /**
@@ -209,14 +210,16 @@ namespace funscript {
 
     /**
      * Converts funscript code into stream of tokens.
+     * @param filename The name of the file which is being parsed.
      * @param code Code to tokenize.
      * @param cb Callback function to call for every parsed token.
      */
-    void tokenize(const std::string &code, const std::function<void(Token)> &cb);
+    void tokenize(const std::string &filename, const std::string &code, const std::function<void(Token)> &cb);
 
     class CodeReadingError : public std::runtime_error {
     public:
-        explicit CodeReadingError(const std::string &msg) : std::runtime_error(msg) {}
+        explicit CodeReadingError(const std::string &filename, code_pos_t pos, const std::string &msg)
+                : std::runtime_error(msg + " at " + filename + ':' + pos.to_string()) {}
     };
 }
 

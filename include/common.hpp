@@ -16,23 +16,41 @@ namespace funscript {
         std::abort();
     }
 
+    /**
+     * Structure that represents position in code (line and column numbers).
+     */
+    struct code_pos_t {
+        size_t row, col;
+
+        [[nodiscard]] std::string to_string() const {
+            return std::to_string(row) + ':' + std::to_string(col);
+        }
+    };
+
+    /**
+     * Structure that represents full location of something in code (where it starts and where it ends).
+     */
+    struct code_loc_t {
+        code_pos_t beg, end;
+    };
+
     enum class Type : uint8_t {
         NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR, FLP
     };
 
     /**
-     * Enumeration of all the instruction types handled by Funscript VM
+     * Enumeration of all the instruction types handled by Funscript VM.
      */
     enum class Opcode : uint16_t {
         NOP, // Do nothing
         /**
-         * @brief Push literal value (except strings)
+         * @brief Push literal value (except strings).
          * @param u16 Value type (enum funscript::Type).
          * @param u64 Representation of the value or the pointer to the offset of value representation.
          */
         VAL,
         /**
-         * @brief Shorthand for VAL(u16 = Type::SEP)
+         * @brief Shorthand for VAL(u16 = Type::SEP).
          */
         SEP,
         /**

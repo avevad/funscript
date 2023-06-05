@@ -4,7 +4,6 @@
 #include <fstream>
 
 #include "tokenizer.hpp"
-#include "ast.hpp"
 #include "vm.hpp"
 #include "utils.hpp"
 
@@ -45,7 +44,7 @@ std::string display(const VM::Value &val) {
             break;
         }
         default:
-            throw std::runtime_error("unknown value");
+            assertion_failed("unknown value");
     }
     return out.str();
 }
@@ -54,13 +53,13 @@ void sigint_handler(int) {
     VM::Stack::kbd_int = 1;
 }
 
-void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
+void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::string &code) {
     // Register Ctrl+C handler
     struct sigaction act{}, act_old{};
     act.sa_handler = sigint_handler;
     sigaction(SIGINT, &act, &act_old);
     // Evaluate the expression and display its result
-    auto stack = util::eval_expr(vm, scope, code);
+    auto stack = util::eval_expr(vm, scope, filename, code);
     if (stack->size() != 0) {
         if ((*stack)[-1].type == Type::ERR) {
             for (const auto &e : (*stack)[-1].data.err->stacktrace) {
@@ -107,13 +106,13 @@ int main(int argc, char **argv) {
         if (argc == 2) { // Read code from specified file
             std::ifstream file(argv[1]);
             std::string code((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-            run_code(vm, scope.get(), code);
+            run_code(vm, scope.get(), std::string(argv[1]), code);
         } else {
             while (true) {
                 std::cout << ": ";
                 std::string code;
                 if (!std::getline(std::cin, code)) break;
-                run_code(vm, scope.get(), code);
+                run_code(vm, scope.get(), "<stdin>", code);
             }
         }
     }
