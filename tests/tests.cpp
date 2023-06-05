@@ -98,3 +98,43 @@ TEST_CASE("Strings", "[strings]") {
     REQUIRE_THAT(".str2 = 'is sus'", SUCCEEDS);
     CHECK_THAT("str1 + ' ' + str2", EVALUATES_TO("amogus is sus"));
 }
+
+TEST_CASE("Loops", "[loops]") {
+    TestEnv env;
+    SECTION("Precondition loop") {
+        REQUIRE_THAT(".i = 0; i != 5 do (i, (i = i + 1))", EVALUATES_TO(0, 1, 2, 3, 4));
+        REQUIRE_THAT("(1 == 0) do (5)", EVALUATES_TO());
+    };
+    SECTION("Postcondition loop") {
+        REQUIRE_THAT(".i = 0; (i = i + 1; i) until i == 7", EVALUATES_TO(1, 2, 3, 4, 5, 6, 7));
+        REQUIRE_THAT("'some str' until 2 * 2 == 4", EVALUATES_TO("some str"));
+    }
+}
+
+TEST_CASE("Arrays", "[arrays]") {
+    TestEnv env;
+    SECTION("Creation") {
+        REQUIRE_THAT(".five_nums = [11, 12, 13, 14, 15]", SUCCEEDS);
+        REQUIRE_THAT(".empty_arr = []", SUCCEEDS);
+        REQUIRE_THAT(".my_str = 'some_string'", SUCCEEDS);
+        REQUIRE_THAT(".stuff = [0, nul, 5., my_str, no]", SUCCEEDS);
+    };
+    SECTION("Element access") {
+        REQUIRE_THAT(".three_nums = [11, 12, 13]", SUCCEEDS);
+        CHECK_THAT("three_nums[2]", EVALUATES_TO(13));
+        CHECK_THAT("three_nums[-1]", FAILS);
+        CHECK_THAT("three_nums[nul]", FAILS);
+        REQUIRE_THAT(".stuff = ['str', 0, nul, yes, no, 5]", SUCCEEDS);
+        REQUIRE_THAT(".num1, .num2, .bln, .str = stuff[5, 1, 3, 0]", SUCCEEDS);
+        CHECK_THAT("str, num2, bln", EVALUATES_TO("str", 0, true));
+    };
+    SECTION("Generation") {
+        REQUIRE_THAT(".ten_nums = [.i = 0; (i = i + 1; i) until i == 10]", SUCCEEDS);
+        REQUIRE_THAT("ten_nums[7] == 8", EVALUATES_TO(true));
+    };
+    SECTION("Concatenation") {
+        REQUIRE_THAT(".abc = ['a', 'b', 'c']", SUCCEEDS);
+        REQUIRE_THAT(".defgh = ['d', 'e', 'f', 'g', 'h']", SUCCEEDS);
+        REQUIRE_THAT("(abc + defgh)[6, 5, 1]", EVALUATES_TO("g", "f", "b"));
+    }
+}

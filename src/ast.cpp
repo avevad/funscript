@@ -119,7 +119,7 @@ namespace funscript {
                 auto pos0 = ch.size(); // Position of where to jump back
                 ch.put_instruction(Opcode::SEP);
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
-                auto pos1 = ch.put_instruction(); // Position of jump instruction (over the body of the cycle)
+                auto pos1 = ch.put_instruction(); // Position of jump instruction (over the body of the loop)
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
                 ch.put_instruction(Opcode::JMP);
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos0);
