@@ -169,6 +169,14 @@ namespace funscript {
         return INF;
     }
 
+    template<typename Alloc = std::allocator<char>>
+    static std::basic_string<char, std::char_traits<char>, Alloc>
+    addr_to_string(const void *ptr, const Alloc &alloc = Alloc()) {
+        std::basic_ostringstream<char, std::char_traits<char>, Alloc> stream(std::ios_base::out, alloc);
+        stream << ptr;
+        return stream.str();
+    }
+
 }
 
 #endif //FUNSCRIPT_COMMON_HPP

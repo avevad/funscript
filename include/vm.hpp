@@ -94,9 +94,14 @@ namespace funscript {
         class Error : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            Object *const obj; // Contents of the error.
+            struct stack_trace_element {
+                FStr function;
+            };
 
-            explicit Error(Object *obj);
+            Object *const obj; // Contents of the error.
+            const FVec<stack_trace_element> stacktrace;
+
+            explicit Error(Object *obj, const FVec<stack_trace_element> &stacktrace);
         };
 
         /**
@@ -134,11 +139,11 @@ namespace funscript {
          */
         class Frame : public Allocation {
             friend VM::Stack;
-            Function *cont_fn; // The function to be called in this frame.
+            Function *fun; // The function to be called in this frame.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            explicit Frame(Function *cont_fn);
+            explicit Frame(Function *fun);
         };
 
         /**
@@ -151,6 +156,13 @@ namespace funscript {
         public:
             Function() = default;
             ~Function() override = default;
+
+            /**
+             * Produces the string representation of the function.
+             * The function should be displayed as `function(repr)` where `repr` is whatever this virtual method returns.
+             * @return The representation of the function.
+             */
+            [[nodiscard]] virtual FStr repr() const = 0;
         };
 
         class BytecodeFunction;
@@ -181,6 +193,8 @@ namespace funscript {
             void call(VM::Stack &stack, Frame *frame) override;
         public:
             void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+            [[nodiscard]] virtual FStr repr() const override;
 
             BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
         };
@@ -255,9 +269,9 @@ namespace funscript {
             static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 
             void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
-            void call_operator(Operator op, Function *cont_fn);
-            void call_assignment(Function *cont_fn);
-            void call_function(Function *fun, Function *cont_fn);
+            void call_operator(Operator op);
+            void call_assignment();
+            void call_function(Function *fun);
             void continue_execution();
 
             // Some functions for pushing values onto the value stack.

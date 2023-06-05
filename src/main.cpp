@@ -26,7 +26,7 @@ std::string display(const VM::Value &val) {
             out << "object(" << val.data.obj << ")";
             break;
         case Type::FUN:
-            out << "function(" << val.data.fun << ")";
+            out << "function(" << val.data.fun->repr() << ")";
             break;
         case Type::BLN:
             out << (val.data.bln ? "yes" : "no");
@@ -63,6 +63,11 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &code) {
     auto stack = util::eval_expr(vm, scope, code);
     if (stack->size() != 0) {
         if ((*stack)[-1].type == Type::ERR) {
+            for (const auto &e : (*stack)[-1].data.err->stacktrace) {
+                std::cout << "!";
+                std::cout << " in " << e.function;
+                std::cout << std::endl;
+            }
             std::cout << "! ";
             auto err_val = (*stack)[-1].data.err->obj->get_field(FStr("msg", vm.mem.str_alloc()));
             if (err_val.has_value() && err_val.value().type == Type::STR) {

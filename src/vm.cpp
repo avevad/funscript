@@ -1,5 +1,6 @@
 #include <queue>
 #include <utility>
+#include <sstream>
 #include "vm.hpp"
 
 namespace funscript {
@@ -221,7 +222,7 @@ namespace funscript {
                     }
                     case Opcode::OPR: {
                         auto op = static_cast<Operator>(ins.u16);
-                        call_operator(op, nullptr);
+                        call_operator(op);
                         if (size() != 0 && get(-1).type == Type::ERR) {
                             Error *err = get(-1).data.err;
                             vm.mem.gc_pin(err);
@@ -288,7 +289,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::MOV: {
-                        call_assignment(nullptr);
+                        call_assignment();
                         if (get(-1).type == Type::ERR) {
                             Error *err = get(-1).data.err;
                             vm.mem.gc_pin(err);
@@ -319,7 +320,7 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::call_operator(Operator op, Function *cont_fn) {
+    void VM::Stack::call_operator(Operator op) {
         // Calculate stack positions of operands and their lengths
         pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
         pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
@@ -440,7 +441,7 @@ namespace funscript {
                     Function *fn = get(pos_a).data.fun;
                     vm.mem.gc_pin(fn);
                     pop(-2);
-                    call_function(fn, cont_fn);
+                    call_function(fn);
                     vm.mem.gc_unpin(fn);
                     break;
                 }
@@ -562,7 +563,7 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::call_assignment(funscript::VM::Function *cont_fn) {
+    void VM::Stack::call_assignment() {
         // Calculate stack positions of operands and their lengths
         pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
         pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
@@ -598,24 +599,18 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::call_function(Function *fun, Function *cont_fn) {
+    void VM::Stack::call_function(Function *fun) {
         if (frames.size() >= vm.config.stack_frames_max) return raise_err("stack overflow", find_sep());
-        frames.back()->cont_fn = cont_fn;
-        auto frame = vm.mem.gc_new_auto<Frame>(nullptr);
+        auto frame = vm.mem.gc_new_auto<Frame>(fun);
         frames.push_back(frame.get());
         fun->call(*this, frame.get());
         frames.pop_back();
-        frames.back()->cont_fn = nullptr;
     }
 
     void VM::Stack::continue_execution() {
         if (frames.empty()) assertion_failed("the routine is no longer alive");
         for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
-            Function *cont_fn = frames[pos]->cont_fn;
-            vm.mem.gc_pin(cont_fn);
-            frames[pos]->cont_fn = nullptr;
-            cont_fn->call(*this, frames[pos]);
-            vm.mem.gc_unpin(cont_fn);
+            frames[pos]->fun->call(*this, frames[pos]);
         }
     }
 
@@ -625,7 +620,12 @@ namespace funscript {
             auto err_obj = vm.mem.gc_new_auto<Object>(vm);
             err_obj->set_field(FStr("msg", vm.mem.str_alloc()),
                                {Type::STR, {.str = vm.mem.gc_new_auto<String>(FStr(msg, vm.mem.str_alloc())).get()}});
-            auto err = vm.mem.gc_new_auto<Error>(err_obj.get());
+            FVec<Error::stack_trace_element> stacktrace(vm.mem.std_alloc<Error::stack_trace_element>());
+            stacktrace.reserve(frames.size());
+            for (size_t pos = 0; pos < frames.size(); pos++) {
+                stacktrace.push_back({.function = "function(" + frames[pos]->fun->repr() + ")"});
+            }
+            auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
             push_err(err.get());
         } catch (const OutOfMemoryError &) {
             assertion_failed("not enough memory to raise an error");
@@ -693,10 +693,10 @@ namespace funscript {
         return prev_scope->set_var(name, val);
     }
 
-    VM::Frame::Frame(Function *fn) : cont_fn(fn) {}
+    VM::Frame::Frame(Function *fun) : fun(fun) {}
 
     void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
-        callback(cont_fn);
+        callback(fun);
     }
 
     VM::Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
@@ -716,6 +716,11 @@ namespace funscript {
                                                                                               bytecode(bytecode),
                                                                                               offset(offset) {}
 
+    FStr VM::BytecodeFunction::repr() const {
+        if (offset == 0) return {"'<main>'", scope->vars->vm.mem.str_alloc()};
+        else return addr_to_string(this, scope->vars->vm.mem.str_alloc());
+    }
+
     VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
@@ -724,7 +729,8 @@ namespace funscript {
         callback(obj);
     }
 
-    VM::Error::Error(Object *obj) : obj(obj) {}
+    VM::Error::Error(funscript::VM::Object *obj, const FVec<funscript::VM::Error::stack_trace_element> &stacktrace) :
+            obj(obj), stacktrace(stacktrace) {}
 
     void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);
