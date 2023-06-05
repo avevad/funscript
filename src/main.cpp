@@ -26,7 +26,7 @@ std::string display(const VM::Value &val) {
             out << "object(" << val.data.obj << ")";
             break;
         case Type::FUN:
-            out << "function(" << val.data.fun->repr() << ")";
+            out << val.data.fun->display();
             break;
         case Type::BLN:
             out << (val.data.bln ? "yes" : "no");

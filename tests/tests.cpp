@@ -9,7 +9,7 @@
 
 // Note: later tests can use features tested in earlier ones
 
-TEST_CASE("Integer expressions", "[expr_int]") {
+TEST_CASE("Integers", "[integers]") {
     TestEnv env;
     SECTION("Arithmetic") {
         CHECK_THAT("(2 + 3) * 2", EVALUATES_TO(10));
@@ -23,7 +23,7 @@ TEST_CASE("Integer expressions", "[expr_int]") {
     };
 }
 
-TEST_CASE("Floating point expressions", "[expr_flp]") {
+TEST_CASE("Floating point numbers", "[floats]") {
     TestEnv env;
     SECTION("Arithmetic") {
         CHECK_THAT("5. / 2., .5 * 2.", EVALUATES_TO(2.5, 1.));

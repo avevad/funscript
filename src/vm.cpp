@@ -623,7 +623,7 @@ namespace funscript {
             FVec<Error::stack_trace_element> stacktrace(vm.mem.std_alloc<Error::stack_trace_element>());
             stacktrace.reserve(frames.size());
             for (size_t pos = 0; pos < frames.size(); pos++) {
-                stacktrace.push_back({.function = "function(" + frames[pos]->fun->repr() + ")"});
+                stacktrace.push_back({.function = frames[pos]->fun->display()});
             }
             auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
             push_err(err.get());
@@ -716,9 +716,9 @@ namespace funscript {
                                                                                               bytecode(bytecode),
                                                                                               offset(offset) {}
 
-    FStr VM::BytecodeFunction::repr() const {
-        if (offset == 0) return {"'<main>'", scope->vars->vm.mem.str_alloc()};
-        else return addr_to_string(this, scope->vars->vm.mem.str_alloc());
+    FStr VM::BytecodeFunction::display() const {
+        if (offset == 0) return {"function '<start>'", scope->vars->vm.mem.str_alloc()};
+        else return "function(" + addr_to_string(this, scope->vars->vm.mem.str_alloc()) + ")";
     }
 
     VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}

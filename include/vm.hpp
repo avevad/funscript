@@ -159,10 +159,9 @@ namespace funscript {
 
             /**
              * Produces the string representation of the function.
-             * The function should be displayed as `function(repr)` where `repr` is whatever this virtual method returns.
-             * @return The representation of the function.
+             * @return A short string string that represents this function.
              */
-            [[nodiscard]] virtual FStr repr() const = 0;
+            [[nodiscard]] virtual FStr display() const = 0;
         };
 
         class BytecodeFunction;
@@ -194,7 +193,7 @@ namespace funscript {
         public:
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
-            [[nodiscard]] virtual FStr repr() const override;
+            [[nodiscard]] virtual FStr display() const override;
 
             BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
         };
