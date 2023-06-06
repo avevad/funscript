@@ -12,7 +12,7 @@ namespace funscript::util {
         std::vector<Token> tokens;
         tokenize(filename, expr, [&tokens](auto token) { tokens.push_back(token); });
         // Parse array of tokens
-        ast_ptr ast = parse(tokens);
+        ast_ptr ast = parse(filename, tokens);
         // Compile the expression AST
         Assembler as;
         as.compile_expression(ast.get());

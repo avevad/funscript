@@ -114,7 +114,7 @@ namespace funscript {
 
     class CompilationError : public std::runtime_error {
     public:
-        explicit CompilationError(const std::string &msg);
+        explicit CompilationError(const std::string &filename, const code_loc_t &loc, const std::string &msg);
     };
 
     /**
@@ -149,13 +149,21 @@ namespace funscript {
     class AST {
         friend Assembler;
     public:
+        const std::string filename; // Name of the source file of the expression.
+        const code_loc_t token_loc; // Location of the token which forms the expression.
+
         virtual u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) = 0;
         virtual u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) = 0;
 
         [[nodiscard]] virtual std::string get_identifier() const;
         [[nodiscard]] virtual std::pair<AST *, AST *> get_then() const;
 
-        explicit AST();
+        /**
+         * @return Full source location of the whole expression.
+         */
+        [[nodiscard]] virtual code_loc_t get_location() const;
+
+        explicit AST(std::string filename, code_loc_t token_loc);
 
         virtual ~AST() = default;
     };
@@ -170,7 +178,7 @@ namespace funscript {
      * @param tokens Vector of code tokens.
      * @return Resulting AST node.
      */
-    ast_ptr parse(std::vector<Token> tokens);
+    ast_ptr parse(const std::string &filename, std::vector<Token> tokens);
 
     /**
      * A structure that holds some static operator metadata
@@ -222,7 +230,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        explicit IntegerAST(int64_t num);
+        explicit IntegerAST(const std::string &filename, code_loc_t token_loc, int64_t num);
     };
 
     /**
@@ -234,7 +242,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        explicit FloatAST(double flp);
+        explicit FloatAST(const std::string &filename, code_loc_t token_loc, double flp);
     };
 
     /**
@@ -248,7 +256,7 @@ namespace funscript {
 
         std::string get_identifier() const override;
     public:
-        explicit IdentifierAST(std::string name);
+        explicit IdentifierAST(const std::string &filename, code_loc_t token_loc, std::string name);
     };
 
     /**
@@ -263,8 +271,10 @@ namespace funscript {
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
 
         std::pair<AST *, AST *> get_then() const override;
+
+        code_loc_t get_location() const override;
     public:
-        OperatorAST(AST *left, AST *right, Operator op);
+        OperatorAST(const std::string &filename, code_loc_t token_loc, AST *left, AST *right, Operator op);
     };
 
     /**
@@ -274,7 +284,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        NulAST();
+        NulAST(const std::string &filename, code_loc_t token_loc);
     };
 
     /**
@@ -284,7 +294,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        VoidAST();
+        VoidAST(const std::string &filename, code_loc_t token_loc);
     };
 
     /**
@@ -297,7 +307,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        BracketAST(AST *child, Bracket type);
+        BracketAST(const std::string &filename, code_loc_t token_loc, AST *child, Bracket type);
     };
 
     /**
@@ -309,7 +319,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        explicit BooleanAST(bool bln);
+        explicit BooleanAST(const std::string &filename, code_loc_t token_loc, bool bln);
     };
 
     /**
@@ -321,7 +331,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        explicit StringAST(std::string str);
+        explicit StringAST(const std::string &filename, code_loc_t token_loc, std::string str);
     };
 }
 

@@ -1,16 +1,22 @@
 #include "ast.hpp"
 
+#include <utility>
+
 namespace funscript {
 
     std::string AST::get_identifier() const {
-        throw CompilationError("not an identifier");
+        throw CompilationError(filename, get_location(), "not an identifier");
     }
 
     std::pair<AST *, AST *> AST::get_then() const {
-        throw CompilationError("not a `then` operator");
+        throw CompilationError(filename, get_location(), "not a `then` operator");
     }
 
-    AST::AST() = default;
+    AST::AST(std::string filename, code_loc_t location) : filename(std::move(filename)), token_loc(location) {}
+
+    code_loc_t AST::get_location() const {
+        return token_loc;
+    }
 
     u_ev_opt_info IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::INT), static_cast<uint64_t>(num)});
@@ -18,10 +24,11 @@ namespace funscript {
     }
 
     u_mv_opt_info IntegerAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        throw CompilationError("expression is not assignable");
+        throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 
-    IntegerAST::IntegerAST(int64_t num) : num(num) {}
+    IntegerAST::IntegerAST(const std::string &filename, code_loc_t token_loc, int64_t num) : AST(filename, token_loc),
+                                                                                             num(num) {}
 
     u_ev_opt_info IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VGT, false, 0 /* Will be overwritten to actual name location */});
@@ -35,7 +42,8 @@ namespace funscript {
         return {.no_scope = true};
     }
 
-    IdentifierAST::IdentifierAST(std::string name) : name(std::move(name)) {}
+    IdentifierAST::IdentifierAST(const std::string &filename, code_loc_t token_loc,
+                                 std::string name) : AST(filename, token_loc), name(std::move(name)) {}
 
     std::string IdentifierAST::get_identifier() const {
         return name;
@@ -187,16 +195,22 @@ namespace funscript {
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             default:
-                throw CompilationError("expression is not assignable");
+                throw CompilationError(filename, get_location(), "expression is not assignable");
         }
     }
 
-    OperatorAST::OperatorAST(funscript::AST *left, funscript::AST *right, funscript::Operator op) : left(left),
-                                                                                                    right(right),
-                                                                                                    op(op) {}
+    OperatorAST::OperatorAST(const std::string &filename, code_loc_t token_loc,
+                             AST *left, AST *right, funscript::Operator op) : AST(filename, token_loc),
+                                                                              left(left),
+                                                                              right(right),
+                                                                              op(op) {}
 
     std::pair<AST *, AST *> OperatorAST::get_then() const {
         return {left.get(), right.get()};
+    }
+
+    code_loc_t OperatorAST::get_location() const {
+        return {left->get_location().beg, right->get_location().end};
     }
 
     u_ev_opt_info NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
@@ -205,10 +219,10 @@ namespace funscript {
     }
 
     u_mv_opt_info NulAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        throw CompilationError("expression is not assignable");
+        throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 
-    NulAST::NulAST() = default;
+    NulAST::NulAST(const std::string &filename, code_loc_t token_loc) : AST(filename, token_loc) {}
 
     u_ev_opt_info VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         return {.no_scope = true};
@@ -218,7 +232,7 @@ namespace funscript {
         return {.no_scope = true};
     }
 
-    VoidAST::VoidAST() = default;
+    VoidAST::VoidAST(const std::string &filename, code_loc_t token_loc) : AST(filename, token_loc) {}
 
     u_ev_opt_info BracketAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         u_ev_opt_info u_opt0;
@@ -260,12 +274,14 @@ namespace funscript {
                 break;
             case Bracket::CURLY:
             case Bracket::SQUARE:
-                throw CompilationError("expression is not assignable");
+                throw CompilationError(filename, get_location(), "expression is not assignable");
         }
         return {.no_scope = u_opt0.no_scope};
     }
 
-    BracketAST::BracketAST(funscript::AST *child, funscript::Bracket type) : type(type), child(child) {}
+    BracketAST::BracketAST(const std::string &filename, code_loc_t token_loc,
+                           funscript::AST *child, funscript::Bracket type) : AST(filename, token_loc), type(type),
+                                                                             child(child) {}
 
     u_ev_opt_info BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::BLN), static_cast<uint64_t>(bln)});
@@ -273,12 +289,14 @@ namespace funscript {
     }
 
     u_mv_opt_info BooleanAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        throw CompilationError("expression is not assignable");
+        throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 
-    BooleanAST::BooleanAST(bool bln) : bln(bln) {}
+    BooleanAST::BooleanAST(const std::string &filename, code_loc_t token_loc, bool bln) : AST(filename, token_loc),
+                                                                                          bln(bln) {}
 
-    StringAST::StringAST(std::string str) : str(std::move(str)) {}
+    StringAST::StringAST(const std::string &filename, code_loc_t token_loc,
+                         std::string str) : AST(filename, token_loc), str(std::move(str)) {}
 
     u_ev_opt_info StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::STR,
@@ -288,10 +306,11 @@ namespace funscript {
     }
 
     u_mv_opt_info StringAST::compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) {
-        throw CompilationError("expression is not assignable");
+        throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 
-    FloatAST::FloatAST(double flp) : flp(flp) {}
+    FloatAST::FloatAST(const std::string &filename, code_loc_t token_loc,
+                       double flp) : AST(filename, token_loc), flp(flp) {}
 
     u_ev_opt_info FloatAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::FLP), *reinterpret_cast<uint64_t *>(&flp)});
@@ -299,6 +318,6 @@ namespace funscript {
     }
 
     u_mv_opt_info FloatAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        throw CompilationError("expression is not assignable");
+        throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 }

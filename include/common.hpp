@@ -32,6 +32,10 @@ namespace funscript {
      */
     struct code_loc_t {
         code_pos_t beg, end;
+
+        [[nodiscard]] std::string to_string() const {
+            return beg.to_string() + '-' + end.to_string();
+        }
     };
 
     enum class Type : uint8_t {
