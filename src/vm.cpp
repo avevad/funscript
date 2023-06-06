@@ -339,6 +339,26 @@ namespace funscript {
                         push_flp(a * b);
                         break;
                     }
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::INT) {
+                        fint k = get(pos_b).data.num;
+                        size_t len = get(pos_a).data.arr->len();
+                        Value *src = get(pos_a).data.arr->begin();
+                        auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
+                        for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
+                        pop(-4);
+                        push_arr(dst.get());
+                        break;
+                    }
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::ARR) {
+                        fint k = get(pos_a).data.num;
+                        size_t len = get(pos_b).data.arr->len();
+                        Value *src = get(pos_b).data.arr->begin();
+                        auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
+                        for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
+                        pop(-4);
+                        push_arr(dst.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::DIVIDE: {

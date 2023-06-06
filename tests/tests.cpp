@@ -171,4 +171,9 @@ TEST_CASE("Arrays", "[arrays]") {
         REQUIRE_THAT(".defgh = ['d', 'e', 'f', 'g', 'h']", SUCCEEDS);
         REQUIRE_THAT("(abc + defgh)[6, 5, 1]", EVALUATES_TO("g", "f", "b"));
     };
+    SECTION("Multiplication") {
+        REQUIRE_THAT(".arr = ['test', no, 5]", SUCCEEDS);
+        CHECK_THAT("(arr * 5)[7]", EVALUATES_TO(false));
+        CHECK_THAT("(9 * arr)[9 * 3 - 1]", EVALUATES_TO(5));
+    };
 }
