@@ -27,30 +27,36 @@ namespace funscript {
 
             Chunk(size_t id);
 
+        public:
+            const size_t id;
+
             /**
              * Appends raw presentation of any bytes at the end of the chunk content.
              * @tparam T Type of the bytes.
              * @param x The bytes to be appended.
+             * @return Position of appended bytes.
              */
             template<typename T>
-            void put(T x = T()) { bytes.append(reinterpret_cast<const char *>(&x), sizeof x); }
-
-        public:
-            const size_t id;
+            size_t put(T x = T()) {
+                if (size_t rem = size() % alignof(T)) bytes.append(alignof(T) - rem, '\0');
+                size_t pos = size();
+                bytes.append(reinterpret_cast<const char *>(&x), sizeof x);
+                return pos;
+            }
 
             /**
              * Appends raw presentation of instruction at the end of chunk content.
              * @param ins The instruction to be appended.
              * @return Final size of the chunk.
              */
-            size_t put_instruction(Instruction ins = Opcode::NOP);
+            size_t put_instruction(Instruction ins = {Opcode::NOP, 0, 0, 0});
 
             /**
              * Puts raw presentation of instruction at the specified offset of chunk bytes.
              * @param pos The offset.
              * @param ins The instruction to be put.
              */
-            void set_instruction(size_t pos, Instruction ins = Opcode::NOP);
+            void set_instruction(size_t pos, Instruction ins);
 
             /**
              * @return Current size of chunk content.
@@ -59,7 +65,7 @@ namespace funscript {
         };
 
     private:
-        static const constexpr size_t DATA = 0; // The ID of the bytes chunk which is always zero
+        static const constexpr size_t DATA = 0; // The ID of the data chunk which is always zero
 
         /**
          * @brief The structure that holds info about deferred insertion of pointer.
@@ -75,6 +81,9 @@ namespace funscript {
         std::vector<std::unique_ptr<Chunk>> chunks; // Collection of code chunks.
         std::vector<pointer> pointers; // Collection of scheduled pointer insertions.
     public:
+
+        Chunk &data_chunk();
+
         /**
          * Schedules delayed pointer insertion.
          */

@@ -65,6 +65,7 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
             for (const auto &e : (*stack)[-1].data.err->stacktrace) {
                 std::cout << "!";
                 std::cout << " in " << e.function;
+                std::cout << " at " << e.meta;
                 std::cout << std::endl;
             }
             std::cout << "! ";

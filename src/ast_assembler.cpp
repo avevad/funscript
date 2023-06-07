@@ -37,15 +37,24 @@ namespace funscript {
         chunks.clear();
         pointers.clear();
         new_chunk(); // Data chunk
+        add_string(ast->filename);
         auto &ch = new_chunk(); // Main chunk
-        ch.put_instruction({Opcode::DIS}); // Discard any arguments in the main function
+        ch.put_instruction({Opcode::DIS, uint32_t(data_chunk().put(ast->get_location().beg)), 0,
+                            0}); // Discard any arguments in the main function
+        ch.put_instruction({Opcode::MET, 0, 0, 0 /* Will be overwritten to actual DATA chunk location */});
+        add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), DATA, 0);
         ast->compile_eval(*this, ch, {});
-        ch.put_instruction({Opcode::END});
+        ch.put_instruction({Opcode::END, uint32_t(data_chunk().put(ast->get_location().end)), 0, 0});
     }
 
     size_t Assembler::total_size() const {
         size_t size = 0;
-        for (auto &ch : chunks) size += ch->size();
+        for (size_t i = 0; i < chunks.size(); i++) {
+            // Every chunk must be aligned by maximum alignment
+            if (size_t rem = size % alignof(std::max_align_t)) size += alignof(std::max_align_t) - rem;
+            size_t ch_id = (i + 1) % chunks.size(); // Data chunk should be placed at the end
+            size += chunks.at(ch_id)->size();
+        }
         return size;
     }
 
@@ -54,6 +63,8 @@ namespace funscript {
         // Concatenating all chunks in proper order, remembering their start positions
         size_t pos = 0;
         for (size_t i = 0; i < chunks.size(); i++) {
+            // Every chunk must be aligned by maximum alignment
+            if (size_t rem = pos % alignof(std::max_align_t)) pos += alignof(std::max_align_t) - rem;
             size_t ch_id = (i + 1) % chunks.size(); // Data chunk should be at the end, so we rotate chunks by 1
             chunks_pos[ch_id] = pos;
             memcpy(buffer + pos, chunks[ch_id]->bytes.data(),
@@ -66,5 +77,9 @@ namespace funscript {
             size_t from_real_pos = chunks_pos[from_chunk] + from_pos;
             memcpy(buffer + from_real_pos, &to_real_pos, sizeof to_real_pos);
         }
+    }
+
+    Assembler::Chunk &Assembler::data_chunk() {
+        return *chunks[DATA];
     }
 }

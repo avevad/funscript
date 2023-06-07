@@ -19,7 +19,8 @@ namespace funscript {
     }
 
     u_ev_opt_info IntegerAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::INT), static_cast<uint64_t>(num)});
+        ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            static_cast<uint16_t>(Type::INT), static_cast<uint64_t>(num)});
         return {.no_scope = true};
     }
 
@@ -31,13 +32,15 @@ namespace funscript {
                                                                                              num(num) {}
 
     u_ev_opt_info IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VGT, false, 0 /* Will be overwritten to actual name location */});
+        ch.put_instruction({Opcode::VGT, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
         return {.no_scope = true};
     }
 
     u_mv_opt_info IdentifierAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VST, false, 0 /* Will be overwritten to actual name location */});
+        ch.put_instruction({Opcode::VST, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            false, 0 /* Will be overwritten to actual name location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(name));
         return {.no_scope = true};
     }
@@ -52,11 +55,12 @@ namespace funscript {
     u_ev_opt_info OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         switch (op) {
             case Operator::ASSIGN: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::REV);
+                ch.put_instruction({Opcode::REV, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
                 u_mv_opt_info u_opt2 = left->compile_move(as, ch, {});
-                ch.put_instruction({Opcode::DIS, true});
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)), true, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::APPEND: {
@@ -65,108 +69,140 @@ namespace funscript {
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::DISCARD: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::DIS);
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::LAMBDA: {
                 auto &new_ch = as.new_chunk(); // Chunk of the new function
-                ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::FUN), 0});
+                ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    static_cast<uint16_t>(Type::FUN), 0});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), new_ch.id, 0);
                 // Here goes the bytecode of new function
-                new_ch.put_instruction({Opcode::SCP, true}); // Create the scope of the function
+                new_ch.put_instruction({Opcode::MET, 0, 0, 0 /* Will be overwritten to actual DATA chunk location */});
+                as.add_pointer(new_ch.id, new_ch.size() - sizeof(Instruction::u64), as.data_chunk().id, 0);
+                new_ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        true, 0}); // Create the scope of the function
                 u_mv_opt_info u_opt1 = left->compile_move(as, new_ch, {}); // Assign function arguments
-                new_ch.put_instruction({Opcode::DIS, true}); // Discard the separator after the arguments
+                new_ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        true, 0}); // Discard the separator after the arguments
                 u_ev_opt_info u_opt2 = right->compile_eval(as, new_ch, {}); // Evaluate function body
-                new_ch.put_instruction({Opcode::SCP, false}); // Discard the scope ot the function
-                new_ch.put_instruction(Opcode::END);
+                new_ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        false, 0}); // Discard the scope ot the function
+                new_ch.put_instruction({Opcode::END, uint32_t(as.data_chunk().put(right->get_location().end)),
+                                        0, 0});
                 return {.no_scope = true};
             }
             case Operator::INDEX: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::GET, false, 0 /* Will be overwritten to actual name location */});
+                ch.put_instruction({Opcode::GET, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    false, 0 /* Will be overwritten to actual name location */});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
                 return {.no_scope = false};
             }
             case Operator::THEN: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 auto pos = ch.put_instruction(); // Position of jump instruction (over `then` expression)
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
-                ch.set_instruction(pos, Opcode::JNO);
+                ch.set_instruction(pos, {Opcode::JNO, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                         0, 0});
                 as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::ELSE: {
                 auto [cond, then] = left->get_then();
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(cond->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = cond->compile_eval(as, ch, {});
                 auto pos1 = ch.put_instruction(); // Position of jump instruction (over `then` expression)
                 u_ev_opt_info u_opt2 = then->compile_eval(as, ch, {});
                 auto pos2 = ch.put_instruction(); // Position of jump instruction (over `else` expression)
-                ch.set_instruction(pos1, Opcode::JNO);
+                ch.set_instruction(pos1, {Opcode::JNO, uint32_t(as.data_chunk().put(left->token_loc.beg)),
+                                          0, 0});
                 as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
                 u_ev_opt_info u_opt3 = right->compile_eval(as, ch, {});
-                ch.set_instruction(pos2, Opcode::JMP);
+                ch.set_instruction(pos2, {Opcode::JMP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                          0, 0});
                 as.add_pointer(ch.id, pos2 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope && u_opt3.no_scope};
             }
             case Operator::UNTIL: {
                 auto pos = ch.size(); // Position of where to jump back
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)), 0, 0});
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::JNO);
+                ch.put_instruction({Opcode::JNO, uint32_t(as.data_chunk().put(right->get_location().end)), 0, 0});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos);
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::DO: {
                 auto pos0 = ch.size(); // Position of where to jump back
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
                 auto pos1 = ch.put_instruction(); // Position of jump instruction (over the body of the loop)
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::JMP);
+                ch.put_instruction({Opcode::JMP, uint32_t(as.data_chunk().put(right->get_location().end)),
+                                    0, 0});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos0);
-                ch.set_instruction(pos1, Opcode::JNO);
+                ch.set_instruction(pos1, {Opcode::JNO, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                          0, 0});
                 as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::AND: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::DUP); // Preserve the value before implicitly converting it to boolean
+                ch.put_instruction({Opcode::DUP, uint32_t(as.data_chunk().put(left->get_location().end)),
+                                    0, 0}); // Preserve the value before implicitly converting it to boolean
                 auto pos = ch.put_instruction(); // Position of jump instruction (over the right operand)
-                ch.put_instruction(Opcode::DIS);
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(left->get_location().end)),
+                                    0, 0});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
-                ch.set_instruction(pos, Opcode::JNO);
+                ch.set_instruction(pos, {Opcode::JNO, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                         0, 0});
                 as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                ch.put_instruction(Opcode::REM);
+                ch.put_instruction({Opcode::REM, uint32_t(as.data_chunk().put(get_location().end)),
+                                    0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::OR: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::DUP); // Preserve the value before implicitly converting it to boolean
+                ch.put_instruction({Opcode::DUP, uint32_t(as.data_chunk().put(left->get_location().end)),
+                                    0, 0}); // Preserve the value before implicitly converting it to boolean
                 auto pos = ch.put_instruction(); // Position of jump instruction (over the right operand)
-                ch.put_instruction(Opcode::DIS);
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(left->get_location().end)),
+                                    0, 0});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt2 = right->compile_eval(as, ch, {});
-                ch.set_instruction(pos, Opcode::JYS);
+                ch.set_instruction(pos, {Opcode::JYS, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                         0, 0});
                 as.add_pointer(ch.id, pos + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
-                ch.put_instruction(Opcode::REM);
+                ch.put_instruction({Opcode::REM, uint32_t(as.data_chunk().put(get_location().beg)),
+                                    0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             default: {
-                ch.put_instruction({Opcode::SEP});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::SEP});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::OPR, static_cast<uint16_t>(op)});
+                ch.put_instruction({Opcode::OPR, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    static_cast<uint16_t>(op), 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
         }
@@ -180,18 +216,22 @@ namespace funscript {
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::INDEX: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)), 0, 0});
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::SET, false, 0 /* Will be overwritten to actual name location */});
+                ch.put_instruction({Opcode::SET, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    false, 0 /* Will be overwritten to actual name location */});
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
                 return {.no_scope = false};
             }
             case Operator::CALL: {
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::SEP);
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
                 u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::MOV);
+                ch.put_instruction({Opcode::MOV, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             default:
@@ -214,7 +254,8 @@ namespace funscript {
     }
 
     u_ev_opt_info NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::NUL)});
+        ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            static_cast<uint16_t>(Type::NUL), 0});
         return {.no_scope = true};
     }
 
@@ -238,28 +279,48 @@ namespace funscript {
         u_ev_opt_info u_opt0;
         switch (type) {
             case Bracket::PLAIN: {
-                size_t scp_pos = ch.put_instruction({Opcode::SCP, true});
+                size_t scp_pos = ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                                     true, 0});
                 u_opt0 = child->compile_eval(as, ch, {});
-                ch.put_instruction({u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, false});
-                if (u_opt0.no_scope) ch.set_instruction(scp_pos, Opcode::NOP);
+                ch.put_instruction(
+                        {u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.end)),
+                         false, 0});
+                if (u_opt0.no_scope) {
+                    ch.set_instruction(scp_pos, {Opcode::NOP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                                 0, 0});
+                }
                 break;
             }
             case Bracket::CURLY: {
-                ch.put_instruction({Opcode::SCP, true}); // Create object scope
-                ch.put_instruction({Opcode::SEP});
+                ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    true, 0}); // Create object scope
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(child->get_location().beg)),
+                                    0, 0});
                 u_opt0 = child->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::DIS}); // Discard all values produced by sub-expression
-                ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::OBJ)}); // Create an object from scope
-                ch.put_instruction({Opcode::SCP, false}); // Discard object scope
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(child->get_location().end)),
+                                    0, 0}); // Discard all values produced by sub-expression
+                ch.put_instruction(
+                        {Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.end)), static_cast<uint16_t>(Type::OBJ),
+                         0}); // Create an object from scope
+                ch.put_instruction(
+                        {Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.end)), false, 0}); // Discard object scope
                 break;
             }
             case Bracket::SQUARE: {
-                size_t scp_pos = ch.put_instruction({Opcode::SCP, true});
-                ch.put_instruction(Opcode::SEP);
+                size_t scp_pos = ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                                     true, 0});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(child->get_location().beg)),
+                                    0, 0});
                 u_opt0 = child->compile_eval(as, ch, {});
-                ch.put_instruction(Opcode::ARR);
-                ch.put_instruction({u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, false});
-                if (u_opt0.no_scope) ch.set_instruction(scp_pos, Opcode::NOP);
+                ch.put_instruction({Opcode::ARR, uint32_t(as.data_chunk().put(token_loc.end)),
+                                    0, 0});
+                ch.put_instruction(
+                        {u_opt0.no_scope ? Opcode::NOP : Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.end)),
+                         false, 0});
+                if (u_opt0.no_scope) {
+                    ch.set_instruction(scp_pos, {Opcode::NOP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                                 0, 0});
+                }
                 break;
             }
         }
@@ -284,7 +345,8 @@ namespace funscript {
                                                                              child(child) {}
 
     u_ev_opt_info BooleanAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::BLN), static_cast<uint64_t>(bln)});
+        ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            static_cast<uint16_t>(Type::BLN), static_cast<uint64_t>(bln)});
         return {.no_scope = true};
     }
 
@@ -299,7 +361,7 @@ namespace funscript {
                          std::string str) : AST(filename, token_loc), str(std::move(str)) {}
 
     u_ev_opt_info StringAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::STR,
+        ch.put_instruction({Opcode::STR, uint32_t(as.data_chunk().put(token_loc.beg)),
                             static_cast<uint16_t>(str.size()), 0 /* Will be overwritten to actual string location */});
         as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(str));
         return {.no_scope = true};
@@ -313,7 +375,8 @@ namespace funscript {
                        double flp) : AST(filename, token_loc), flp(flp) {}
 
     u_ev_opt_info FloatAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VAL, static_cast<uint16_t>(Type::FLP), *reinterpret_cast<uint64_t *>(&flp)});
+        ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
+                            static_cast<uint16_t>(Type::FLP), *reinterpret_cast<uint64_t *>(&flp)});
         return {.no_scope = true};
     }
 

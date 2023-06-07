@@ -91,19 +91,31 @@ namespace funscript {
 
     void VM::Stack::exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         try {
+            Frame *frame = frames.back();
             const auto *bytecode = bytecode_obj->bytes.data();
             const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
             auto cur_scope = MemoryManager::AutoPtr<Scope>(vm.mem, scope);
+            const char *meta_chunk = nullptr;
+            code_met_t meta{.filename = nullptr};
             while (true) {
                 if (kbd_int) {
                     kbd_int = 0;
                     return raise_err("keyboard interrupt", frame_start);
                 }
                 Instruction ins = *ip;
+                if (meta_chunk && ins.meta) {
+                    meta.position = *reinterpret_cast<const code_pos_t *>(meta_chunk + ins.meta);
+                }
                 switch (ins.op) {
                     case Opcode::NOP:
                         ip++;
                         break;
+                    case Opcode::MET: {
+                        meta.filename = meta_chunk = bytecode + ins.u64;
+                        frame->meta_ptr = &meta;
+                        ip++;
+                        break;
+                    }
                     case Opcode::VAL: {
                         Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
                         if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
@@ -161,6 +173,9 @@ namespace funscript {
                         if (get(-1).type == Type::SEP) {
                             pop();
                             if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
+                            if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
+                                get(-1).data.fun->assign_name(name);
+                            }
                             cur_scope->vars->set_field(name, get(-1));
                             pop();
                         } else {
@@ -173,6 +188,9 @@ namespace funscript {
                             if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                             pop();
                             if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
+                            if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
+                                get(-1).data.fun->assign_name(name);
+                            }
                             obj->set_field(name, get(-1));
                             pop();
                             vm.mem.gc_unpin(obj);
@@ -195,6 +213,9 @@ namespace funscript {
                         if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                         if (!cur_scope->set_var(name, get(-1))) {
                             return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                        }
+                        if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
+                            get(-1).data.fun->assign_name(name);
                         }
                         pop();
                         ip++;
@@ -643,7 +664,14 @@ namespace funscript {
             FVec<Error::stack_trace_element> stacktrace(vm.mem.std_alloc<Error::stack_trace_element>());
             stacktrace.reserve(frames.size());
             for (size_t pos = 0; pos < frames.size(); pos++) {
-                stacktrace.push_back({.function = frames[pos]->fun->display()});
+                FStr meta_str(vm.mem.str_alloc());
+                if (frames[pos]->meta_ptr) {
+                    if (const char *filename = frames[pos]->meta_ptr->filename) meta_str += filename;
+                    else meta_str += "?";
+                    meta_str += ":";
+                    meta_str += frames[pos]->meta_ptr->position.to_string();
+                }
+                stacktrace.push_back({.function = frames[pos]->fun->display(), .meta = meta_str});
             }
             auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
             push_err(err.get());
@@ -737,8 +765,8 @@ namespace funscript {
                                                                                               offset(offset) {}
 
     FStr VM::BytecodeFunction::display() const {
-        if (offset == 0) return {"function '<start>'", scope->vars->vm.mem.str_alloc()};
-        else return "function(" + addr_to_string(this, scope->vars->vm.mem.str_alloc()) + ")";
+        if (get_name().has_value()) return "function " + get_name().value();
+        return "function(" + addr_to_string(this, scope->vars->vm.mem.str_alloc()) + ")";
     }
 
     VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}
@@ -792,4 +820,15 @@ namespace funscript {
     }
 
     VM::StackOverflowError::StackOverflowError() {}
+
+    VM::Function::Function() : name(std::nullopt) {}
+
+    const std::optional<FStr> &VM::Function::get_name() const {
+        return name;
+    }
+
+    void VM::Function::assign_name(const FStr &as_name) {
+        if (name.has_value()) assertion_failed("function name reassignment");
+        name = as_name;
+    }
 }

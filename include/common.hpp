@@ -38,6 +38,14 @@ namespace funscript {
         }
     };
 
+    /**
+     * Structure that represents the execution metadata (filename, line, column)
+     */
+    struct code_met_t {
+        const char *filename;
+        code_pos_t position;
+    };
+
     enum class Type : uint8_t {
         NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR, FLP
     };
@@ -136,16 +144,22 @@ namespace funscript {
         /**
          * @brief Remove the topmost separator.
          */
-        REM
+        REM,
+        /**
+         * @brief Set location of metadata chunk (basically, the location of DATA chunk).
+         * Metadata chunk should start with the name of the file, in which the function is located.
+         * @u64 Bytecode offset of metadata chunk.
+         */
+        MET,
     };
 
     struct Instruction {
         Opcode op;
         uint16_t u16;
-        uint32_t reserved;
+        uint32_t meta;
         uint64_t u64;
 
-        Instruction(Opcode op, uint16_t u16 = 0, uint64_t u64 = 0) : op(op), u16(u16), reserved(0), u64(u64) {}
+        Instruction(Opcode op, uint32_t meta, uint16_t u16, uint64_t u64) : op(op), u16(u16), meta(meta), u64(u64) {}
     };
 
     /**

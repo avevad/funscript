@@ -22,6 +22,7 @@ namespace funscript::util {
         auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(bytes);
         // Create temporary environment for expression evaluation
         auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(scope, bytecode.get());
+        start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start.get());
         // Execute expression evaluation
         stack->continue_execution();

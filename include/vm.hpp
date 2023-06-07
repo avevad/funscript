@@ -96,6 +96,7 @@ namespace funscript {
         public:
             struct stack_trace_element {
                 FStr function;
+                FStr meta;
             };
 
             Object *const obj; // Contents of the error.
@@ -140,6 +141,7 @@ namespace funscript {
         class Frame : public Allocation {
             friend VM::Stack;
             Function *fun; // The function to be called in this frame.
+            code_met_t *meta_ptr;
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
@@ -151,10 +153,11 @@ namespace funscript {
          */
         class Function : public Allocation {
             friend VM::Stack;
+            std::optional<FStr> name;
 
             virtual void call(VM::Stack &stack, Frame *frame) = 0;
         public:
-            Function() = default;
+            Function();
             ~Function() override = default;
 
             /**
@@ -162,6 +165,10 @@ namespace funscript {
              * @return A short string string that represents this function.
              */
             [[nodiscard]] virtual FStr display() const = 0;
+
+            [[nodiscard]] const std::optional<FStr> &get_name() const;
+
+            void assign_name(const FStr &as_name);
         };
 
         class BytecodeFunction;
