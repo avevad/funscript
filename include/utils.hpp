@@ -6,6 +6,15 @@
 #include "vm.hpp"
 
 namespace funscript::util {
+
+    MemoryManager::AutoPtr<VM::Stack>
+    eval_fn(VM &vm, VM::Function *start) {
+        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
+        // Execute expression evaluation
+        stack->continue_execution();
+        return stack;
+    }
+
     MemoryManager::AutoPtr<VM::Stack>
     eval_expr(VM &vm, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
         // Split expression into array of tokens
@@ -23,10 +32,7 @@ namespace funscript::util {
         // Create temporary environment for expression evaluation
         auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(scope, bytecode.get());
         start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start.get());
-        // Execute expression evaluation
-        stack->continue_execution();
-        return stack;
+        return eval_fn(vm, start.get());
     } catch (const CodeReadingError &err) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
         stack->raise_err(std::string("syntax error: ") + err.what(), 0);

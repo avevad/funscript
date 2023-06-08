@@ -724,6 +724,10 @@ namespace funscript {
         fields[key] = val;
     }
 
+    const decltype(VM::Object::fields) &VM::Object::get_fields() const {
+        return fields;
+    }
+
     void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(vars);
         callback(prev_scope);
