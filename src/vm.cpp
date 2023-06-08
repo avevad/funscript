@@ -526,7 +526,7 @@ namespace funscript {
                     return raise_op_err(op);
                 }
                 case Operator::NOT: {
-                    if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::INT) {
+                    if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::BLN) {
                         return raise_op_err(op);
                     }
                     bool bln = get(pos_b).data.bln;
