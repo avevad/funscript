@@ -3,6 +3,7 @@
 #include <sstream>
 #include <fstream>
 #include <filesystem>
+#include <dlfcn.h>
 
 #include "tokenizer.hpp"
 #include "vm.hpp"
@@ -13,12 +14,21 @@ using namespace funscript;
 const char *MODULE_LOAD_FILENAME = "_load.fs";
 const char *MODULE_EXPORTS_VAR = "exports";
 const char *MODULE_START_VAR = "start";
+const char *NATIVE_SYM_FN_SUFFIX = "_native_sym";
+
+static std::string get_module_alias(const std::string &name) {
+    return name.substr(0, name.find('_'));
+}
 
 struct module_conf_t {
     std::optional<std::string> name = std::nullopt; // The name of the module.
     std::vector<std::string> deps = {}; // The modules to be loaded before this module.
     std::vector<std::string> imps = {}; // The modules to be imported into this module's scope.
 };
+
+static const char *get_dl_extension() {
+    return ".so";
+}
 
 int main(int argc, const char **argv) {
     std::vector<std::string> args(argv, argv + argc);
@@ -71,9 +81,51 @@ int main(int argc, const char **argv) {
                   .stack_frames_max = 1024 /* 1 Ki */
           });
     std::unordered_map<std::string, MemoryManager::AutoPtr<VM::Object>> loaded_modules;
+    auto load_module_native = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Object> {
+        std::filesystem::path lib_path = modules_path / (module_conf.name.value() + get_dl_extension());
+        dlerror();
+        auto lib_handle = dlopen(lib_path.c_str(), RTLD_NOW);
+        if (!lib_handle) {
+            std::cerr << args[0] << ": can't load native module '" << module_conf.name.value() << "': " << dlerror()
+                      << std::endl;
+            return {vm.mem, nullptr};
+        }
+        auto module_exports = vm.mem.gc_new_auto<VM::Object>(vm);
+        auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
+                vm, [lib_handle](VM::Stack &stack, VM::Frame *frame) -> void {
+                    auto frame_start = stack.find_sep();
+                    auto name_val = stack[-1];
+                    if (name_val.type != Type::STR || stack[-2].type != Type::SEP) {
+                        return stack.raise_err("symbol name is required", frame_start);
+                    }
+                    auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &, VM::Frame *)>(
+                            dlsym(lib_handle, name_val.data.str->bytes.c_str())
+                    );
+                    if (!fn_ptr) {
+                        return stack.raise_err(std::string("can't load native symbol: ") + dlerror(), frame_start);
+                    }
+                    stack.pop(frame_start);
+                    auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(
+                            stack.vm, [fn_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
+                                return fn_ptr(stack, frame);
+                            }
+                    );
+                    stack.push_fun(native_fn.get());
+                }
+        );
+        module_exports->set_field(
+                FStr(get_module_alias(module_conf.name.value()) + NATIVE_SYM_FN_SUFFIX, vm.mem.str_alloc()),
+                {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
+        );
+        auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
+        module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
+                              {.type = Type::OBJ, .data = {.obj = module_exports.get()}});
+        return module_obj;
+    };
     auto load_module = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Object> {
-        // Read contents of the loader source file
         std::filesystem::path load_path = modules_path / module_conf.name.value() / MODULE_LOAD_FILENAME;
+        if (!exists(load_path)) return load_module_native(module_conf);
+        // Read contents of the loader source file
         std::ifstream load_file(load_path);
         std::string load_code;
         std::copy(std::istreambuf_iterator<char>(load_file),

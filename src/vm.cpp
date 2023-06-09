@@ -773,6 +773,19 @@ namespace funscript {
         return "function(" + addr_to_string(this, scope->vars->vm.mem.str_alloc()) + ")";
     }
 
+    VM::NativeFunction::NativeFunction(funscript::VM &vm, decltype(fn) fn) : vm(vm), fn(std::move(fn)) {}
+
+    void VM::NativeFunction::get_refs(const std::function<void(Allocation *)> &callback) {}
+
+    FStr VM::NativeFunction::display() const {
+        if (get_name().has_value()) return "#[native]# function " + get_name().value();
+        return "#[native]# function(" + addr_to_string(this, vm.mem.str_alloc()) + ")";
+    }
+
+    void VM::NativeFunction::call(VM::Stack &stack, funscript::VM::Frame *frame) {
+        return fn(stack, frame);
+    }
+
     VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}

@@ -142,7 +142,7 @@ namespace funscript {
         class Frame : public Allocation {
             friend VM::Stack;
             Function *fun; // The function to be called in this frame.
-            code_met_t *meta_ptr;
+            code_met_t *meta_ptr = nullptr;
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
@@ -204,6 +204,22 @@ namespace funscript {
             [[nodiscard]] virtual FStr display() const override;
 
             BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
+        };
+
+        /**
+         * CLass of native function value objects.
+         */
+        class NativeFunction : public Function {
+            VM &vm;
+            std::function<void(VM::Stack &, Frame *)> fn;
+
+            void call(VM::Stack &stack, funscript::VM::Frame *frame) override;
+        public:
+            NativeFunction(VM &vm, decltype(fn) fn);
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+            [[nodiscard]] FStr display() const override;
         };
 
         /**
