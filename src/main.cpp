@@ -30,6 +30,10 @@ static const char *get_dl_extension() {
     return ".so";
 }
 
+extern "C" const char *__asan_default_options() {
+    return "detect_odr_violation=1";
+}
+
 int main(int argc, const char **argv) {
     std::vector<std::string> args(argv, argv + argc);
     std::vector<module_conf_t> modules;

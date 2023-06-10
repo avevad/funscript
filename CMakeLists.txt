@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 IF (CMAKE_BUILD_TYPE MATCHES Debug)
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,leak,undefined")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,leak,undefined")
     add_definitions(-D_GLIBCXX_DEBUG)
 ENDIF ()
 
@@ -40,4 +40,4 @@ set_target_properties(funscript-bin PROPERTIES OUTPUT_NAME funscript)
 
 add_library(stdfs SHARED src/stdlib.cpp)
 target_include_directories(stdfs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(stdfs PUBLIC funscript)
+target_link_libraries(stdfs PRIVATE funscript)
