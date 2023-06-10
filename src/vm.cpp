@@ -5,7 +5,17 @@
 
 namespace funscript {
 
-    VM::VM(VM::Config config) : config(config), mem(config.mm) {}
+    VM::VM(VM::Config config) : config(config), mem(config.mm),
+                                modules(mem.std_alloc<decltype(modules)::value_type>()) {}
+
+    void VM::load_module(const funscript::FStr &name, funscript::VM::Module *mod) {
+        modules.insert({name, MemoryManager::AutoPtr<VM::Module>(mem, mod)});
+    }
+
+    std::optional<VM::Module *> VM::get_module(const funscript::FStr &name) {
+        if (!modules.contains(name)) return std::nullopt;
+        return modules.at(name).get();
+    }
 
     void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);
@@ -89,7 +99,7 @@ namespace funscript {
 
     volatile sig_atomic_t VM::Stack::kbd_int = 0;
 
-    void VM::Stack::exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
+    void VM::Stack::exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         try {
             Frame *frame = frames.back();
             const auto *bytecode = bytecode_obj->bytes.data();
@@ -120,7 +130,8 @@ namespace funscript {
                         Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
                         if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
                         if (val.type == Type::FUN) {
-                            auto *fun = vm.mem.gc_new<BytecodeFunction>(cur_scope.get(), bytecode_obj, size_t(ins.u64));
+                            auto *fun = vm.mem.gc_new<BytecodeFunction>(mod, cur_scope.get(), bytecode_obj,
+                                                                        size_t(ins.u64));
                             val.data.fun = fun;
                         }
                         try {
@@ -756,26 +767,32 @@ namespace funscript {
     void VM::Bytecode::get_refs(const std::function<void(Allocation *)> &callback) {}
 
     void VM::BytecodeFunction::get_refs(const std::function<void(Allocation *)> &callback) {
+        VM::Function::get_refs(callback);
         callback(bytecode);
         callback(scope);
     }
 
     void VM::BytecodeFunction::call(VM::Stack &stack, Frame *frame) {
-        stack.exec_bytecode(scope, bytecode, offset, stack.find_sep());
+        stack.exec_bytecode(mod, scope, bytecode, offset, stack.find_sep());
     }
 
-    VM::BytecodeFunction::BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset) : scope(scope),
-                                                                                              bytecode(bytecode),
-                                                                                              offset(offset) {}
+    VM::BytecodeFunction::BytecodeFunction(Module *mod, Scope *scope, Bytecode *bytecode, size_t offset) :
+            Function(mod),
+            scope(scope),
+            bytecode(bytecode),
+            offset(offset) {}
 
     FStr VM::BytecodeFunction::display() const {
         if (get_name().has_value()) return "function " + get_name().value();
         return "function(" + addr_to_string(this, scope->vars->vm.mem.str_alloc()) + ")";
     }
 
-    VM::NativeFunction::NativeFunction(funscript::VM &vm, decltype(fn) fn) : vm(vm), fn(std::move(fn)) {}
+    VM::NativeFunction::NativeFunction(VM &vm, Module *mod, decltype(fn) fn) :
+            Function(mod), vm(vm), fn(std::move(fn)) {}
 
-    void VM::NativeFunction::get_refs(const std::function<void(Allocation *)> &callback) {}
+    void VM::NativeFunction::get_refs(const std::function<void(Allocation *)> &callback) {
+        VM::Function::get_refs(callback);
+    }
 
     FStr VM::NativeFunction::display() const {
         if (get_name().has_value()) return "#[native]# function " + get_name().value();
@@ -838,7 +855,7 @@ namespace funscript {
 
     VM::StackOverflowError::StackOverflowError() {}
 
-    VM::Function::Function() : name(std::nullopt) {}
+    VM::Function::Function(Module *mod) : name(std::nullopt), mod(mod) {}
 
     const std::optional<FStr> &VM::Function::get_name() const {
         return name;
@@ -847,5 +864,28 @@ namespace funscript {
     void VM::Function::assign_name(const FStr &as_name) {
         if (name.has_value()) assertion_failed("function name reassignment");
         name = as_name;
+    }
+
+    void VM::Function::get_refs(const std::function<void(Allocation *)> &callback) {
+        callback(mod);
+    }
+
+    void VM::Module::get_refs(const std::function<void(Allocation *)> &callback) {
+        callback(globals);
+        for (const auto &[alias, mod] : deps) callback(mod);
+    }
+
+    VM::Module::Module(VM &vm, VM::Object *globals, VM::Object *object) : globals(globals), object(object),
+                                                                          deps(vm.mem.std_alloc<decltype(deps)::value_type>()) {
+
+    }
+
+    void VM::Module::register_dependency(const funscript::FStr &alias, funscript::VM::Module *mod) {
+        deps.insert({alias, mod});
+    }
+
+    std::optional<VM::Module *> VM::Module::get_dependency(const funscript::FStr &alias) {
+        if (!deps.contains(alias)) return std::nullopt;
+        return deps.at(alias);
     }
 }

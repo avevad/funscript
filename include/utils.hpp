@@ -10,13 +10,12 @@ namespace funscript::util {
     MemoryManager::AutoPtr<VM::Stack>
     eval_fn(VM &vm, VM::Function *start) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
-        // Execute expression evaluation
         stack->continue_execution();
         return stack;
     }
 
     MemoryManager::AutoPtr<VM::Stack>
-    eval_expr(VM &vm, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
+    eval_expr(VM &vm, VM::Module *mod, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
         // Split expression into array of tokens
         std::vector<Token> tokens;
         tokenize(filename, expr, [&tokens](auto token) { tokens.push_back(token); });
@@ -30,7 +29,7 @@ namespace funscript::util {
         as.assemble(bytes.data());
         auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(bytes);
         // Create temporary environment for expression evaluation
-        auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(scope, bytecode.get());
+        auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(mod, scope, bytecode.get());
         start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
         return eval_fn(vm, start.get());
     } catch (const CodeReadingError &err) {

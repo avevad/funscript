@@ -150,6 +150,25 @@ namespace funscript {
         };
 
         /**
+         * Objects of this class hold information about loaded Funscript module.
+         */
+        class Module : public Allocation {
+            FMap<FStr, Module *> deps; // Registered dependencies of the module.
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
+
+        public:
+            Object *const globals; // Globals of the module.
+            Object *const object; // Module object.
+
+            Module(VM &vm, Object *globals, Object *object);
+
+            void register_dependency(const FStr &alias, Module *mod);
+
+            std::optional<Module *> get_dependency(const FStr &alias);
+        };
+
+        /**
          * Class of function value objects.
          */
         class Function : public Allocation {
@@ -158,7 +177,9 @@ namespace funscript {
 
             virtual void call(VM::Stack &stack, Frame *frame) = 0;
         public:
-            Function();
+            Module *const mod; // The origin of the function.
+
+            Function(Module *mod);
             ~Function() override = default;
 
             /**
@@ -166,6 +187,8 @@ namespace funscript {
              * @return A short string string that represents this function.
              */
             [[nodiscard]] virtual FStr display() const = 0;
+
+            void get_refs(const std::function<void(Allocation *)> &callback) override;
 
             [[nodiscard]] const std::optional<FStr> &get_name() const;
 
@@ -203,7 +226,7 @@ namespace funscript {
 
             [[nodiscard]] virtual FStr display() const override;
 
-            BytecodeFunction(Scope *scope, Bytecode *bytecode, size_t offset = 0);
+            BytecodeFunction(Module *mod, Scope *scope, Bytecode *bytecode, size_t offset = 0);
         };
 
         /**
@@ -215,7 +238,7 @@ namespace funscript {
 
             void call(VM::Stack &stack, funscript::VM::Frame *frame) override;
         public:
-            NativeFunction(VM &vm, decltype(fn) fn);
+            NativeFunction(VM &vm, Module *mod, decltype(fn) fn);
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
@@ -250,8 +273,15 @@ namespace funscript {
 
         const Config config; // Configuration of current VM instance.
         MemoryManager mem; // Memory manager for the current VM.
+    private:
+        FMap<FStr, MemoryManager::AutoPtr<Module>> modules; // Loaded modules of this VM.
+    public:
 
         explicit VM(Config config);
+
+        void load_module(const FStr &name, Module *mod);
+
+        std::optional<Module *> get_module(const FStr &name);
 
         class StackOverflowError : std::exception {
         public:
@@ -291,7 +321,7 @@ namespace funscript {
 
             static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 
-            void exec_bytecode(Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
+            void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
             void call_operator(Operator op);
             void call_assignment();
             void call_function(Function *fun);

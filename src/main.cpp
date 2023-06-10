@@ -84,8 +84,7 @@ int main(int argc, const char **argv) {
                   .stack_values_max = 67108864 /* 64 Mi */,
                   .stack_frames_max = 1024 /* 1 Ki */
           });
-    std::unordered_map<std::string, MemoryManager::AutoPtr<VM::Object>> loaded_modules;
-    auto load_module_native = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Object> {
+    auto load_module_native = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Module> {
         std::filesystem::path lib_path = modules_path / (module_conf.name.value() + get_dl_extension());
         dlerror();
         auto lib_handle = dlopen(lib_path.c_str(), RTLD_NOW);
@@ -95,8 +94,11 @@ int main(int argc, const char **argv) {
             return {vm.mem, nullptr};
         }
         auto module_exports = vm.mem.gc_new_auto<VM::Object>(vm);
+        auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
+        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, nullptr, module_obj.get());
+        VM::Module *mod_ptr = mod.get();
         auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
-                vm, [lib_handle](VM::Stack &stack, VM::Frame *frame) -> void {
+                vm, mod.get(), [lib_handle, mod_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
                     auto frame_start = stack.find_sep();
                     auto name_val = stack[-1];
                     if (name_val.type != Type::STR || stack[-2].type != Type::SEP) {
@@ -110,7 +112,7 @@ int main(int argc, const char **argv) {
                     }
                     stack.pop(frame_start);
                     auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(
-                            stack.vm, [fn_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
+                            stack.vm, mod_ptr, [fn_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
                                 return fn_ptr(stack, frame);
                             }
                     );
@@ -121,12 +123,11 @@ int main(int argc, const char **argv) {
                 FStr(get_module_alias(module_conf.name.value()) + NATIVE_SYM_FN_SUFFIX, vm.mem.str_alloc()),
                 {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
         );
-        auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
                               {.type = Type::OBJ, .data = {.obj = module_exports.get()}});
-        return module_obj;
+        return mod;
     };
-    auto load_module = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Object> {
+    auto load_module = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Module> {
         std::filesystem::path load_path = modules_path / module_conf.name.value() / MODULE_LOAD_FILENAME;
         if (!exists(load_path)) return load_module_native(module_conf);
         // Read contents of the loader source file
@@ -145,13 +146,13 @@ int main(int argc, const char **argv) {
         auto module_global_scope = vm.mem.gc_new_auto<VM::Scope>(module_globals.get(), module_scope.get());
         // Import any required modules into the module's global scope
         for (const auto &imp_mod : module_conf.imps) {
-            if (!loaded_modules.contains(imp_mod)) {
+            if (!vm.get_module(FStr(imp_mod, vm.mem.str_alloc())).has_value()) {
                 std::cerr << args[0] << ": '"
                           << imp_mod << "' is not loaded, but must be imported in '" << module_conf.name.value() << "'"
                           << std::endl;
                 return {vm.mem, nullptr};
             }
-            auto exports_val = loaded_modules.at(imp_mod)->
+            auto exports_val = vm.get_module(FStr(imp_mod, vm.mem.str_alloc())).value()->object->
                     get_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc())).value();
             if (exports_val.type != funscript::Type::OBJ) {
                 std::cerr << args[0] << ": '"
@@ -163,21 +164,33 @@ int main(int argc, const char **argv) {
                 module_globals->set_field(expt_name, expt_val);
             }
         }
+        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, module_globals.get(), module_obj.get());
+        // Register module dependencies
+        for (const auto &dep_mod : module_conf.deps) {
+            if (!vm.get_module(FStr(dep_mod, vm.mem.str_alloc())).has_value()) {
+                std::cerr << args[0] << ": '"
+                          << dep_mod << "' is not loaded, but is a dependency of '" << module_conf.name.value() << "'"
+                          << std::endl;
+                return {vm.mem, nullptr};
+            }
+            mod->register_dependency(FStr(dep_mod, vm.mem.str_alloc()),
+                                     vm.get_module(FStr(dep_mod, vm.mem.str_alloc())).value());
+        }
         // Execute module loader code
-        auto stack = util::eval_expr(vm, module_global_scope.get(), load_path.string(), load_code);
+        auto stack = util::eval_expr(vm, mod.get(), module_global_scope.get(), load_path.string(), load_code);
         if (stack->size() != 0 && (*stack)[-1].type == Type::ERR) {
             assertion_failed("failed to load module");
         }
-        return module_obj;
+        return mod;
     };
     for (const auto &module_conf : modules) {
         auto module_obj = load_module(module_conf);
         if (!module_obj) return 1;
-        loaded_modules.insert({module_conf.name.value(), std::move(module_obj)});
+        vm.load_module(FStr(module_conf.name.value(), vm.mem.str_alloc()), module_obj.get());
     }
     { // Start main module
-        auto start_val = loaded_modules.at(modules.back().name.value())->
-                get_field(FStr(MODULE_START_VAR, vm.mem.str_alloc())).value();
+        auto start_val = vm.get_module(FStr(modules.back().name.value(), vm.mem.str_alloc())).value()->
+                object->get_field(FStr(MODULE_START_VAR, vm.mem.str_alloc())).value();
         if (start_val.type != Type::FUN) {
             std::cerr << args[0] << ": '" << modules.back().name.value() << "' has no start function" << std::endl;
             return 1;

@@ -111,7 +111,7 @@ public:
     }
 
     auto evaluate(const std::string &expr) {
-        auto stack = util::eval_expr(vm, scope.get(), "<test>", expr);
+        auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr);
         if (stack->size() != 0 && (*stack)[0].type == Type::ERR) {
             throw EvaluationError((*stack)[0].data.err);
         }

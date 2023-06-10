@@ -28,11 +28,11 @@ namespace funscript {
         size_t mm_size = 0;
         size_t gc_pins = 0;
         MemoryManager *mm = nullptr;
-
+    protected:
         /**
-         * Enumerates all the outgoing references to other allocations from this allocation.
-         * @param callback The callback which should be called for every reference.
-         */
+        * Enumerates all the outgoing references to other allocations from this allocation.
+        * @param callback The callback which should be called for every reference.
+        */
         virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
     public:
         virtual ~Allocation() = default;
