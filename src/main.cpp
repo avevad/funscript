@@ -14,21 +14,30 @@ using namespace funscript;
 const char *MODULE_LOAD_FILENAME = "_load.fs";
 const char *MODULE_EXPORTS_VAR = "exports";
 const char *MODULE_START_VAR = "start";
-const char *NATIVE_SYM_FN_SUFFIX = "_native_sym";
 
 static std::string get_module_alias(const std::string &name) {
-    return name.substr(0, name.find('_'));
+    return name.substr(name.rfind('-') + 1);
 }
+
+static std::string get_module_base_path(const std::filesystem::path &modules_path, std::string name) {
+    for (char &c : name) if (c == '.') c = std::filesystem::path::preferred_separator;
+    return (modules_path / name).string();
+}
+
+static std::string get_module_native_lib_path(const std::filesystem::path &modules_path, const std::string &name) {
+    return get_module_base_path(modules_path, name) + ".so";
+}
+
+static std::string get_module_loader_src_path(const std::filesystem::path &modules_path, const std::string &name) {
+    return std::filesystem::path(get_module_base_path(modules_path, name)) / MODULE_LOAD_FILENAME;
+}
+
 
 struct module_conf_t {
     std::optional<std::string> name = std::nullopt; // The name of the module.
     std::vector<std::string> deps = {}; // The modules to be loaded before this module.
     std::vector<std::string> imps = {}; // The modules to be imported into this module's scope.
 };
-
-static const char *get_dl_extension() {
-    return ".so";
-}
 
 extern "C" const char *__asan_default_options() {
     return "detect_odr_violation=1";
@@ -41,8 +50,13 @@ int main(int argc, const char **argv) {
     for (size_t pos = 1; pos < argc;) {
         if (modules.back().name.has_value()) modules.emplace_back(); // If the module name was encountered, we should proceed to configuration of the next module
         const auto &arg = args[pos];
-        if (!args[pos].starts_with('-')) {
-            modules.back().name = arg;
+        if (arg == "-m") {
+            pos++;
+            if (pos >= argc) {
+                std::cerr << args[0] << ": " << arg << ": module name expected" << std::endl;
+                return 1;
+            }
+            modules.back().name = args[pos];
             pos++;
             continue;
         }
@@ -85,9 +99,8 @@ int main(int argc, const char **argv) {
                   .stack_frames_max = 1024 /* 1 Ki */
           });
     auto load_module_native = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Module> {
-        std::filesystem::path lib_path = modules_path / (module_conf.name.value() + get_dl_extension());
         dlerror();
-        auto lib_handle = dlopen(lib_path.c_str(), RTLD_NOW);
+        auto lib_handle = dlopen(get_module_native_lib_path(modules_path, module_conf.name.value()).c_str(), RTLD_NOW);
         if (!lib_handle) {
             std::cerr << args[0] << ": can't load native module '" << module_conf.name.value() << "': " << dlerror()
                       << std::endl;
@@ -120,7 +133,7 @@ int main(int argc, const char **argv) {
                 }
         );
         module_exports->set_field(
-                FStr(get_module_alias(module_conf.name.value()) + NATIVE_SYM_FN_SUFFIX, vm.mem.str_alloc()),
+                FStr("load_native_sym", vm.mem.str_alloc()),
                 {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
         );
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
@@ -128,7 +141,7 @@ int main(int argc, const char **argv) {
         return mod;
     };
     auto load_module = [&](const module_conf_t &module_conf) -> MemoryManager::AutoPtr<VM::Module> {
-        std::filesystem::path load_path = modules_path / module_conf.name.value() / MODULE_LOAD_FILENAME;
+        std::filesystem::path load_path = get_module_loader_src_path(modules_path, module_conf.name.value());
         if (!exists(load_path)) return load_module_native(module_conf);
         // Read contents of the loader source file
         std::ifstream load_file(load_path);
