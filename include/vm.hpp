@@ -279,7 +279,7 @@ namespace funscript {
 
         explicit VM(Config config);
 
-        void load_module(const FStr &name, Module *mod);
+        void register_module(const funscript::FStr &name, funscript::VM::Module *mod);
 
         std::optional<Module *> get_module(const FStr &name);
 

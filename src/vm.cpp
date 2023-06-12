@@ -8,7 +8,7 @@ namespace funscript {
     VM::VM(VM::Config config) : config(config), mem(config.mm),
                                 modules(mem.std_alloc<decltype(modules)::value_type>()) {}
 
-    void VM::load_module(const funscript::FStr &name, funscript::VM::Module *mod) {
+    void VM::register_module(const funscript::FStr &name, funscript::VM::Module *mod) {
         modules.insert({name, MemoryManager::AutoPtr<VM::Module>(mem, mod)});
     }
 

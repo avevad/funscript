@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <iostream>
+#include <filesystem>
 
 namespace funscript {
 
@@ -213,6 +214,30 @@ namespace funscript {
         return stream.str();
     }
 
+    static std::string get_module_alias(const std::string &name) {
+        return name.substr(name.rfind('-') + 1);
+    }
+
+    static std::string get_module_base_path_str(const std::filesystem::path &modules_path, std::string name) {
+        for (char &c : name) if (c == '.') c = std::filesystem::path::preferred_separator;
+        return (modules_path / name).string();
+    }
+
+    static const char *MODULES_PATH_ENV_VAR = "FS_MODULES_PATH";
+
+    static std::filesystem::path get_native_module_lib_path(const std::string &name) {
+        return get_module_base_path_str(getenv(MODULES_PATH_ENV_VAR), name) + ".so";
+    }
+
+    static std::filesystem::path get_src_module_loader_path(const std::string &name) {
+        static const std::string MODULE_LOADER_FILENAME = "_load.fs";
+        return std::filesystem::path(get_module_base_path_str(getenv(MODULES_PATH_ENV_VAR), name)) /
+               MODULE_LOADER_FILENAME;
+    }
+
+    static const char *MODULE_EXPORTS_VAR = "exports";
+    static const char *MODULE_STARTER_VAR = "start";
+    static const char *NATIVE_MODULE_SYMBOL_LOADER_VAR = "load_native_sym";
 }
 
 #endif //FUNSCRIPT_COMMON_HPP
