@@ -139,7 +139,7 @@ namespace funscript {
          */
         void free(void *ptr, size_t size);
 
-        MemoryManager(Config config);
+        explicit MemoryManager(Config config);
 
         /**
          * Pins GC-tracked allocation.
@@ -224,7 +224,7 @@ namespace funscript {
 
             A *operator->() const { return alloc; }
 
-            operator bool() const { return alloc != nullptr; }
+            operator bool() const { return alloc != nullptr; } // NOLINT(google-explicit-constructor)
 
             ~AutoPtr() {
                 if (alloc) alloc->vm.mem.gc_unpin(alloc);

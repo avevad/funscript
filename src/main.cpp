@@ -13,7 +13,7 @@ struct module_conf_t {
     std::vector<std::string> imps = {}; // The modules to be imported into this module's scope.
 };
 
-extern "C" const char *__asan_default_options() {
+extern "C" const char *__asan_default_options() { // NOLINT(bugprone-reserved-identifier)
     return "detect_odr_violation=1";
 }
 

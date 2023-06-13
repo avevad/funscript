@@ -68,8 +68,8 @@ namespace funscript {
             if (size_t rem = pos % alignof(std::max_align_t)) pos += alignof(std::max_align_t) - rem;
             size_t ch_id = (i + 1) % chunks.size(); // Data chunk should be at the end, so we rotate chunks by 1
             chunks_pos[ch_id] = pos;
-            memcpy(buffer + pos, chunks[ch_id]->bytes.data(),
-                   chunks[ch_id]->size()); // NOLINT(bugprone-not-null-terminated-result)
+            memcpy(buffer + pos, chunks[ch_id]->bytes.data(), // NOLINT(bugprone-not-null-terminated-result)
+                   chunks[ch_id]->size());
             pos += chunks[ch_id]->size();
         }
         // Executing scheduled pointer insertion

@@ -8,14 +8,16 @@ namespace funscript {
 
     MemoryManager::MemoryManager(MemoryManager::Config config) : config(config) {}
 
-    void MemoryManager::free(void *ptr, size_t size) { config.allocator->free(ptr, size); }
+    void MemoryManager::free(void *ptr, size_t size) {
+        config.allocator->free(ptr, size);
+    } // NOLINT(readability-make-member-function-const)
 
-    void MemoryManager::gc_pin(Allocation *alloc) {
+    void MemoryManager::gc_pin(Allocation *alloc) { // NOLINT(readability-convert-member-functions-to-static)
         if (!alloc->tracked) [[unlikely]] assertion_failed("allocation is not tracked");
         alloc->gc_pins++;
     }
 
-    void MemoryManager::gc_unpin(Allocation *alloc) {
+    void MemoryManager::gc_unpin(Allocation *alloc) { // NOLINT(readability-convert-member-functions-to-static)
         if (!alloc->tracked) [[unlikely]] assertion_failed("allocation is not tracked");
         if (!alloc->gc_pins) [[unlikely]] assertion_failed("mismatched allocation unpin");
         alloc->gc_pins--;

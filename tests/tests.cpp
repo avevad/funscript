@@ -47,9 +47,9 @@ TEST_CASE("Floating point numbers", "[floats]") {
 TEST_CASE("Variables and scopes", "[scopes]") {
     TestEnv env;
     SECTION("Declaration") {
-        REQUIRE_THAT("newvar = 1", FAILS);
-        REQUIRE_THAT(".newvar = 1", SUCCEEDS);
-        CHECK_THAT("newvar == 1", EVALUATES_TO(true));
+        REQUIRE_THAT("new_var = 1", FAILS);
+        REQUIRE_THAT(".new_var = 1", SUCCEEDS);
+        CHECK_THAT("new_var == 1", EVALUATES_TO(true));
     };
     SECTION("Shadowing") {
         REQUIRE_THAT(".var = 1", SUCCEEDS);
@@ -130,9 +130,9 @@ TEST_CASE("Strings", "[strings]") {
         CHECK_THAT("some, empty", EVALUATES_TO("some str", ""));
     };
     SECTION("Concatenation") {
-        REQUIRE_THAT(".str1 = 'amogus'", SUCCEEDS);
+        REQUIRE_THAT(".str1 = 'impostor'", SUCCEEDS);
         REQUIRE_THAT(".str2 = 'is sus'", SUCCEEDS);
-        CHECK_THAT("str1 + ' ' + str2", EVALUATES_TO("amogus is sus"));
+        CHECK_THAT("str1 + ' ' + str2", EVALUATES_TO("impostor is sus"));
     };
 }
 
@@ -170,9 +170,9 @@ TEST_CASE("Arrays", "[arrays]") {
         REQUIRE_THAT("ten_nums[7] == 8", EVALUATES_TO(true));
     };
     SECTION("Concatenation") {
-        REQUIRE_THAT(".abc = ['a', 'b', 'c']", SUCCEEDS);
-        REQUIRE_THAT(".defgh = ['d', 'e', 'f', 'g', 'h']", SUCCEEDS);
-        REQUIRE_THAT("(abc + defgh)[6, 5, 1]", EVALUATES_TO("g", "f", "b"));
+        REQUIRE_THAT(".alpha1 = ['a', 'b', 'c']", SUCCEEDS);
+        REQUIRE_THAT(".alpha2 = ['d', 'e', 'f', 'g', 'h']", SUCCEEDS);
+        REQUIRE_THAT("(alpha1 + alpha2)[6, 5, 1]", EVALUATES_TO("g", "f", "b"));
     };
     SECTION("Multiplication") {
         REQUIRE_THAT(".arr = ['test', no, 5]", SUCCEEDS);

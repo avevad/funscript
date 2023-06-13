@@ -26,7 +26,7 @@ namespace funscript {
 
             std::string bytes; // Contents of the chunk.
 
-            Chunk(size_t id);
+            explicit Chunk(size_t id);
 
         public:
             const size_t id;
@@ -204,7 +204,7 @@ namespace funscript {
     static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
         static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
                 {Operator::INDEX,         {0,  true}},
-                {Operator::CALL,          {0,  0 /* should not be used */ }},
+                {Operator::CALL,          {0,  false /* should not be used */ }},
                 {Operator::NOT,           {1,  false}},
                 {Operator::TIMES,         {3,  true}},
                 {Operator::DIVIDE,        {4,  true}},
@@ -264,7 +264,7 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
 
-        std::string get_identifier() const override;
+        [[nodiscard]] std::string get_identifier() const override;
     public:
         explicit IdentifierAST(const std::string &filename, code_loc_t token_loc, std::string name);
     };
@@ -280,9 +280,9 @@ namespace funscript {
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
 
-        std::pair<AST *, AST *> get_then() const override;
+        [[nodiscard]] std::pair<AST *, AST *> get_then() const override;
 
-        code_loc_t get_location() const override;
+        [[nodiscard]] code_loc_t get_location() const override;
     public:
         OperatorAST(const std::string &filename, code_loc_t token_loc, AST *left, AST *right, Operator op);
     };

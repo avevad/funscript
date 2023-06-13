@@ -750,7 +750,7 @@ namespace funscript {
         return prev_scope->get_var(name);
     }
 
-    bool VM::Scope::set_var(const FStr &name, Value val) {
+    bool VM::Scope::set_var(const FStr &name, Value val) { // NOLINT(readability-make-member-function-const)
         if (vars->contains_field(name)) return vars->set_field(name, val), true;
         if (prev_scope == nullptr) return false;
         return prev_scope->set_var(name, val);

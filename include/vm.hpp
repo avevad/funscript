@@ -207,7 +207,7 @@ namespace funscript {
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
-            ~Bytecode() = default;
+            ~Bytecode() override = default;
         };
 
         /**
@@ -222,7 +222,7 @@ namespace funscript {
         public:
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
-            [[nodiscard]] virtual FStr display() const override;
+            [[nodiscard]] FStr display() const override;
 
             BytecodeFunction(VM &vm, Module *mod, Scope *scope, Bytecode *bytecode, size_t offset = 0);
         };
