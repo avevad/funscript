@@ -7,7 +7,10 @@
 #define FAILS Fails(env)
 #define SUCCEEDS Succeeds(env)
 
-// Note: later tests can use features tested in earlier ones
+// Note: later tests can rely on features tested in earlier ones
+
+using namespace funscript;
+using namespace funscript::tests;
 
 TEST_CASE("Integers", "[integers]") {
     TestEnv env;
