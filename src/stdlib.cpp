@@ -3,6 +3,7 @@
 #include "native.hpp"
 
 using namespace funscript;
+using namespace funscript::native;
 
 void fd_write(VM::Stack &stack, VM::Frame *frame) {
     std::function fn([](fint fd, MemoryManager::AutoPtr<VM::Array> bytes, fint pos, fint len) -> fint {

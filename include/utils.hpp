@@ -5,16 +5,21 @@
 #include "ast.hpp"
 #include "vm.hpp"
 
+#include <iostream>
+#include <fstream>
+#include <dlfcn.h>
+#include <filesystem>
+
 namespace funscript::util {
 
-    MemoryManager::AutoPtr<VM::Stack>
+    static MemoryManager::AutoPtr<VM::Stack>
     eval_fn(VM &vm, VM::Function *start) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
         stack->continue_execution();
         return stack;
     }
 
-    MemoryManager::AutoPtr<VM::Stack>
+    static MemoryManager::AutoPtr<VM::Stack>
     eval_expr(VM &vm, VM::Module *mod, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
         // Split expression into array of tokens
         std::vector<Token> tokens;
@@ -56,7 +61,7 @@ namespace funscript::util {
                 std::runtime_error(mod_name + ": " + why) {}
     };
 
-    MemoryManager::AutoPtr<VM::Module>
+    static MemoryManager::AutoPtr<VM::Module>
     load_src_module(VM &vm, const std::string &name,
                     const std::vector<std::string> &imps, const std::vector<std::string> &deps) {
         // Read contents of the loader source file
@@ -105,7 +110,7 @@ namespace funscript::util {
         return mod;
     }
 
-    MemoryManager::AutoPtr<VM::Module>
+    static MemoryManager::AutoPtr<VM::Module>
     load_native_module(VM &vm, const std::string &name) {
         dlerror();
         auto lib_handle = dlopen(get_native_module_lib_path(name).c_str(), RTLD_NOW);
@@ -146,13 +151,101 @@ namespace funscript::util {
         return mod;
     }
 
-    MemoryManager::AutoPtr<VM::Module>
+    static MemoryManager::AutoPtr<VM::Module>
     load_module(VM &vm, const std::string &name,
                 const std::vector<std::string> &imps, const std::vector<std::string> &deps) {
         if (std::filesystem::exists(get_src_module_loader_path(name))) return load_src_module(vm, name, imps, deps);
         if (std::filesystem::exists(get_native_module_lib_path(name))) return load_native_module(vm, name);
         throw ModuleLoadingError(name, "failed to find module loader");
     }
+
+    namespace {
+
+        template<typename T>
+        struct ValueTransformer {
+
+        };
+
+        template<>
+        struct ValueTransformer<fint> {
+            static std::optional<fint> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack[-1].type != Type::INT) return std::nullopt;
+                fint result = stack[-1].data.num;
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, fint num) {
+                stack.push_int(num);
+            }
+        };
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::Array>> {
+            static std::optional<MemoryManager::AutoPtr<VM::Array>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack[-1].type != Type::ARR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(vm.mem, stack[-1].data.arr);
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::Array> &arr) {
+                stack.push_arr(arr.get());
+            }
+        };
+
+    }
+
+    template<typename T>
+    static std::optional<T> value_from_stack(VM &vm, VM::Stack &stack) {
+        return ValueTransformer<T>::from_stack(vm, stack);
+    }
+
+    template<typename T>
+    static void value_to_stack(VM &vm, VM::Stack &stack, const T &val) {
+        ValueTransformer<T>::to_stack(vm, stack, val);
+    }
+
+    class ValueError : public std::runtime_error {
+    public:
+        explicit ValueError(const std::string &what) : std::runtime_error(what) {}
+    };
+
+    namespace {
+
+        std::tuple<> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            if (stack[-1].type != Type::SEP) throw ValueError("too many values, required " + std::to_string(pos));
+            return {};
+        }
+
+        template<typename Values0>
+        std::tuple<Values0> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            auto val = value_from_stack<Values0>(vm, stack);
+            if (!val.has_value()) {
+                throw ValueError("value #" + std::to_string(pos + 1) + " is absent or is of wrong type");
+            }
+            values_from_stack_impl(vm, stack, pos + 1);
+            return {val.value()};
+        }
+
+        template<typename Values0, typename Values1, typename... Values>
+        std::tuple<Values0, Values1, Values...>
+        values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            auto val = value_from_stack<Values0>(vm, stack);
+            if (!val.has_value()) {
+                throw ValueError("value #" + std::to_string(pos + 1) + " is absent or is of wrong type");
+            }
+            auto vals = values_from_stack_impl<Values1, Values...>(vm, stack, pos + 1);
+            return std::tuple_cat(std::tuple<Values0>(std::move(val.value())), std::move(vals));
+        }
+
+    }
+
+    template<typename... Values>
+    std::tuple<Values...> values_from_stack(VM &vm, VM::Stack &stack) {
+        return values_from_stack_impl<Values...>(vm, stack, 0);
+    }
+
 }
 
 #endif //FUNSCRIPT_UTILS_HPP

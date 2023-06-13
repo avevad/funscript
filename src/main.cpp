@@ -1,9 +1,5 @@
 #include <vector>
-#include <iostream>
 #include <sstream>
-#include <fstream>
-#include <filesystem>
-#include <dlfcn.h>
 
 #include "tokenizer.hpp"
 #include "vm.hpp"
