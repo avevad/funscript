@@ -243,7 +243,11 @@ namespace funscript::util {
 
     template<typename... Values>
     std::tuple<Values...> values_from_stack(VM &vm, VM::Stack &stack) {
-        return values_from_stack_impl<Values...>(vm, stack, 0);
+        if constexpr (sizeof...(Values) == 0) {
+            return values_from_stack_impl(vm, stack, 0);
+        } else {
+            return values_from_stack_impl<Values...>(vm, stack, 0);
+        }
     }
 
 }
