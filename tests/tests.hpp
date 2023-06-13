@@ -1,12 +1,12 @@
 #ifndef FUNSCRIPT_TESTS_HPP
 #define FUNSCRIPT_TESTS_HPP
 
-#include <utility>
-
 #include "mm.hpp"
 #include "vm.hpp"
 #include "utils.hpp"
 #include "catch2/matchers/catch_matchers_templated.hpp"
+
+#include <utility>
 
 namespace funscript::tests {
 

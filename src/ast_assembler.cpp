@@ -1,4 +1,5 @@
 #include "ast.hpp"
+
 #include <cstring>
 
 namespace funscript {

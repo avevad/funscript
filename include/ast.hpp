@@ -3,6 +3,7 @@
 
 #include "tokenizer.hpp"
 #include "common.hpp"
+
 #include <memory>
 
 namespace funscript {

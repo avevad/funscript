@@ -1,6 +1,7 @@
-#include <memory>
 #include "vm.hpp"
 #include "native.hpp"
+
+#include <memory>
 
 using namespace funscript;
 using namespace funscript::native;

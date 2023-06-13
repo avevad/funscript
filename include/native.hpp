@@ -1,8 +1,9 @@
 #ifndef FUNSCRIPT_NATIVE_HPP
 #define FUNSCRIPT_NATIVE_HPP
 
-#include <variant>
 #include "utils.hpp"
+
+#include <variant>
 
 namespace funscript::native {
 

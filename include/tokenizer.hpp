@@ -1,14 +1,14 @@
 #ifndef FUNSCRIPT_TOKENIZER_HPP
 #define FUNSCRIPT_TOKENIZER_HPP
 
+#include "common.hpp"
+
 #include <cstddef>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <variant>
 #include <functional>
-
-#include "common.hpp"
 
 namespace funscript {
 

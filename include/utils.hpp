@@ -32,9 +32,9 @@ namespace funscript::util {
         // Assemble the whole expression bytecode
         std::string bytes(as.total_size(), '\0');
         as.assemble(bytes.data());
-        auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(bytes);
+        auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(vm, bytes);
         // Create temporary environment for expression evaluation
-        auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(mod, scope, bytecode.get());
+        auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(vm, mod, scope, bytecode.get());
         start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
         return eval_fn(vm, start.get());
     } catch (const CodeReadingError &err) {
