@@ -1,6 +1,9 @@
 #ifndef FUNSCRIPT_VM_HPP
 #define FUNSCRIPT_VM_HPP
 
+#include "common.hpp"
+#include "mm.hpp"
+
 #include <cstddef>
 #include <cstdlib>
 #include <functional>
@@ -10,9 +13,6 @@
 #include <deque>
 #include <optional>
 #include <csignal>
-
-#include "common.hpp"
-#include "mm.hpp"
 
 namespace funscript {
 
@@ -60,12 +60,12 @@ namespace funscript {
         /**
          * Class of string value objects.
          */
-        class String : public Allocation {
+        class String final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             const FStr bytes;
 
-            explicit String(FStr bytes);
+            explicit String(VM &vm, FStr bytes);
         };
 
         /**
@@ -77,9 +77,7 @@ namespace funscript {
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            VM &vm;
-
-            explicit Object(VM &vm) : vm(vm), fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()) {};
+            explicit Object(VM &vm);
 
             [[nodiscard]] bool contains_field(const FStr &key) const;
             [[nodiscard]] std::optional<Value> get_field(const FStr &key) const;
@@ -92,12 +90,12 @@ namespace funscript {
         /**
          * Class of error value objects.
          */
-        class Error : public Allocation {
+        class Error final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
             struct stack_trace_element {
-                FStr function;
-                FStr meta;
+                FStr function_repr;
+                code_met_t code_meta;
             };
 
             Object *const obj; // Contents of the error.
@@ -109,14 +107,14 @@ namespace funscript {
         /**
          * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
          */
-        class Scope : public Allocation {
+        class Scope final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
         public:
             Object *const vars; // Object which contains all the variables of the scope.
             Scope *const prev_scope; // Pointer to the parent scope.
 
-            Scope(Object *vars, Scope *prev_scope) : vars(vars), prev_scope(prev_scope) {};
+            Scope(Object *vars, Scope *prev_scope);
 
             /**
              * Recursively searches the specified variable in the scope and all its parent scopes and retrieves the value of it.
@@ -139,7 +137,7 @@ namespace funscript {
         /**
          * Objects of this class hold information about VM stack frame.
          */
-        class Frame : public Allocation {
+        class Frame final : public Allocation {
             friend VM::Stack;
             Function *fun; // The function to be called in this frame.
             code_met_t *meta_ptr = nullptr;
@@ -152,7 +150,7 @@ namespace funscript {
         /**
          * Objects of this class hold information about loaded Funscript module.
          */
-        class Module : public Allocation {
+        class Module final : public Allocation {
             FMap<FStr, Module *> deps; // Registered dependencies of the module.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
@@ -179,7 +177,7 @@ namespace funscript {
         public:
             Module *const mod; // The origin of the function.
 
-            Function(Module *mod);
+            Function(VM &vm, Module *mod);
             ~Function() override = default;
 
             /**
@@ -200,12 +198,12 @@ namespace funscript {
         /**
          * Class of bytecode holder objects.
          */
-        class Bytecode : public Allocation {
+        class Bytecode final : public Allocation {
             friend BytecodeFunction;
             friend VM::Stack;
             const std::string bytes;
         public:
-            explicit Bytecode(std::string data);
+            explicit Bytecode(VM &vm, std::string data);
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
@@ -215,7 +213,7 @@ namespace funscript {
         /**
          * Class of plain bytecode-compiled function value objects.
          */
-        class BytecodeFunction : public Function {
+        class BytecodeFunction final : public Function {
             Scope *scope;
             Bytecode *bytecode;
             size_t offset;
@@ -226,14 +224,13 @@ namespace funscript {
 
             [[nodiscard]] virtual FStr display() const override;
 
-            BytecodeFunction(Module *mod, Scope *scope, Bytecode *bytecode, size_t offset = 0);
+            BytecodeFunction(VM &vm, Module *mod, Scope *scope, Bytecode *bytecode, size_t offset = 0);
         };
 
         /**
          * CLass of native function value objects.
          */
-        class NativeFunction : public Function {
-            VM &vm;
+        class NativeFunction final : public Function {
             std::function<void(VM::Stack &, Frame *)> fn;
 
             void call(VM::Stack &stack, funscript::VM::Frame *frame) override;
@@ -291,13 +288,11 @@ namespace funscript {
         /**
          * Class of Funscript execution stack.
          */
-        class Stack : public Allocation {
+        class Stack final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
 
             using pos_t = ssize_t; // Type representing position in stack. Can be negative (-1 is the topmost element).
-
-            VM &vm; // The VM instance which holds the stack.
 
             Stack &operator=(const Stack &) = delete;
             Stack(const Stack &) = delete;

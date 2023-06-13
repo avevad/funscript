@@ -1,7 +1,8 @@
+#include "vm.hpp"
+
 #include <queue>
 #include <utility>
 #include <sstream>
-#include "vm.hpp"
 
 namespace funscript {
 
@@ -22,13 +23,13 @@ namespace funscript {
         for (auto *frame : frames) callback(frame);
     }
 
-    VM::Stack::Stack(VM &vm, Function *start) : vm(vm), values(vm.mem.std_alloc<Value>()),
+    VM::Stack::Stack(VM &vm, Function *start) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
                                                 frames(vm.mem.std_alloc<Frame *>()) {
         frames.push_back(vm.mem.gc_new_auto<Frame>(start).get());
         push_sep(); // Empty arguments for the start function.
     }
 
-    VM::Stack::Stack(funscript::VM &vm) : vm(vm), values(vm.mem.std_alloc<Value>()),
+    VM::Stack::Stack(funscript::VM &vm) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
                                           frames(vm.mem.std_alloc<Frame *>()) {}
 
     VM::Stack::pos_t VM::Stack::size() const {
@@ -130,7 +131,7 @@ namespace funscript {
                         Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
                         if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
                         if (val.type == Type::FUN) {
-                            auto *fun = vm.mem.gc_new<BytecodeFunction>(mod, cur_scope.get(), bytecode_obj,
+                            auto *fun = vm.mem.gc_new<BytecodeFunction>(vm, mod, cur_scope.get(), bytecode_obj,
                                                                         size_t(ins.u64));
                             val.data.fun = fun;
                         }
@@ -307,7 +308,7 @@ namespace funscript {
                         FStr str(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64),
                                  reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64 + ins.u16),
                                  vm.mem.str_alloc());
-                        auto str_obj = vm.mem.gc_new_auto<String>(str);
+                        auto str_obj = vm.mem.gc_new_auto<String>(vm, str);
                         push_str(str_obj.get());
                         ip++;
                         break;
@@ -413,7 +414,7 @@ namespace funscript {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
                         FStr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
                         pop(-4);
-                        auto str = vm.mem.gc_new_auto<String>(a + b);
+                        auto str = vm.mem.gc_new_auto<String>(vm, a + b);
                         push_str(str.get());
                         break;
                     }
@@ -663,6 +664,7 @@ namespace funscript {
         if (frames.empty()) assertion_failed("the routine is no longer alive");
         for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
             frames[pos]->fun->call(*this, frames[pos]);
+            frames.pop_back();
         }
     }
 
@@ -671,18 +673,14 @@ namespace funscript {
         try {
             auto err_obj = vm.mem.gc_new_auto<Object>(vm);
             err_obj->set_field(FStr("msg", vm.mem.str_alloc()),
-                               {Type::STR, {.str = vm.mem.gc_new_auto<String>(FStr(msg, vm.mem.str_alloc())).get()}});
+                               {Type::STR,
+                                {.str = vm.mem.gc_new_auto<String>(vm, FStr(msg, vm.mem.str_alloc())).get()}});
             FVec<Error::stack_trace_element> stacktrace(vm.mem.std_alloc<Error::stack_trace_element>());
             stacktrace.reserve(frames.size());
-            for (size_t pos = 0; pos < frames.size(); pos++) {
-                FStr meta_str(vm.mem.str_alloc());
-                if (frames[pos]->meta_ptr) {
-                    if (const char *filename = frames[pos]->meta_ptr->filename) meta_str += filename;
-                    else meta_str += "?";
-                    meta_str += ":";
-                    meta_str += frames[pos]->meta_ptr->position.to_string();
-                }
-                stacktrace.push_back({.function = frames[pos]->fun->display(), .meta = meta_str});
+            for (const auto &frame : frames) {
+                code_met_t code_meta{.filename = "?", .position = {0, 0}};
+                if (frame->meta_ptr) code_meta = *frame->meta_ptr;
+                stacktrace.push_back({.function_repr = frame->fun->display(), .code_meta = code_meta});
             }
             auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
             push_err(err.get());
@@ -739,6 +737,8 @@ namespace funscript {
         return fields;
     }
 
+    VM::Object::Object(VM &vm) : Allocation(vm), fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()) {}
+
     void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(vars);
         callback(prev_scope);
@@ -756,13 +756,16 @@ namespace funscript {
         return prev_scope->set_var(name, val);
     }
 
-    VM::Frame::Frame(Function *fun) : fun(fun) {}
+    VM::Scope::Scope(VM::Object *vars, VM::Scope *prev_scope) : Allocation(vars->vm), vars(vars),
+                                                                prev_scope(prev_scope) {}
+
+    VM::Frame::Frame(Function *fun) : Allocation(fun->vm), fun(fun) {}
 
     void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(fun);
     }
 
-    VM::Bytecode::Bytecode(std::string data) : bytes(std::move(data)) {}
+    VM::Bytecode::Bytecode(VM &vm, std::string data) : Allocation(vm), bytes(std::move(data)) {}
 
     void VM::Bytecode::get_refs(const std::function<void(Allocation *)> &callback) {}
 
@@ -776,8 +779,8 @@ namespace funscript {
         stack.exec_bytecode(mod, scope, bytecode, offset, stack.find_sep());
     }
 
-    VM::BytecodeFunction::BytecodeFunction(Module *mod, Scope *scope, Bytecode *bytecode, size_t offset) :
-            Function(mod),
+    VM::BytecodeFunction::BytecodeFunction(VM &vm, Module *mod, Scope *scope, Bytecode *bytecode, size_t offset) :
+            Function(vm, mod),
             scope(scope),
             bytecode(bytecode),
             offset(offset) {}
@@ -788,7 +791,7 @@ namespace funscript {
     }
 
     VM::NativeFunction::NativeFunction(VM &vm, Module *mod, decltype(fn) fn) :
-            Function(mod), vm(vm), fn(std::move(fn)) {}
+            Function(vm, mod), fn(std::move(fn)) {}
 
     void VM::NativeFunction::get_refs(const std::function<void(Allocation *)> &callback) {
         VM::Function::get_refs(callback);
@@ -803,7 +806,7 @@ namespace funscript {
         return fn(stack, frame);
     }
 
-    VM::String::String(FStr bytes) : bytes(std::move(bytes)) {}
+    VM::String::String(VM &vm, FStr bytes) : Allocation(vm), bytes(std::move(bytes)) {}
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
 
@@ -812,18 +815,20 @@ namespace funscript {
     }
 
     VM::Error::Error(funscript::VM::Object *obj, const FVec<funscript::VM::Error::stack_trace_element> &stacktrace) :
-            obj(obj), stacktrace(stacktrace) {}
+            Allocation(obj->vm), obj(obj), stacktrace(stacktrace) {}
 
     void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);
     }
 
-    VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : values(len, Value{Type::NUL},
+    VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : Allocation(vm),
+                                                                      values(len, Value{Type::NUL},
                                                                              vm.mem.std_alloc<Value>()) {
         std::copy(beg, beg + len, values.data());
     }
 
-    VM::Array::Array(funscript::VM &vm, size_t len) : values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
+    VM::Array::Array(funscript::VM &vm, size_t len) : Allocation(vm),
+                                                      values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
 
     VM::Value &VM::Array::operator[](size_t pos) {
         return values[pos];
@@ -853,9 +858,9 @@ namespace funscript {
         return values.size();
     }
 
-    VM::StackOverflowError::StackOverflowError() {}
+    VM::StackOverflowError::StackOverflowError() = default;
 
-    VM::Function::Function(Module *mod) : name(std::nullopt), mod(mod) {}
+    VM::Function::Function(VM &vm, Module *mod) : Allocation(vm), name(std::nullopt), mod(mod) {}
 
     const std::optional<FStr> &VM::Function::get_name() const {
         return name;
@@ -875,7 +880,8 @@ namespace funscript {
         for (const auto &[alias, mod] : deps) callback(mod);
     }
 
-    VM::Module::Module(VM &vm, VM::Object *globals, VM::Object *object) : globals(globals), object(object),
+    VM::Module::Module(VM &vm, VM::Object *globals, VM::Object *object) : Allocation(vm), globals(globals),
+                                                                          object(object),
                                                                           deps(vm.mem.std_alloc<decltype(deps)::value_type>()) {
 
     }

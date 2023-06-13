@@ -19,26 +19,41 @@ namespace funscript {
 
     class MemoryManager;
 
+    class VM;
+
     /**
      * Abstract class of every allocation managed by VM's MM.
      */
     class Allocation {
         friend MemoryManager;
 
+        bool tracked = false;
         size_t mm_size = 0;
         size_t gc_pins = 0;
-        MemoryManager *mm = nullptr;
+
+    public:
+        VM &vm;
+
     protected:
         /**
         * Enumerates all the outgoing references to other allocations from this allocation.
         * @param callback The callback which should be called for every reference.
         */
         virtual void get_refs(const std::function<void(Allocation *)> &callback) = 0;
+
     public:
+        explicit Allocation(VM &vm);
+
         virtual ~Allocation() = default;
+
+        Allocation &operator=(const Allocation &) = delete;
+        Allocation &operator=(const Allocation &&) = delete;
+        Allocation(Allocation &) = delete;
+        Allocation(Allocation &&) = delete;
+
     };
 
-    class OutOfMemoryError : std::bad_alloc {
+    class OutOfMemoryError final : std::bad_alloc {
     public:
         OutOfMemoryError() = default;
     };
@@ -80,7 +95,7 @@ namespace funscript {
         }
     };
 
-    class MemoryManager {
+    class MemoryManager final {
     public:
         const struct Config {
             Allocator *allocator = nullptr; // The allocator for this MM instance.
@@ -157,7 +172,7 @@ namespace funscript {
             gc_tracked.push_back(ptr);
             ptr->mm_size = sizeof(T);
             ptr->gc_pins++;
-            ptr->mm = this;
+            ptr->tracked = true;
             return ptr;
         }
 
@@ -175,20 +190,19 @@ namespace funscript {
         template<typename A>
         class AutoPtr {
         private:
-            MemoryManager &mm;
             A *alloc;
         public:
-            AutoPtr(MemoryManager &mm, A *alloc) : mm(mm), alloc(alloc) {
+            AutoPtr(MemoryManager &mm, A *alloc) : alloc(alloc) {
                 if (alloc) mm.gc_pin(alloc);
             }
 
-            AutoPtr(AutoPtr &&other) noexcept: mm(other.mm), alloc(other.alloc) {
+            AutoPtr(AutoPtr &&other) noexcept: alloc(other.alloc) {
                 other.alloc = nullptr;
             }
 
             AutoPtr &operator=(AutoPtr &&other) noexcept {
                 if (&other != this) {
-                    if (alloc) mm.gc_unpin(alloc);
+                    if (alloc) alloc->vm.mem.gc_unpin(alloc);
                     alloc = other.alloc;
                     other.alloc = nullptr;
                 }
@@ -201,9 +215,9 @@ namespace funscript {
             A *get() const { return alloc; }
 
             void set(A *alloc1) {
-                if (alloc) mm.gc_unpin(alloc);
+                if (alloc) alloc->vm.mem.gc_unpin(alloc);
                 alloc = alloc1;
-                if (alloc) mm.gc_pin(alloc);
+                if (alloc) alloc->vm.mem.gc_pin(alloc);
             }
 
             A &operator*() const { return *alloc; }
@@ -213,7 +227,7 @@ namespace funscript {
             operator bool() const { return alloc != nullptr; }
 
             ~AutoPtr() {
-                if (alloc) mm.gc_unpin(alloc);
+                if (alloc) alloc->vm.mem.gc_unpin(alloc);
             }
         };
 
