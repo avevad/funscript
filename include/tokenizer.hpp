@@ -77,6 +77,10 @@ namespace funscript {
         }
     }
 
+    /**
+     * Returns the mapping from character combinations to Funscript keywords.
+     * @return The string-keyword mapping.
+     */
     static const std::unordered_map<std::string, Keyword> &get_inverse_keyword_mapping() {
         static const std::unordered_map<std::string, Keyword> KEYWORDS = invert_unordered_map(get_keyword_mapping());
         return KEYWORDS;
@@ -122,7 +126,7 @@ namespace funscript {
     };
 
     /**
-     * Structure containing info about single token of code.
+     * Structure that contains info about single token of code.
      */
     struct Token {
         enum Type {
@@ -146,7 +150,8 @@ namespace funscript {
     };
 
     /**
-     * @return Mapping from keywords to corresponding language operators.
+     * Returns the mapping from keywords to Funscript operators.
+     * @return The keyword-operator mapping.
      */
     static const std::unordered_map<Keyword, Operator> &get_operator_keyword_mapping() {
         static const std::unordered_map<Keyword, Operator> OPERATOR_KEYWORDS{
@@ -178,7 +183,8 @@ namespace funscript {
     }
 
     /**
-     * @return Mapping from keywords to corresponding left bracket types.
+     * Returns the mapping from keywords to Funscript left bracket types.
+     * @return The keyword-bracket mapping.
      */
     static const std::unordered_map<Keyword, Bracket> &get_left_bracket_keyword_mapping() {
         static const std::unordered_map<Keyword, Bracket> LEFT_BRACKET_KEYWORDS{
@@ -190,7 +196,8 @@ namespace funscript {
     }
 
     /**
-     * @return Mapping from keywords to corresponding right bracket types.
+     * Returns the mapping from keywords to Funscript right bracket types.
+     * @return The keyword-bracket mapping.
      */
     static const std::unordered_map<Keyword, Bracket> &get_right_bracket_keyword_mapping() {
         static const std::unordered_map<Keyword, Bracket> RIGHT_BRACKET_KEYWORDS{
@@ -209,18 +216,12 @@ namespace funscript {
     Token get_token(const std::string &token_str);
 
     /**
-     * Converts funscript code into stream of tokens.
+     * Converts Funscript code into stream of tokens.
      * @param filename The name of the file which is being parsed.
      * @param code Code to tokenize.
      * @param cb Callback function to call for every parsed token.
      */
     void tokenize(const std::string &filename, const std::string &code, const std::function<void(Token)> &cb);
-
-    class CodeReadingError : public std::runtime_error {
-    public:
-        explicit CodeReadingError(const std::string &filename, code_pos_t pos, const std::string &msg)
-                : std::runtime_error(msg + " at " + filename + ':' + pos.to_string()) {}
-    };
 }
 
 #endif //FUNSCRIPT_TOKENIZER_HPP

@@ -146,7 +146,7 @@ void funscript::tokenize(const std::string &filename, const std::string &code, c
         }
         // Handle current token
         Token token = get_token(code.substr(left, right - left));
-        if (!token.type) throw CodeReadingError(filename, left_pos, "unknown token");
+        if (!token.type) throw CompilationError(filename, {left_pos, right_pos}, "unknown token");
         token.location = {left_pos, right_pos};
         cb(token);
         // Move onto the next one

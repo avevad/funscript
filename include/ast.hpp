@@ -122,23 +122,18 @@ namespace funscript {
         void assemble(char *buffer) const;
     };
 
-    class CompilationError : public std::runtime_error {
-    public:
-        explicit CompilationError(const std::string &filename, const code_loc_t &loc, const std::string &msg);
-    };
-
     /**
      * Structure that holds optimization info passed up to the higher level expression when generating evaluation bytecode.
      */
     struct u_ev_opt_info {
-        bool no_scope = false;
+        bool no_scope = false; // `true` if the creation of scope could be skipped during evaluation of this expression when enclosed in brackets.
     };
 
     /**
      * Structure that holds optimization info passed up to the higher level expression when generating assignment bytecode.
      */
     struct u_mv_opt_info {
-        bool no_scope = false;
+        bool no_scope = false; // `true` if the creation of scope could be skipped during assignment to this expression when enclosed in brackets.
     };
 
     /**
@@ -162,11 +157,21 @@ namespace funscript {
         const std::string filename; // Name of the source file of the expression.
         const code_loc_t token_loc; // Location of the token which forms the expression.
 
+        /**
+         * Generate bytecode that evaluates this expression.
+         * @param chunk The chunk to write code into.
+         * @param d_opt Downward optimization info for this expression.
+         * @return Upward optimization info of this expression.
+         */
         virtual u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) = 0;
-        virtual u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) = 0;
 
-        [[nodiscard]] virtual std::string get_identifier() const;
-        [[nodiscard]] virtual std::pair<AST *, AST *> get_then() const;
+        /**
+         * Generate bytecode that assigns to this expression.
+         * @param chunk The chunk to write code into.
+         * @param d_opt Downward optimization info for this expression.
+         * @return Upward optimization info of this expression.
+         */
+        virtual u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) = 0;
 
         /**
          * @return Full source location of the whole expression.
@@ -191,7 +196,7 @@ namespace funscript {
     ast_ptr parse(const std::string &filename, std::vector<Token> tokens);
 
     /**
-     * A structure that holds some static operator metadata
+     * A structure that holds some static operator metadata.
      */
     struct OperatorMeta {
         int order; // Precedence of an operator (less value - higher precedence)
@@ -199,7 +204,7 @@ namespace funscript {
     };
 
     /**
-     * @return The mapping from operators to their metadata
+     * @return The mapping from operators to their metadata.
      */
     static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
         static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
@@ -259,13 +264,12 @@ namespace funscript {
      * Class of AST leaves which represent identifiers.
      */
     class IdentifierAST : public AST {
-        std::string name; // Name of the identifier.
 
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
-
-        [[nodiscard]] std::string get_identifier() const override;
     public:
+        const std::string name; // Name of the identifier.
+
         explicit IdentifierAST(const std::string &filename, code_loc_t token_loc, std::string name);
     };
 
@@ -279,8 +283,6 @@ namespace funscript {
 
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
-
-        [[nodiscard]] std::pair<AST *, AST *> get_then() const override;
 
         [[nodiscard]] code_loc_t get_location() const override;
     public:

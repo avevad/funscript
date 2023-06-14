@@ -14,7 +14,7 @@ namespace funscript::native {
 
     /**
      * Helper function that allows to transform stack values into C++ values and pass them as arguments to any function.
-     * It also transforms return value of the C++ function into funscript values and pushes it onto the stack.
+     * It also transforms return value of the C++ function into Funscript values and pushes it onto the stack.
      * @tparam Ret Return type of the C++ function.
      * @tparam Args Argument types of the C++ function.
      * @param stack Execution stack to operate with.

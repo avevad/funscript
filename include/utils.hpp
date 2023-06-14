@@ -37,10 +37,6 @@ namespace funscript::util {
         auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(vm, mod, scope, bytecode.get());
         start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
         return eval_fn(vm, start.get());
-    } catch (const CodeReadingError &err) {
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        stack->raise_err(std::string("syntax error: ") + err.what(), 0);
-        return stack;
     } catch (const CompilationError &err) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
         stack->raise_err(std::string("compilation error: ") + err.what(), 0);

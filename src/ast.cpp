@@ -4,14 +4,6 @@
 
 namespace funscript {
 
-    std::string AST::get_identifier() const {
-        throw CompilationError(filename, get_location(), "not an identifier");
-    }
-
-    std::pair<AST *, AST *> AST::get_then() const {
-        throw CompilationError(filename, get_location(), "not a `then` operator");
-    }
-
     AST::AST(std::string filename, code_loc_t location) : filename(std::move(filename)), token_loc(location) {}
 
     code_loc_t AST::get_location() const {
@@ -47,10 +39,6 @@ namespace funscript {
 
     IdentifierAST::IdentifierAST(const std::string &filename, code_loc_t token_loc,
                                  std::string name) : AST(filename, token_loc), name(std::move(name)) {}
-
-    std::string IdentifierAST::get_identifier() const {
-        return name;
-    }
 
     u_ev_opt_info OperatorAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         switch (op) {
@@ -102,7 +90,11 @@ namespace funscript {
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::GET, uint32_t(as.data_chunk().put(token_loc.beg)),
                                     false, 0 /* Will be overwritten to actual name location */});
-                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
+                auto *right_id = dynamic_cast<IdentifierAST *>(right.get());
+                if (!right_id) {
+                    throw CompilationError(filename, right->get_location(), "identifier expected");
+                }
+                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
                 return {.no_scope = false};
             }
             case Operator::THEN: {
@@ -117,7 +109,11 @@ namespace funscript {
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             case Operator::ELSE: {
-                auto [cond, then] = left->get_then();
+                auto left_op = dynamic_cast<OperatorAST *>(left.get());
+                if (!left_op || left_op->op != Operator::THEN) {
+                    throw CompilationError(filename, left->get_location(), "expected `then` operator");
+                }
+                auto cond = left_op->left.get(), then = left_op->right.get();
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(cond->get_location().beg)),
                                     0, 0});
                 u_ev_opt_info u_opt1 = cond->compile_eval(as, ch, {});
@@ -220,7 +216,11 @@ namespace funscript {
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::SET, uint32_t(as.data_chunk().put(token_loc.beg)),
                                     false, 0 /* Will be overwritten to actual name location */});
-                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right->get_identifier()));
+                auto *right_id = dynamic_cast<IdentifierAST *>(right.get());
+                if (!right_id) {
+                    throw CompilationError(filename, left->get_location(), "identifier expected");
+                }
+                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
                 return {.no_scope = false};
             }
             case Operator::CALL: {
@@ -244,10 +244,6 @@ namespace funscript {
                                                                               left(left),
                                                                               right(right),
                                                                               op(op) {}
-
-    std::pair<AST *, AST *> OperatorAST::get_then() const {
-        return {left.get(), right.get()};
-    }
 
     code_loc_t OperatorAST::get_location() const {
         return {left->get_location().beg, right->get_location().end};
@@ -383,4 +379,5 @@ namespace funscript {
     u_mv_opt_info FloatAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
         throw CompilationError(filename, get_location(), "expression is not assignable");
     }
+
 }

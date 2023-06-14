@@ -53,7 +53,7 @@ namespace funscript {
 
     void VM::Stack::push_fun(Function *fun) { return push({Type::FUN, {.fun = fun}}); }
 
-    void VM::Stack::push_bln(bool bln) { return push({Type::BLN, {.bln = bln}}); }
+    void VM::Stack::push_bln(fbln bln) { return push({Type::BLN, {.bln = bln}}); }
 
     void VM::Stack::push_str(String *str) { return push({Type::STR, {.str = str}}); }
 
@@ -541,7 +541,7 @@ namespace funscript {
                     if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::BLN) {
                         return raise_op_err(op);
                     }
-                    bool bln = get(pos_b).data.bln;
+                    fbln bln = get(pos_b).data.bln;
                     pop(-3);
                     push_bln(!bln);
                     break;

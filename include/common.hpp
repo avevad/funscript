@@ -9,6 +9,11 @@
 
 namespace funscript {
 
+    /**
+     * Prints specified error message with source location and aborts current process.
+     * @param what Short description of the error.
+     * @param where The source location where the error occurred.
+     */
     [[noreturn]] static void assertion_failed(const std::string &what,
                                               std::source_location where = std::source_location::current()) {
         std::cerr << std::string(where.file_name()) + ":" + std::to_string(where.line()) + ":" +
@@ -23,6 +28,10 @@ namespace funscript {
     struct code_pos_t {
         size_t row, col;
 
+        /**
+         * Produces a human-readable string which represents this code position.
+         * @return The string representation of code position.
+         */
         [[nodiscard]] std::string to_string() const {
             return std::to_string(row) + ':' + std::to_string(col);
         }
@@ -34,10 +43,23 @@ namespace funscript {
     struct code_loc_t {
         code_pos_t beg, end;
 
+        /**
+         * Produces a human-readable string which represents this code location.
+         * @return The string representation of code location.
+         */
         [[nodiscard]] std::string to_string() const {
             return beg.to_string() + '-' + end.to_string();
         }
     };
+
+    /**
+     * Class of errors which happen during compilation of Funscript code.
+     */
+    class CompilationError : public std::runtime_error {
+    public:
+        explicit CompilationError(const std::string &filename, const code_loc_t &loc, const std::string &msg);
+    };
+
 
     /**
      * Structure that represents the execution metadata (filename, line, column)
@@ -47,8 +69,20 @@ namespace funscript {
         code_pos_t position;
     };
 
+    /**
+     * Enumeration of all the value types available in Funscript VM.
+     */
     enum class Type : uint8_t {
-        NUL, SEP, INT, OBJ, FUN, BLN, STR, ERR, ARR, FLP
+        NUL, // Type that represents absence of value.
+        SEP, // Special type of values which separate value packs from each other (unavailable in Funscript code).
+        INT, // Type of integer values.
+        OBJ, // Type of freeform objects (basically, just key-value mappings).
+        FUN, // Type of function values (lambdas).
+        BLN, // Type of boolean values (`yes` or `no`).
+        STR, // Type of string values (immutable sequences of bytes).
+        ERR, // Special type for error values which propagate up the stack (unavailable in Funscript code).
+        ARR, // Type of arrays of any values.
+        FLP, // Type of float values (IEEE 754).
     };
 
     /**
@@ -63,7 +97,7 @@ namespace funscript {
          */
         VAL,
         /**
-         * @brief Shorthand for VAL(u16 = Type::SEP).
+         * @brief Shorthand for VAL{.u16 = Type::SEP}.
          */
         SEP,
         /**
@@ -154,11 +188,14 @@ namespace funscript {
         MET,
     };
 
+    /**
+     * Structure that represents single instruction of Funscript VM's bytecode.
+     */
     struct Instruction {
-        Opcode op;
-        uint16_t u16;
-        uint32_t meta;
-        uint64_t u64;
+        Opcode op; // Opcode (operation code) of the instruction.
+        uint16_t u16; // Short argument of the instruction.
+        uint32_t meta; // Instruction metadata. It may contain the offset (relative to function's start of metadata) of this instruction's source code position.
+        uint64_t u64; // Long argument of the instruction.
 
         Instruction(Opcode op, uint32_t meta, uint16_t u16, uint64_t u64) : op(op), u16(u16), meta(meta), u64(u64) {}
     };
@@ -193,8 +230,11 @@ namespace funscript {
         OR
     };
 
+    // Aliases for Funscript primitive types
+
     using fint = int64_t;
     using fflp = double;
+    using fbln = bool;
 
     static double nan() {
         static const double NAN = std::stod("NAN");
@@ -206,6 +246,13 @@ namespace funscript {
         return INF;
     }
 
+    /**
+     * Converts any pointer into hexadecimal representation of its address.
+     * @tparam Alloc Allocator type.
+     * @param ptr The pointer to convert.
+     * @param alloc The allocator for the resulting string.
+     * @return String representation of the pointer.
+     */
     template<typename Alloc = std::allocator<char>>
     static std::basic_string<char, std::char_traits<char>, Alloc>
     addr_to_string(const void *ptr, const Alloc &alloc = Alloc()) {
@@ -214,29 +261,53 @@ namespace funscript {
         return stream.str();
     }
 
+    /**
+     * Strips version from the full module name.
+     * @param name The name of the module.
+     * @return The alias of the module (its name without any version).
+     */
     static std::string get_module_alias(const std::string &name) {
         return name.substr(name.rfind('-') + 1);
     }
 
-    static std::string get_module_base_path_str(const std::filesystem::path &modules_path, std::string name) {
-        for (char &c : name) if (c == '.') c = std::filesystem::path::preferred_separator;
-        return (modules_path / name).string();
-    }
-
+    // Name of the environment variable that holds path to the directory that contains Funscript modules.
     static const char *MODULES_PATH_ENV_VAR = "FS_MODULES_PATH";
 
-    static std::filesystem::path get_native_module_lib_path(const std::string &name) {
-        return get_module_base_path_str(getenv(MODULES_PATH_ENV_VAR), name) + ".so";
+    /**
+     * Produces the common part of possible module paths (native module, source module).
+     * @param name The name of the module.
+     * @return The specified module's base path string.
+     */
+    static std::string get_module_base_path_str(std::string name) {
+        const char *modules_path_str = getenv(MODULES_PATH_ENV_VAR);
+        for (char &c : name) if (c == '.') c = std::filesystem::path::preferred_separator;
+        return (std::filesystem::path(modules_path_str) / name).string();
     }
 
+    /**
+     * Produces the path to the library of the native module.
+     * @param name The name of the native module.
+     * @return The path to native module's library.
+     */
+    static std::filesystem::path get_native_module_lib_path(const std::string &name) {
+        return get_module_base_path_str(name) + ".so";
+    }
+
+    /**
+     * Produces the path to the loader of the source module.
+     * @param name The name of the source module.
+     * @return The path to source module's loader.
+     */
     static std::filesystem::path get_src_module_loader_path(const std::string &name) {
         static const std::string MODULE_LOADER_FILENAME = "_load.fs";
-        return std::filesystem::path(get_module_base_path_str(getenv(MODULES_PATH_ENV_VAR), name)) /
+        return std::filesystem::path(get_module_base_path_str(name)) /
                MODULE_LOADER_FILENAME;
     }
 
-    static const char *MODULE_EXPORTS_VAR = "exports";
-    static const char *MODULE_STARTER_VAR = "start";
+    static const char *MODULE_EXPORTS_VAR = "exports"; // Name of the variable that holds module's exports.
+    static const char *MODULE_STARTER_VAR = "start"; // Name of the variable that holds module's starter function.
+
+    // Name of the variable that holds native module's symbol lookup function.
     static const char *NATIVE_MODULE_SYMBOL_LOADER_VAR = "load_native_sym";
 }
 

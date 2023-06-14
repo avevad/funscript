@@ -60,12 +60,10 @@ int main(int argc, const char **argv) {
         std::cerr << args[0] << ": module name expected" << std::endl;
         return 1;
     }
-    std::string modules_path_str = getenv("FS_MODULES_PATH") ?: "";
-    if (modules_path_str.empty()) {
+    if (!getenv("FS_MODULES_PATH")) {
         std::cerr << args[0] << ": no modules path is set" << std::endl;
         return 1;
     }
-    std::filesystem::path modules_path(modules_path_str);
     DefaultAllocator allocator(1073741824 /* 1 GiB */);
     VM vm({
                   .mm{.allocator = &allocator},

@@ -251,7 +251,7 @@ namespace funscript {
                 fflp flp;
                 Object *obj;
                 Function *fun;
-                bool bln;
+                fbln bln;
                 String *str;
                 Error *err;
                 Array *arr;
@@ -317,9 +317,11 @@ namespace funscript {
             static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 
             void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
+
             void call_operator(Operator op);
             void call_assignment();
             void call_function(Function *fun);
+
             void continue_execution();
 
             // Some functions for pushing values onto the value stack.
@@ -331,7 +333,7 @@ namespace funscript {
             void push_obj(Object *obj);
             void push_fun(Function *fun);
             void push_str(String *str);
-            void push_bln(bool bln);
+            void push_bln(fbln bln);
             void push_err(Error *err);
             void push_arr(Array *arr);
 
