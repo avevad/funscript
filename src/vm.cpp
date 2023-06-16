@@ -392,6 +392,14 @@ namespace funscript {
                         push_arr(dst.get());
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(TIMES_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(TIMES_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::DIVIDE: {
@@ -406,6 +414,14 @@ namespace funscript {
                         fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
                         pop(-4);
                         push_flp(a / b);
+                        break;
+                    }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(DIVIDE_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(DIVIDE_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
                         break;
                     }
                     return raise_op_err(op);
@@ -442,6 +458,14 @@ namespace funscript {
                         push_flp(a + b);
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(PLUS_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(PLUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::MINUS: {
@@ -472,6 +496,14 @@ namespace funscript {
                         push_flp(a - b);
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(MINUS_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(MINUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::CALL: {
@@ -488,24 +520,40 @@ namespace funscript {
                         }
                         break;
                     }
-                    if (cnt_a != 1 || get(pos_a).type != Type::FUN) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && get(pos_a).type == Type::FUN) {
+                        Function *fn = get(pos_a).data.fun;
+                        vm.mem.gc_pin(fn);
+                        pop(-2);
+                        call_function(fn);
+                        vm.mem.gc_unpin(fn);
+                        break;
                     }
-                    Function *fn = get(pos_a).data.fun;
-                    vm.mem.gc_pin(fn);
-                    pop(-2);
-                    call_function(fn);
-                    vm.mem.gc_unpin(fn);
-                    break;
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(CALL_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(CALL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::MODULO: {
-                    if (cnt_a != 1 || cnt_b != 1 || get(pos_a).type != Type::INT || get(pos_b).type != Type::INT) {
-                        return raise_op_err(op);
+                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                        pop(-4);
+                        push_int(a % b);
+                        break;
                     }
-                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                    pop(-4);
-                    push_int(a % b);
-                    break;
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(MODULO_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(MODULO_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
+                    return raise_op_err(op);
                 }
                 case Operator::EQUALS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -518,6 +566,14 @@ namespace funscript {
                         fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
                         pop(-4);
                         push_bln(a == b);
+                        break;
+                    }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(EQUALS_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(EQUALS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
                         break;
                     }
                     return raise_op_err(op);
@@ -535,16 +591,25 @@ namespace funscript {
                         push_bln(a != b);
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(DIFFERS_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem,
+                                get(pos_a).data.obj->get_field(DIFFERS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::NOT: {
-                    if (cnt_a != 0 || cnt_b != 1 || get(pos_b).type != Type::BLN) {
-                        return raise_op_err(op);
+                    if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::BLN) {
+                        fbln bln = get(pos_b).data.bln;
+                        pop(-3);
+                        push_bln(!bln);
+                        break;
                     }
-                    fbln bln = get(pos_b).data.bln;
-                    pop(-3);
-                    push_bln(!bln);
-                    break;
+                    return raise_op_err(op);
                 }
                 case Operator::LESS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -557,6 +622,14 @@ namespace funscript {
                         fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
                         pop(-4);
                         push_bln(a < b);
+                        break;
+                    }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(LESS_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem, get(pos_a).data.obj->get_field(LESS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
                         break;
                     }
                     return raise_op_err(op);
@@ -574,6 +647,15 @@ namespace funscript {
                         push_bln(a > b);
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(GREATER_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem,
+                                get(pos_a).data.obj->get_field(GREATER_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::LESS_EQUAL: {
@@ -589,6 +671,15 @@ namespace funscript {
                         push_bln(a <= b);
                         break;
                     }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem,
+                                get(pos_a).data.obj->get_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    }
                     return raise_op_err(op);
                 }
                 case Operator::GREATER_EQUAL: {
@@ -602,6 +693,15 @@ namespace funscript {
                         fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
                         pop(-4);
                         push_bln(a >= b);
+                        break;
+                    }
+                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                        get(pos_a).data.obj->contains_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                vm.mem,
+                                get(pos_a).data.obj->get_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
                         break;
                     }
                     return raise_op_err(op);
@@ -680,6 +780,7 @@ namespace funscript {
             for (const auto &frame : frames) {
                 code_met_t code_meta{.filename = "?", .position = {0, 0}};
                 if (frame->meta_ptr) code_meta = *frame->meta_ptr;
+                if (!code_meta.filename) code_meta.filename = "?";
                 stacktrace.push_back({.function_repr = frame->fun->display(), .code_meta = code_meta});
             }
             auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
@@ -738,6 +839,16 @@ namespace funscript {
     }
 
     VM::Object::Object(VM &vm) : Allocation(vm), fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()) {}
+
+    bool VM::Object::contains_field(const char *key) const {
+        return fields.contains(FStr(key, vm.mem.str_alloc()));
+    }
+
+    std::optional<VM::Value> VM::Object::get_field(const char *key) const {
+        FStr key_f(key, vm.mem.str_alloc());
+        if (!fields.contains(key_f)) return std::nullopt;
+        return fields.at(key_f);
+    }
 
     void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(vars);

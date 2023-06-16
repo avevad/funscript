@@ -38,6 +38,10 @@ target_include_directories(funscript-bin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc
 target_link_libraries(funscript-bin PRIVATE funscript)
 set_target_properties(funscript-bin PROPERTIES OUTPUT_NAME funscript)
 
+add_executable(repl src/repl.cpp)
+target_include_directories(repl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(repl PRIVATE funscript)
+
 add_library(stdfs SHARED src/stdlib.cpp)
 target_include_directories(stdfs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(stdfs PRIVATE funscript)

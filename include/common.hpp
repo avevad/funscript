@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <iostream>
 #include <filesystem>
+#include <unordered_map>
 
 namespace funscript {
 
@@ -229,6 +230,61 @@ namespace funscript {
         AND,
         OR
     };
+
+    /**
+     * A structure that holds some static operator metadata.
+     */
+    struct OperatorMeta {
+        const char *overload_name; // Name of the object's method that overloads this operator.
+        int order; // Precedence of an operator (less value - higher precedence)
+        bool left; // Whether it is a left-associative operator
+    };
+
+    /**
+     * @return The mapping from operators to their metadata.
+     */
+    static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
+        static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
+                {Operator::INDEX,         {"index",              0,  true}},
+                {Operator::CALL,          {"call",               0,  false /* should not be used */ }},
+                {Operator::NOT,           {"not",                1,  false}},
+                {Operator::TIMES,         {"times",              3,  true}},
+                {Operator::DIVIDE,        {"divide",             4,  true}},
+                {Operator::MODULO,        {"modulo",             4,  true}},
+                {Operator::PLUS,          {"add",                4,  true}},
+                {Operator::MINUS,         {"subtract",           4,  true}},
+                {Operator::EQUALS,        {"equals",             6,  true}},
+                {Operator::DIFFERS,       {"differs_from",       6,  true}},
+                {Operator::LESS,          {"less_than",          6,  true}},
+                {Operator::GREATER,       {"greater_than",       6,  true}},
+                {Operator::LESS_EQUAL,    {"less_equal_than",    6,  true}},
+                {Operator::GREATER_EQUAL, {"greater_equal_than", 6,  true}},
+                {Operator::AND,           {nullptr,              7,  true}},
+                {Operator::OR,            {nullptr,              8,  true}},
+                {Operator::LAMBDA,        {nullptr,              9,  false}},
+                {Operator::APPEND,        {nullptr,              10, false}},
+                {Operator::ASSIGN,        {nullptr,              11, true}},
+                {Operator::THEN,          {nullptr,              12, false}},
+                {Operator::ELSE,          {nullptr,              13, false}},
+                {Operator::UNTIL,         {nullptr,              14, false}},
+                {Operator::DO,            {nullptr,              14, false}},
+                {Operator::DISCARD,       {nullptr,              15, false}},
+        };
+        return OPERATORS;
+    }
+
+    static const char *CALL_OPERATOR_OVERLOAD_NAME = "call";
+    static const char *TIMES_OPERATOR_OVERLOAD_NAME = "times";
+    static const char *DIVIDE_OPERATOR_OVERLOAD_NAME = "divide";
+    static const char *MODULO_OPERATOR_OVERLOAD_NAME = "modulo";
+    static const char *PLUS_OPERATOR_OVERLOAD_NAME = "add";
+    static const char *MINUS_OPERATOR_OVERLOAD_NAME = "subtract";
+    static const char *EQUALS_OPERATOR_OVERLOAD_NAME = "equals";
+    static const char *DIFFERS_OPERATOR_OVERLOAD_NAME = "differs_from";
+    static const char *LESS_OPERATOR_OVERLOAD_NAME = "less_than";
+    static const char *GREATER_OPERATOR_OVERLOAD_NAME = "greater_than";
+    static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
+    static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
 
     // Aliases for Funscript primitive types
 

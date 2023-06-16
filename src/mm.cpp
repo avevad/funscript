@@ -45,8 +45,9 @@ namespace funscript {
         for (auto *alloc : gc_tracked) {
             if (alloc->tracked) gc_tracked_new.push_back(alloc);
             else {
+                size_t sz = alloc->mm_size;
                 alloc->~Allocation();
-                free(alloc, alloc->mm_size);
+                free(alloc, sz);
             }
         }
         gc_tracked = gc_tracked_new;

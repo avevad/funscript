@@ -80,7 +80,9 @@ namespace funscript {
             explicit Object(VM &vm);
 
             [[nodiscard]] bool contains_field(const FStr &key) const;
+            [[nodiscard]] bool contains_field(const char *key) const;
             [[nodiscard]] std::optional<Value> get_field(const FStr &key) const;
+            [[nodiscard]] std::optional<Value> get_field(const char *key) const;
             void set_field(const FStr &key, Value val);
             const decltype(fields) &get_fields() const;
 

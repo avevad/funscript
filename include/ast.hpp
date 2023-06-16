@@ -196,47 +196,6 @@ namespace funscript {
     ast_ptr parse(const std::string &filename, std::vector<Token> tokens);
 
     /**
-     * A structure that holds some static operator metadata.
-     */
-    struct OperatorMeta {
-        int order; // Precedence of an operator (less value - higher precedence)
-        bool left; // Whether it is a left-associative operator
-    };
-
-    /**
-     * @return The mapping from operators to their metadata.
-     */
-    static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
-        static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
-                {Operator::INDEX,         {0,  true}},
-                {Operator::CALL,          {0,  false /* should not be used */ }},
-                {Operator::NOT,           {1,  false}},
-                {Operator::TIMES,         {3,  true}},
-                {Operator::DIVIDE,        {4,  true}},
-                {Operator::MODULO,        {4,  true}},
-                {Operator::PLUS,          {4,  true}},
-                {Operator::MINUS,         {4,  true}},
-                {Operator::EQUALS,        {6,  true}},
-                {Operator::DIFFERS,       {6,  true}},
-                {Operator::LESS,          {6,  true}},
-                {Operator::GREATER,       {6,  true}},
-                {Operator::LESS_EQUAL,    {6,  true}},
-                {Operator::GREATER_EQUAL, {6,  true}},
-                {Operator::AND,           {7,  true}},
-                {Operator::OR,            {8,  true}},
-                {Operator::LAMBDA,        {9,  false}},
-                {Operator::APPEND,        {10, false}},
-                {Operator::ASSIGN,        {11, true}},
-                {Operator::THEN,          {12, false}},
-                {Operator::ELSE,          {13, false}},
-                {Operator::UNTIL,         {14, false}},
-                {Operator::DO,            {14, false}},
-                {Operator::DISCARD,       {15, false}},
-        };
-        return OPERATORS;
-    }
-
-    /**
      * Class of AST leaves which represent integer literals.
      */
     class IntegerAST : public AST {
