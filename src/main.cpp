@@ -60,7 +60,7 @@ int main(int argc, const char **argv) {
         std::cerr << args[0] << ": module name expected" << std::endl;
         return 1;
     }
-    if (!getenv("FS_MODULES_PATH")) {
+    if (!getenv(MODULES_PATH_ENV_VAR)) {
         std::cerr << args[0] << ": no modules path is set" << std::endl;
         return 1;
     }

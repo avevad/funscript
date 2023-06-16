@@ -3,6 +3,7 @@
 #include <queue>
 #include <utility>
 #include <sstream>
+#include <cstring>
 
 namespace funscript {
 
@@ -691,6 +692,13 @@ namespace funscript {
                         break;
                     }
                     return raise_op_err(op);
+                }
+                case Operator::IS: {
+                    fbln same = cnt_a == cnt_b &&
+                                std::memcmp(values.data() + pos_a, values.data() + pos_b, sizeof(Value) * cnt_a) == 0;
+                    pop(pos_b - 1);
+                    push_bln(same);
+                    break;
                 }
                 default:
                     assertion_failed("unknown operator");

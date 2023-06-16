@@ -228,14 +228,14 @@ namespace funscript {
         UNTIL,
         DO,
         AND,
-        OR
+        OR,
+        IS
     };
 
     /**
      * A structure that holds some static operator metadata.
      */
     struct OperatorMeta {
-        const char *overload_name; // Name of the object's method that overloads this operator.
         int order; // Precedence of an operator (less value - higher precedence)
         bool left; // Whether it is a left-associative operator
     };
@@ -245,30 +245,32 @@ namespace funscript {
      */
     static const std::unordered_map<Operator, OperatorMeta> &get_operators_meta() {
         static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
-                {Operator::INDEX,         {"index",              0,  true}},
-                {Operator::CALL,          {"call",               0,  false /* should not be used */ }},
-                {Operator::NOT,           {"not",                1,  false}},
-                {Operator::TIMES,         {"times",              3,  true}},
-                {Operator::DIVIDE,        {"divide",             4,  true}},
-                {Operator::MODULO,        {"modulo",             4,  true}},
-                {Operator::PLUS,          {"add",                4,  true}},
-                {Operator::MINUS,         {"subtract",           4,  true}},
-                {Operator::EQUALS,        {"equals",             6,  true}},
-                {Operator::DIFFERS,       {"differs_from",       6,  true}},
-                {Operator::LESS,          {"less_than",          6,  true}},
-                {Operator::GREATER,       {"greater_than",       6,  true}},
-                {Operator::LESS_EQUAL,    {"less_equal_than",    6,  true}},
-                {Operator::GREATER_EQUAL, {"greater_equal_than", 6,  true}},
-                {Operator::AND,           {nullptr,              7,  true}},
-                {Operator::OR,            {nullptr,              8,  true}},
-                {Operator::LAMBDA,        {nullptr,              9,  false}},
-                {Operator::APPEND,        {nullptr,              10, false}},
-                {Operator::ASSIGN,        {nullptr,              11, true}},
-                {Operator::THEN,          {nullptr,              12, false}},
-                {Operator::ELSE,          {nullptr,              13, false}},
-                {Operator::UNTIL,         {nullptr,              14, false}},
-                {Operator::DO,            {nullptr,              14, false}},
-                {Operator::DISCARD,       {nullptr,              15, false}},
+                {Operator::INDEX,         {0,  true}},
+                {Operator::CALL,          {0,  false /* should not be used */ }},
+                {Operator::NOT,           {1,  false}},
+                {Operator::TIMES,         {3,  true}},
+                {Operator::DIVIDE,        {4,  true}},
+                {Operator::MODULO,        {4,  true}},
+                {Operator::PLUS,          {4,  true}},
+                {Operator::MINUS,         {4,  true}},
+                {Operator::EQUALS,        {5,  true}},
+                {Operator::DIFFERS,       {5,  true}},
+                {Operator::LESS,          {5,  true}},
+                {Operator::GREATER,       {5,  true}},
+                {Operator::LESS_EQUAL,    {5,  true}},
+                {Operator::GREATER_EQUAL, {5,  true}},
+                {Operator::GREATER_EQUAL, {5,  true}},
+                {Operator::IS,            {6,  true}},
+                {Operator::AND,           {7,  true}},
+                {Operator::OR,            {8,  true}},
+                {Operator::LAMBDA,        {9,  false}},
+                {Operator::APPEND,        {10, false}},
+                {Operator::ASSIGN,        {11, true}},
+                {Operator::THEN,          {12, false}},
+                {Operator::ELSE,          {13, false}},
+                {Operator::UNTIL,         {14, false}},
+                {Operator::DO,            {14, false}},
+                {Operator::DISCARD,       {15, false}},
         };
         return OPERATORS;
     }
