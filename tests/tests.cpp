@@ -180,3 +180,24 @@ TEST_CASE("Arrays", "[arrays]") {
         CHECK_THAT("(9 * arr)[9 * 3 - 1]", EVALUATES_TO(5));
     };
 }
+
+TEST_CASE("Objects", "[objects]") {
+    TestEnv env;
+    SECTION("Creation") {
+        CHECK_THAT("{}", SUCCEEDS);
+        CHECK_THAT("{.str = 'a'; .int = 2; .bln = yes; }", SUCCEEDS);
+    };
+    SECTION("Field access") {
+        REQUIRE_THAT(".person = {.name = 'John'; .age = 31; .male = yes; }", SUCCEEDS);
+        CHECK_THAT("person.name", EVALUATES_TO("John"));
+        CHECK_THAT("person.friends", FAILS);
+    };
+    SECTION("Methods") {
+        REQUIRE_THAT(".Counter = .val: {.value = : val; .inc = : (val = val + 1); .dec = : (val = val - 1); }",
+                     SUCCEEDS);
+        REQUIRE_THAT(".cnt = Counter(5)", SUCCEEDS);
+        REQUIRE_THAT("cnt.value()", EVALUATES_TO(5));
+        REQUIRE_THAT("cnt.inc(); cnt.inc(); cnt.dec();", SUCCEEDS);
+        CHECK_THAT("cnt.value()", EVALUATES_TO(6));
+    }
+}

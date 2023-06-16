@@ -163,8 +163,7 @@ namespace funscript {
                             if (get(-1).type != Type::OBJ) {
                                 return raise_err("only objects are able to be indexed", frame_start);
                             }
-                            Object *obj = get(-1).data.obj;
-                            vm.mem.gc_pin(obj);
+                            auto obj = MemoryManager::AutoPtr(vm.mem, get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) {
                                 return raise_err("can't index multiple values", frame_start);
@@ -175,7 +174,6 @@ namespace funscript {
                                 return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                             }
                             push(field.value());
-                            vm.mem.gc_unpin(obj);
                         }
                         ip++;
                         break;
@@ -194,8 +192,7 @@ namespace funscript {
                             if (get(-1).type != Type::OBJ) {
                                 return raise_err("only objects are able to be indexed", frame_start);
                             }
-                            Object *obj = get(-1).data.obj;
-                            vm.mem.gc_pin(obj);
+                            auto obj = MemoryManager::AutoPtr(vm.mem, get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                             pop();
@@ -205,7 +202,6 @@ namespace funscript {
                             }
                             obj->set_field(name, get(-1));
                             pop();
-                            vm.mem.gc_unpin(obj);
                         }
                         ip++;
                         break;
@@ -257,11 +253,9 @@ namespace funscript {
                         auto op = static_cast<Operator>(ins.u16);
                         call_operator(op);
                         if (size() != 0 && get(-1).type == Type::ERR) {
-                            Error *err = get(-1).data.err;
-                            vm.mem.gc_pin(err);
+                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
                             pop(frame_start);
-                            push_err(err);
-                            vm.mem.gc_unpin(err);
+                            push_err(err.get());
                             return;
                         }
                         ip++;
@@ -273,11 +267,9 @@ namespace funscript {
                     case Opcode::JNO: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            Error *err = get(-1).data.err;
-                            vm.mem.gc_pin(err);
+                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
                             pop(frame_start);
-                            push_err(err);
-                            vm.mem.gc_unpin(err);
+                            push_err(err.get());
                             return;
                         }
                         if (!get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
@@ -288,11 +280,9 @@ namespace funscript {
                     case Opcode::JYS: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            Error *err = get(-1).data.err;
-                            vm.mem.gc_pin(err);
+                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
                             pop(frame_start);
-                            push_err(err);
-                            vm.mem.gc_unpin(err);
+                            push_err(err.get());
                             return;
                         }
                         if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
@@ -324,11 +314,9 @@ namespace funscript {
                     case Opcode::MOV: {
                         call_assignment();
                         if (get(-1).type == Type::ERR) {
-                            Error *err = get(-1).data.err;
-                            vm.mem.gc_pin(err);
+                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
                             pop(frame_start);
-                            push_err(err);
-                            vm.mem.gc_unpin(err);
+                            push_err(err.get());
                             return;
                         }
                         ip++;
@@ -521,11 +509,9 @@ namespace funscript {
                         break;
                     }
                     if (cnt_a == 1 && get(pos_a).type == Type::FUN) {
-                        Function *fn = get(pos_a).data.fun;
-                        vm.mem.gc_pin(fn);
+                        auto fn = MemoryManager::AutoPtr(vm.mem, get(pos_a).data.fun);
                         pop(-2);
-                        call_function(fn);
-                        vm.mem.gc_unpin(fn);
+                        call_function(fn.get());
                         break;
                     }
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
