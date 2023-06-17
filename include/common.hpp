@@ -187,6 +187,18 @@ namespace funscript {
          * @u64 Bytecode offset of metadata chunk.
          */
         MET,
+        /**
+         * @brief Insert a separator beneath the topmost value.
+         */
+        INS,
+        /**
+         * @brief Duplicate the topmost value.
+         */
+        DP1,
+        /**
+         * @brief Execute type check call.
+         */
+        CHK
     };
 
     /**
@@ -287,6 +299,7 @@ namespace funscript {
     static const char *GREATER_OPERATOR_OVERLOAD_NAME = "greater_than";
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
+    static const char *TYPE_CHECK_NAME = "check_value";
 
     // Aliases for Funscript primitive types
 

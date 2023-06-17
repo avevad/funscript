@@ -320,9 +320,11 @@ namespace funscript {
 
             void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
 
+            void call_function(Function *fun);
+
             void call_operator(Operator op);
             void call_assignment();
-            void call_function(Function *fun);
+            void call_type_check();
 
             void continue_execution();
 
@@ -369,6 +371,16 @@ namespace funscript {
              * Removes the topmost separator.
              */
             void remove();
+
+            /**
+             * Inserts a separator beneath the topmost value.
+             */
+            void insert_sep();
+
+            /**
+             * Duplicates the topmost value.
+             */
+            void duplicate_value();
 
             /**
              * Pops values until (and including) the value at position `pos`.
