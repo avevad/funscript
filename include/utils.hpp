@@ -180,7 +180,7 @@ namespace funscript::util {
         struct ValueTransformer<MemoryManager::AutoPtr<VM::Array>> {
             static std::optional<MemoryManager::AutoPtr<VM::Array>> from_stack(VM &vm, VM::Stack &stack) {
                 if (stack[-1].type != Type::ARR) return std::nullopt;
-                auto result = MemoryManager::AutoPtr(vm.mem, stack[-1].data.arr);
+                auto result = MemoryManager::AutoPtr(stack[-1].data.arr);
                 stack.pop();
                 return result;
             }

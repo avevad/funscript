@@ -11,7 +11,7 @@ namespace funscript {
                                 modules(mem.std_alloc<decltype(modules)::value_type>()) {}
 
     void VM::register_module(const funscript::FStr &name, funscript::VM::Module *mod) {
-        modules.insert({name, MemoryManager::AutoPtr<VM::Module>(mem, mod)});
+        modules.insert({name, MemoryManager::AutoPtr(mod)});
     }
 
     std::optional<VM::Module *> VM::get_module(const funscript::FStr &name) {
@@ -106,7 +106,7 @@ namespace funscript {
             Frame *frame = frames.back();
             const auto *bytecode = bytecode_obj->bytes.data();
             const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
-            auto cur_scope = MemoryManager::AutoPtr<Scope>(vm.mem, scope);
+            auto cur_scope = MemoryManager::AutoPtr(scope);
             const char *meta_chunk = nullptr;
             code_met_t meta{.filename = nullptr};
             while (true) {
@@ -164,7 +164,7 @@ namespace funscript {
                             if (get(-1).type != Type::OBJ) {
                                 return raise_err("only objects are able to be indexed", frame_start);
                             }
-                            auto obj = MemoryManager::AutoPtr(vm.mem, get(-1).data.obj);
+                            auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) {
                                 return raise_err("can't index multiple values", frame_start);
@@ -193,7 +193,7 @@ namespace funscript {
                             if (get(-1).type != Type::OBJ) {
                                 return raise_err("only objects are able to be indexed", frame_start);
                             }
-                            auto obj = MemoryManager::AutoPtr(vm.mem, get(-1).data.obj);
+                            auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                             pop();
@@ -254,7 +254,7 @@ namespace funscript {
                         auto op = static_cast<Operator>(ins.u16);
                         call_operator(op);
                         if (size() != 0 && get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
                             pop(frame_start);
                             push_err(err.get());
                             return;
@@ -268,7 +268,7 @@ namespace funscript {
                     case Opcode::JNO: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
                             pop(frame_start);
                             push_err(err.get());
                             return;
@@ -281,7 +281,7 @@ namespace funscript {
                     case Opcode::JYS: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
                             pop(frame_start);
                             push_err(err.get());
                             return;
@@ -315,7 +315,7 @@ namespace funscript {
                     case Opcode::MOV: {
                         call_assignment();
                         if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
                             pop(frame_start);
                             push_err(err.get());
                             return;
@@ -346,7 +346,7 @@ namespace funscript {
                     case Opcode::CHK: {
                         call_type_check();
                         if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(vm.mem, get(-1).data.err);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
                             pop(frame_start);
                             push_err(err.get());
                             return;
@@ -405,7 +405,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(TIMES_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(TIMES_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(TIMES_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -429,7 +429,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(DIVIDE_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(DIVIDE_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(DIVIDE_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -471,7 +471,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(PLUS_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(PLUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(PLUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -509,7 +509,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(MINUS_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(MINUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(MINUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -518,8 +518,8 @@ namespace funscript {
                 }
                 case Operator::CALL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
-                        MemoryManager::AutoPtr<Array> arr(vm.mem, get(pos_a).data.arr);
-                        MemoryManager::AutoPtr<Array> ind(vm.mem, get(pos_b).data.arr);
+                        MemoryManager::AutoPtr<Array> arr(get(pos_a).data.arr);
+                        MemoryManager::AutoPtr<Array> ind(get(pos_b).data.arr);
                         pop(-4);
                         pos_t beg = size();
                         for (const auto &val : *ind) {
@@ -531,7 +531,7 @@ namespace funscript {
                         break;
                     }
                     if (cnt_a == 1 && get(pos_a).type == Type::FUN) {
-                        auto fn = MemoryManager::AutoPtr(vm.mem, get(pos_a).data.fun);
+                        auto fn = MemoryManager::AutoPtr(get(pos_a).data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -539,7 +539,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(CALL_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(CALL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(CALL_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -556,7 +556,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(MODULO_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(MODULO_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(MODULO_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -579,7 +579,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(EQUALS_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(EQUALS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(EQUALS_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -602,7 +602,6 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(DIFFERS_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem,
                                 get(pos_a).data.obj->get_field(DIFFERS_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
@@ -635,7 +634,7 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(LESS_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem, get(pos_a).data.obj->get_field(LESS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                                get(pos_a).data.obj->get_field(LESS_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
                         break;
@@ -658,7 +657,6 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(GREATER_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem,
                                 get(pos_a).data.obj->get_field(GREATER_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
@@ -682,7 +680,6 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem,
                                 get(pos_a).data.obj->get_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
@@ -706,7 +703,6 @@ namespace funscript {
                     if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
                         get(pos_a).data.obj->contains_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME)) {
                         auto fn = MemoryManager::AutoPtr<Function>(
-                                vm.mem,
                                 get(pos_a).data.obj->get_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
                         pop(-2);
                         call_function(fn.get());
@@ -772,12 +768,12 @@ namespace funscript {
         try {
             if (get(-1).type != Type::OBJ) return raise_err("type must be an object", frame_start);
             if (get(-2).type != Type::SEP) return raise_err("too many values", frame_start);
-            auto typ = MemoryManager::AutoPtr(vm.mem, get(-1).data.obj);
+            auto typ = MemoryManager::AutoPtr(get(-1).data.obj);
             pop(-2);
             if (!typ->contains_field(TYPE_CHECK_NAME)) {
                 return raise_err("type object does not provide type check function", frame_start);
             }
-            auto fn = MemoryManager::AutoPtr(vm.mem, typ->get_field(TYPE_CHECK_NAME).value().data.fun);
+            auto fn = MemoryManager::AutoPtr(typ->get_field(TYPE_CHECK_NAME).value().data.fun);
             call_function(fn.get());
         } catch (const OutOfMemoryError &e) {
             return raise_err("out of memory", frame_start);

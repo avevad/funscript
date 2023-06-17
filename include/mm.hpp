@@ -192,8 +192,8 @@ namespace funscript {
         private:
             A *alloc;
         public:
-            AutoPtr(MemoryManager &mm, A *alloc) : alloc(alloc) {
-                if (alloc) mm.gc_pin(alloc);
+            explicit AutoPtr(A *alloc) : alloc(alloc) {
+                if (alloc) alloc->vm.mem.gc_pin(alloc);
             }
 
             AutoPtr(AutoPtr &&other) noexcept: alloc(other.alloc) {
@@ -241,7 +241,7 @@ namespace funscript {
         template<class T, typename... A>
         AutoPtr<T> gc_new_auto(A &&... args) {
             auto *alloc = gc_new<T, A...>(std::forward<A>(args)...);
-            AutoPtr<T> ptr(*this, alloc);
+            AutoPtr<T> ptr(alloc);
             if (alloc) gc_unpin(alloc);
             return ptr;
         }
