@@ -72,7 +72,7 @@ namespace funscript::tests {
 
         template<typename... Values, size_t... Indices>
         bool check_values_impl(const VM::Stack &values, const std::tuple<Values...> &values_exp,
-                               std::index_sequence<Indices...> = std::index_sequence_for<Values...>()) {
+                               std::index_sequence<Indices...>) {
             return values.size() == sizeof...(Values) &&
                    (check_value(values[Indices], get<Indices>(values_exp)) && ...);
         }
@@ -80,7 +80,8 @@ namespace funscript::tests {
 
     template<typename... Values>
     static bool check_values(const VM::Stack &values, const Values &... values_exp) {
-        return check_values_impl(values, std::tuple<const Values &...>(values_exp...));
+        return check_values_impl(values, std::tuple<const Values &...>(values_exp...),
+                                 std::index_sequence_for<Values...>());
     }
 
     namespace {
