@@ -70,31 +70,17 @@ namespace funscript::tests {
 
     namespace {
 
-        bool check_values_impl(const VM::Stack &values, size_t pos) {
-            return pos == values.size();
+        template<typename... Values, size_t... Indices>
+        bool check_values_impl(const VM::Stack &values, const std::tuple<Values...> &values_exp,
+                               std::index_sequence<Indices...> = std::index_sequence_for<Values...>()) {
+            return values.size() == sizeof...(Values) &&
+                   (check_value(values[Indices], get<Indices>(values_exp)) && ...);
         }
-
-        template<typename Values0>
-        bool check_values_impl(const VM::Stack &values, size_t pos,
-                               const Values0 &values_exp0) {
-            if (pos + 1 != values.size()) return false;
-            if (!check_value(values[pos], values_exp0)) return false; // NOLINT(cppcoreguidelines-narrowing-conversions)
-            return true;
-        }
-
-        template<typename Values0, typename Values1, typename... Values>
-        bool check_values_impl(const VM::Stack &values, size_t pos,
-                               const Values0 &values_exp0, const Values1 &values_exp1, const Values &... values_exp) {
-            if (pos >= values.size()) return false;
-            if (!check_value(values[pos], values_exp0)) return false; // NOLINT(cppcoreguidelines-narrowing-conversions)
-            return check_values_impl(values, pos + 1, values_exp1, values_exp...);
-        }
-
     }
 
     template<typename... Values>
-    static bool check_values(const VM::Stack &values, size_t pos, const Values &... values_exp) {
-        return check_values_impl(values, pos, values_exp...);
+    static bool check_values(const VM::Stack &values, const Values &... values_exp) {
+        return check_values_impl(values, std::tuple<const Values &...>(values_exp...));
     }
 
     namespace {
@@ -150,7 +136,7 @@ namespace funscript::tests {
             return std::apply([this, &expr](const Values &... values_exp_pack) -> bool {
                 try {
                     auto stack = env.evaluate(expr);
-                    return check_values(*stack, 0, values_exp_pack...);
+                    return check_values(*stack, values_exp_pack...);
                 } catch (const EvaluationError &err) {
                     return false;
                 }
