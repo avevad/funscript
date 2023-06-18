@@ -257,6 +257,7 @@ namespace funscript {
                 String *str;
                 Error *err;
                 Array *arr;
+                Allocation *ptr;
             };
             Type type = Type::NUL;
             Data data = {.obj = nullptr};
@@ -267,6 +268,7 @@ namespace funscript {
                 if (type == Type::STR) callback(data.str);
                 if (type == Type::ERR) callback(data.err);
                 if (type == Type::ARR) callback(data.arr);
+                if (type == Type::PTR) callback(data.ptr);
             }
         };
 
@@ -340,6 +342,7 @@ namespace funscript {
             void push_bln(fbln bln);
             void push_err(Error *err);
             void push_arr(Array *arr);
+            void push_ptr(Allocation *ptr);
 
             void raise_err(const std::string &msg, pos_t frame_start);
 

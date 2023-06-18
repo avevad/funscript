@@ -39,6 +39,10 @@ std::string display(const VM::Value &val) {
             out << "]";
             break;
         }
+        case Type::PTR: {
+            out << "pointer(" << val.data.ptr << ")";
+            break;
+        }
         default:
             assertion_failed("unknown value");
     }

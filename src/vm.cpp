@@ -62,6 +62,8 @@ namespace funscript {
 
     void VM::Stack::push_arr(VM::Array *arr) { return push({Type::ARR, {.arr = arr}}); }
 
+    void VM::Stack::push_ptr(Allocation *ptr) { return push({Type::PTR, {.ptr = ptr}}); }
+
     void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
             return raise_err("no implicit conversion to boolean", find_sep());

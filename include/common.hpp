@@ -84,6 +84,7 @@ namespace funscript {
         ERR, // Special type for error values which propagate up the stack (unavailable in Funscript code).
         ARR, // Type of arrays of any values.
         FLP, // Type of float values (IEEE 754).
+        PTR, // Type of allocation pointers (used mostly in native code).
     };
 
     /**
