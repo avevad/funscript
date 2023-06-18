@@ -190,6 +190,34 @@ namespace funscript {
                                     0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
+            case Operator::EXCEPT: {
+                auto *right_op = dynamic_cast<OperatorAST *>(right.get());
+                if (!right_op || right_op->op != Operator::LAMBDA) {
+                    throw CompilationError(filename, right_op->get_location(), "lambda expected");
+                }
+                auto *right_dest = right_op->left.get(), *right_handler = right_op->right.get();
+                auto pos1 = ch.put_instruction(); // Position of ERR instruction (register the following handler)
+                auto pos2 = ch.put_instruction(); // Position of jump instruction (over the body of the handler)
+                ch.set_instruction(pos1, {Opcode::ERR, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                          0, 0});
+                as.add_pointer(ch.id, pos1 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
+                ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)), true, 0});
+                u_mv_opt_info u_opt2 = right_dest->compile_move(as, ch, {});
+                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)), true, 0});
+                u_ev_opt_info u_opt3 = right_handler->compile_eval(as, ch, {});
+                ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)), false, 0});
+                auto pos3 = ch.put_instruction(); // Position of jump instruction (over the body of the main expression)
+                ch.set_instruction(pos2, {Opcode::JMP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                          0, 0});
+                as.add_pointer(ch.id, pos2 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
+                u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
+                ch.put_instruction({Opcode::ERR, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
+                ch.set_instruction(pos3, {Opcode::JMP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                          0, 0});
+                as.add_pointer(ch.id, pos3 + sizeof(Instruction) - sizeof(Instruction::u64), ch.id, ch.size());
+                return {.no_scope = u_opt1.no_scope};
+            }
             default: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
                                     0, 0});

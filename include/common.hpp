@@ -199,7 +199,12 @@ namespace funscript {
         /**
          * @brief Execute type check call.
          */
-        CHK
+        CHK,
+        /**
+         * @brief Register or unregister a new error handler.
+         * @param u64 Bytecode offset of where the handler code is located.
+         */
+        ERR
     };
 
     /**
@@ -242,7 +247,8 @@ namespace funscript {
         DO,
         AND,
         OR,
-        IS
+        IS,
+        EXCEPT
     };
 
     /**
@@ -283,7 +289,8 @@ namespace funscript {
                 {Operator::ELSE,          {13, false}},
                 {Operator::UNTIL,         {14, false}},
                 {Operator::DO,            {14, false}},
-                {Operator::DISCARD,       {15, false}},
+                {Operator::EXCEPT,        {15, true}},
+                {Operator::DISCARD,       {16, false}},
         };
         return OPERATORS;
     }
@@ -301,6 +308,8 @@ namespace funscript {
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
     static const char *TYPE_CHECK_NAME = "check_value";
+
+    static const char *ERR_PTR_FIELD_NAME = "err";
 
     // Aliases for Funscript primitive types
 
