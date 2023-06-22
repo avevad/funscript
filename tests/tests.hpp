@@ -84,21 +84,9 @@ namespace funscript::tests {
                                  std::index_sequence_for<Values...>());
     }
 
-    namespace {
-
-        std::string extract_error_msg(VM::Error *err) {
-            auto msg_val = err->obj->get_field(FStr("msg", err->obj->vm.mem.str_alloc()));
-            if (msg_val.has_value() && msg_val.value().type == Type::STR) {
-                return std::string(msg_val.value().data.str->bytes);
-            }
-            return "";
-        }
-
-    }
-
     class EvaluationError : std::runtime_error {
     public:
-        explicit EvaluationError(VM::Error *err) : std::runtime_error(extract_error_msg(err)) {}
+        explicit EvaluationError(const std::string &msg) : std::runtime_error(msg) {}
     };
 
     class TestEnv {
@@ -117,8 +105,8 @@ namespace funscript::tests {
 
         auto evaluate(const std::string &expr) {
             auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr);
-            if (stack->size() != 0 && (*stack)[0].type == Type::ERR) {
-                throw EvaluationError((*stack)[0].data.err);
+            if (stack->get_state() == VM::Stack::State::PANICKED) {
+                throw EvaluationError(std::string((*stack)[-1].data.str->bytes));
             }
             return stack;
         }

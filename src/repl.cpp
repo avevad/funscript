@@ -61,19 +61,8 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
     // Evaluate the expression and display its result
     auto stack = util::eval_expr(vm, nullptr, scope, filename, code);
     if (stack->size() != 0) {
-        if ((*stack)[-1].type == Type::ERR) {
-            for (const auto &e : (*stack)[-1].data.err->stacktrace) {
-                std::cout << "!";
-                std::cout << " in " << std::string(e.function_repr);
-                std::cout << " at " << e.code_meta.filename << ':' << e.code_meta.position.to_string();
-                std::cout << std::endl;
-            }
-            std::cout << "! ";
-            auto err_val = (*stack)[-1].data.err->obj->get_field(FStr("msg", vm.mem.str_alloc()));
-            if (err_val.has_value() && err_val.value().type == Type::STR) {
-                std::cout << std::string(err_val.value().data.str->bytes);
-            }
-            std::cout << "\n";
+        if (stack->get_state() == funscript::VM::Stack::State::PANICKED) {
+            std::cout << "! " << (*stack)[-1].data.str->bytes << std::endl;
         } else {
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {

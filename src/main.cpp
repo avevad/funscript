@@ -87,7 +87,7 @@ int main(int argc, const char **argv) {
             return 1;
         }
         auto stack = util::eval_fn(vm, start_val.data.fun);
-        if (stack->size() != 0 && (*stack)[-1].type == Type::ERR) {
+        if (stack->get_state() == funscript::VM::Stack::State::PANICKED) {
             assertion_failed("failed to start module");
         }
     }

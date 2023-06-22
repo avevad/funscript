@@ -39,15 +39,21 @@ namespace funscript::util {
         return eval_fn(vm, start.get());
     } catch (const CompilationError &err) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        stack->raise_err(std::string("compilation error: ") + err.what(), 0);
+        try {
+            stack->panic(std::string("compilation error: ") + err.what());
+        } catch (...) {}
         return stack;
     } catch (const VM::StackOverflowError &) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        stack->raise_err(std::string("stack overflow"), 0);
+        try {
+            stack->panic(std::string("stack overflow"));
+        } catch (...) {}
         return stack;
     } catch (const OutOfMemoryError &) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        stack->raise_err(std::string("out of memory"), 0);
+        try {
+            stack->panic(std::string("out of memory"));
+        } catch (...) {}
         return stack;
     }
 
@@ -100,7 +106,7 @@ namespace funscript::util {
         }
         // Execute module loader code
         auto stack = util::eval_expr(vm, mod.get(), module_global_scope.get(), loader_path.string(), loader_code);
-        if (stack->size() != 0 && (*stack)[-1].type == Type::ERR) {
+        if (stack->get_state() == VM::Stack::State::PANICKED) {
             assertion_failed("failed to load module");
         }
         return mod;
@@ -122,13 +128,13 @@ namespace funscript::util {
                     auto frame_start = stack.find_sep();
                     auto name_val = stack[-1];
                     if (name_val.type != Type::STR || stack[-2].type != Type::SEP) {
-                        return stack.raise_err("symbol name is required", frame_start);
+                        stack.panic("symbol name is required");
                     }
                     auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &, VM::Frame *)>(
                             dlsym(lib_handle, name_val.data.str->bytes.c_str())
                     );
                     if (!fn_ptr) {
-                        return stack.raise_err(std::string("can't load native symbol: ") + dlerror(), frame_start);
+                        stack.panic(std::string("can't load native symbol: ") + dlerror());
                     }
                     stack.pop(frame_start);
                     auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(

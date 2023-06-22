@@ -7,11 +7,6 @@
 
 namespace funscript::native {
 
-    class NativeError : public std::runtime_error {
-    public:
-        explicit NativeError(const std::string &what) : std::runtime_error(what) {}
-    };
-
     /**
      * Helper function that allows to transform stack values into C++ values and pass them as arguments to any function.
      * It also transforms return value of the C++ function into Funscript values and pushes it onto the stack.
@@ -31,10 +26,8 @@ namespace funscript::native {
             auto ret = std::apply(fn, std::move(args));
             stack.pop(frame_start);
             util::value_to_stack(vm, stack, ret);
-        } catch (const NativeError &err) {
-            return stack.raise_err(err.what(), frame_start);
         } catch (const util::ValueError &err) {
-            return stack.raise_err(err.what(), frame_start);
+            stack.panic(err.what());
         }
     }
 

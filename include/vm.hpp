@@ -90,23 +90,6 @@ namespace funscript {
         };
 
         /**
-         * Class of error value objects.
-         */
-        class Error final : public Allocation {
-            void get_refs(const std::function<void(Allocation *)> &callback) override;
-        public:
-            struct stack_trace_element {
-                FStr function_repr;
-                code_met_t code_meta;
-            };
-
-            Object *const obj; // Contents of the error.
-            const FVec<stack_trace_element> stacktrace;
-
-            explicit Error(Object *obj, const FVec<stack_trace_element> &stacktrace);
-        };
-
-        /**
          * Class which represents the scope of an expression. Can be nested, in such case it contains the pointer to the parent scope.
          */
         class Scope final : public Allocation {
@@ -255,7 +238,6 @@ namespace funscript {
                 Function *fun;
                 fbln bln;
                 String *str;
-                Error *err;
                 Array *arr;
                 Allocation *ptr;
             };
@@ -266,7 +248,6 @@ namespace funscript {
                 if (type == Type::OBJ) callback(data.obj);
                 if (type == Type::FUN) callback(data.fun);
                 if (type == Type::STR) callback(data.str);
-                if (type == Type::ERR) callback(data.err);
                 if (type == Type::ARR) callback(data.arr);
                 if (type == Type::PTR) callback(data.ptr);
             }
@@ -295,6 +276,10 @@ namespace funscript {
         class Stack final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
+
+            enum class State {
+                RUNNABLE, PANICKED, FINISHED
+            };
 
             using pos_t = ssize_t; // Type representing position in stack. Can be negative (-1 is the topmost element).
 
@@ -330,6 +315,8 @@ namespace funscript {
 
             void continue_execution();
 
+            void panic(const std::string &msg);
+
             // Some functions for pushing values onto the value stack.
 
             void push_sep();
@@ -340,13 +327,8 @@ namespace funscript {
             void push_fun(Function *fun);
             void push_str(String *str);
             void push_bln(fbln bln);
-            void push_err(Error *err);
             void push_arr(Array *arr);
             void push_ptr(Allocation *ptr);
-
-            void raise_err(const std::string &msg, pos_t frame_start);
-
-            void raise_op_err(Operator op);
 
             /**
              * Weak conversion of value pack to boolean.
@@ -398,11 +380,14 @@ namespace funscript {
              */
             pos_t find_sep(pos_t before = 0);
 
+            [[nodiscard]] State get_state() const;
+
             ~Stack() override;
 
         private:
             FVec<Value> values; // Values stack.
             FVec<Frame *> frames; // Frames stack.
+            State state;
 
             /**
              * Pushes any value onto the value stack.
@@ -410,12 +395,21 @@ namespace funscript {
              */
             void push(const Value &e);
 
+            void op_panic(Operator op);
+
             /**
              * Returns mutable reference to the value stack element at the specified position.
              * @param pos Position to index.
              * @return The value at the specified position of value stack.
              */
             Value &get(pos_t pos);
+        };
+
+    private:
+        class Yield {
+        };
+
+        class Panic {
         };
     };
 }

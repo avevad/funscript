@@ -25,13 +25,13 @@ namespace funscript {
     }
 
     VM::Stack::Stack(VM &vm, Function *start) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
-                                                frames(vm.mem.std_alloc<Frame *>()) {
+                                                frames(vm.mem.std_alloc<Frame *>()), state(State::RUNNABLE) {
         frames.push_back(vm.mem.gc_new_auto<Frame>(start).get());
         push_sep(); // Empty arguments for the start function.
     }
 
     VM::Stack::Stack(funscript::VM &vm) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
-                                          frames(vm.mem.std_alloc<Frame *>()) {}
+                                          frames(vm.mem.std_alloc<Frame *>()), state(State::FINISHED) {}
 
     VM::Stack::pos_t VM::Stack::size() const {
         return values.size(); // NOLINT(cppcoreguidelines-narrowing-conversions)
@@ -58,15 +58,13 @@ namespace funscript {
 
     void VM::Stack::push_str(String *str) { return push({Type::STR, {.str = str}}); }
 
-    void VM::Stack::push_err(Error *err) { return push({Type::ERR, {.err = err}}); }
-
     void VM::Stack::push_arr(VM::Array *arr) { return push({Type::ARR, {.arr = arr}}); }
 
     void VM::Stack::push_ptr(Allocation *ptr) { return push({Type::PTR, {.ptr = ptr}}); }
 
     void VM::Stack::as_boolean() {
         if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
-            return raise_err("no implicit conversion to boolean", find_sep());
+            panic("no implicit conversion to boolean");
         }
         bool bln = get(-1).data.bln;
         pop(find_sep());
@@ -114,7 +112,7 @@ namespace funscript {
             while (true) {
                 if (kbd_int) {
                     kbd_int = 0;
-                    return raise_err("keyboard interrupt", frame_start);
+                    panic("keyboard interrupt");
                 }
                 Instruction ins = *ip;
                 if (meta_chunk && ins.meta) {
@@ -159,22 +157,22 @@ namespace funscript {
                             pop();
                             auto var = cur_scope->vars->get_field(name);
                             if (!var.has_value()) {
-                                return raise_err("no such field: '" + std::string(name) + "'", frame_start);
+                                panic("no such field: '" + std::string(name) + "'");
                             }
                             push(var.value());
                         } else {
                             if (get(-1).type != Type::OBJ) {
-                                return raise_err("only objects are able to be indexed", frame_start);
+                                panic("only objects are able to be indexed");
                             }
                             auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) {
-                                return raise_err("can't index multiple values", frame_start);
+                                panic("can't index multiple values");
                             }
                             pop();
                             auto field = obj->get_field(name);
                             if (!field.has_value()) {
-                                return raise_err("no such field: '" + std::string(name) + "'", frame_start);
+                                panic("no such field: '" + std::string(name) + "'");
                             }
                             push(field.value());
                         }
@@ -185,7 +183,7 @@ namespace funscript {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
-                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
+                            if (get(-1).type == Type::SEP) panic("not enough values");
                             if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                                 get(-1).data.fun->assign_name(name);
                             }
@@ -193,13 +191,13 @@ namespace funscript {
                             pop();
                         } else {
                             if (get(-1).type != Type::OBJ) {
-                                return raise_err("only objects are able to be indexed", frame_start);
+                                panic("only objects are able to be indexed");
                             }
                             auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
-                            if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
+                            if (get(-1).type != Type::SEP) return panic("can't index multiple values");
                             pop();
-                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
+                            if (get(-1).type == Type::SEP) return panic("not enough values");
                             if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                                 get(-1).data.fun->assign_name(name);
                             }
@@ -213,7 +211,7 @@ namespace funscript {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         auto var = cur_scope->get_var(name);
                         if (!var.has_value()) {
-                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                            panic("no such variable: '" + std::string(name) + "'");
                         }
                         push(var.value());
                         ip++;
@@ -221,9 +219,9 @@ namespace funscript {
                     }
                     case Opcode::VST: {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
-                        if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
+                        if (get(-1).type == Type::SEP) return panic("not enough values");
                         if (!cur_scope->set_var(name, get(-1))) {
-                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
+                            panic("no such variable: '" + std::string(name) + "'");
                         }
                         if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                             get(-1).data.fun->assign_name(name);
@@ -243,7 +241,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::DIS: {
-                        if (discard() && ins.u16) return raise_err("too many values", frame_start);
+                        if (discard() && ins.u16) panic("too many values");
                         ip++;
                         break;
                     }
@@ -255,12 +253,6 @@ namespace funscript {
                     case Opcode::OPR: {
                         auto op = static_cast<Operator>(ins.u16);
                         call_operator(op);
-                        if (size() != 0 && get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                            pop(frame_start);
-                            push_err(err.get());
-                            return;
-                        }
                         ip++;
                         break;
                     }
@@ -269,12 +261,6 @@ namespace funscript {
                     }
                     case Opcode::JNO: {
                         as_boolean();
-                        if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                            pop(frame_start);
-                            push_err(err.get());
-                            return;
-                        }
                         if (!get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
                         pop();
@@ -282,12 +268,6 @@ namespace funscript {
                     }
                     case Opcode::JYS: {
                         as_boolean();
-                        if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                            pop(frame_start);
-                            push_err(err.get());
-                            return;
-                        }
                         if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
                         pop();
@@ -316,12 +296,6 @@ namespace funscript {
                     }
                     case Opcode::MOV: {
                         call_assignment();
-                        if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                            pop(frame_start);
-                            push_err(err.get());
-                            return;
-                        }
                         ip++;
                         break;
                     }
@@ -347,21 +321,15 @@ namespace funscript {
                     }
                     case Opcode::CHK: {
                         call_type_check();
-                        if (get(-1).type == Type::ERR) {
-                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                            pop(frame_start);
-                            push_err(err.get());
-                            return;
-                        }
                         ip++;
                         break;
                     }
                 }
             }
         } catch (const OutOfMemoryError &e) {
-            return raise_err("out of memory", frame_start);
+            panic("out of memory");
         } catch (const StackOverflowError &e) {
-            return raise_err("stack overflow", frame_start);
+            panic("stack overflow");
         }
     }
 
@@ -412,12 +380,12 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::DIVIDE: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
                         fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        if (b == 0) return raise_err("division by zero", -4);
+                        if (b == 0) panic("division by zero");
                         pop(-4);
                         push_int(a / b);
                         break;
@@ -436,7 +404,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::PLUS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
@@ -478,7 +446,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::MINUS: {
                     if (cnt_a == 0) {
@@ -494,7 +462,7 @@ namespace funscript {
                             push_flp(-flp);
                             break;
                         }
-                        return raise_op_err(op);
+                        return op_panic(op);
                     }
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
                         fint a = get(pos_a).data.num, b = get(pos_b).data.num;
@@ -516,7 +484,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::CALL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
@@ -526,7 +494,7 @@ namespace funscript {
                         pos_t beg = size();
                         for (const auto &val : *ind) {
                             if (val.type != Type::INT || val.data.num < 0 || arr->len() <= val.data.num) {
-                                return raise_err("invalid array index", beg);
+                                panic("invalid array index");
                             }
                             push((*arr)[val.data.num]);
                         }
@@ -546,7 +514,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::MODULO: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -563,7 +531,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::EQUALS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -586,7 +554,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::DIFFERS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -609,7 +577,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::NOT: {
                     if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::BLN) {
@@ -618,7 +586,7 @@ namespace funscript {
                         push_bln(!bln);
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::LESS: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -641,7 +609,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::GREATER: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -664,7 +632,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::LESS_EQUAL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -687,7 +655,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::GREATER_EQUAL: {
                     if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
@@ -710,7 +678,7 @@ namespace funscript {
                         call_function(fn.get());
                         break;
                     }
-                    return raise_op_err(op);
+                    return op_panic(op);
                 }
                 case Operator::IS: {
                     fbln same = cnt_a == cnt_b &&
@@ -723,9 +691,9 @@ namespace funscript {
                     assertion_failed("unknown operator");
             }
         } catch (const OutOfMemoryError &e) {
-            return raise_err("out of memory", pos_b - 1);
+            panic("out of memory");
         } catch (const StackOverflowError &e) {
-            return raise_err("stack overflow", pos_b - 1);
+            panic("stack overflow");
         }
     }
 
@@ -745,12 +713,12 @@ namespace funscript {
                     if (val.type != Type::INT || val.data.num < 0 || arr.len() <= val.data.num) {
                         vm.mem.gc_unpin(&arr);
                         vm.mem.gc_unpin(&ind);
-                        return raise_err("invalid array index", beg);
+                        panic("invalid array index");
                     }
                     if (get(-1).type == Type::SEP) {
                         vm.mem.gc_unpin(&arr);
                         vm.mem.gc_unpin(&ind);
-                        return raise_err("not enough values", beg);
+                        panic("not enough values");
                     }
                     arr[val.data.num] = get(-1);
                     pop();
@@ -759,31 +727,31 @@ namespace funscript {
                 vm.mem.gc_unpin(&ind);
                 return;
             }
-            return raise_op_err(Operator::CALL);
+            return op_panic(Operator::CALL);
         } catch (const OutOfMemoryError &e) {
-            return raise_err("out of memory", pos_b - 1);
+            panic("out of memory");
         }
     }
 
     void VM::Stack::call_type_check() {
         pos_t frame_start = find_sep(find_sep() - 1);
         try {
-            if (get(-1).type != Type::OBJ) return raise_err("type must be an object", frame_start);
-            if (get(-2).type != Type::SEP) return raise_err("too many values", frame_start);
+            if (get(-1).type != Type::OBJ) panic("type must be an object");
+            if (get(-2).type != Type::SEP) panic("too many values");
             auto typ = MemoryManager::AutoPtr(get(-1).data.obj);
             pop(-2);
             if (!typ->contains_field(TYPE_CHECK_NAME)) {
-                return raise_err("type object does not provide type check function", frame_start);
+                panic("type object does not provide type check function");
             }
             auto fn = MemoryManager::AutoPtr(typ->get_field(TYPE_CHECK_NAME).value().data.fun);
             call_function(fn.get());
         } catch (const OutOfMemoryError &e) {
-            return raise_err("out of memory", frame_start);
+            panic("out of memory");
         }
     }
 
     void VM::Stack::call_function(Function *fun) {
-        if (frames.size() >= vm.config.stack_frames_max) return raise_err("stack overflow", find_sep());
+        if (frames.size() >= vm.config.stack_frames_max) panic("stack overflow");
         auto frame = vm.mem.gc_new_auto<Frame>(fun);
         frames.push_back(frame.get());
         fun->call(*this, frame.get());
@@ -792,37 +760,15 @@ namespace funscript {
 
     void VM::Stack::continue_execution() {
         if (frames.empty()) assertion_failed("the routine is no longer alive");
-        for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
-            frames[pos]->fun->call(*this, frames[pos]);
-            frames.pop_back();
-        }
-    }
-
-    void VM::Stack::raise_err(const std::string &msg, VM::Stack::pos_t frame_start) {
-        pop(frame_start);
         try {
-            auto err_obj = vm.mem.gc_new_auto<Object>(vm);
-            err_obj->set_field(FStr("msg", vm.mem.str_alloc()),
-                               {Type::STR,
-                                {.str = vm.mem.gc_new_auto<String>(vm, FStr(msg, vm.mem.str_alloc())).get()}});
-            FVec<Error::stack_trace_element> stacktrace(vm.mem.std_alloc<Error::stack_trace_element>());
-            stacktrace.reserve(frames.size());
-            for (const auto &frame : frames) {
-                code_met_t code_meta{.filename = "?", .position = {0, 0}};
-                if (frame->meta_ptr) code_meta = *frame->meta_ptr;
-                if (!code_meta.filename) code_meta.filename = "?";
-                stacktrace.push_back({.function_repr = frame->fun->display(), .code_meta = code_meta});
+            for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
+                frames[pos]->fun->call(*this, frames[pos]);
+                frames.pop_back();
             }
-            auto err = vm.mem.gc_new_auto<Error>(err_obj.get(), stacktrace);
-            push_err(err.get());
-        } catch (const OutOfMemoryError &) {
-            assertion_failed("not enough memory to raise an error");
+            state = State::FINISHED;
+        } catch (Panic) {
+            state = State::PANICKED;
         }
-    }
-
-    void VM::Stack::raise_op_err(Operator op) {
-        pos_t pos = find_sep(find_sep());
-        raise_err("operator is not defined for these operands", pos);
     }
 
     void VM::Stack::reverse() {
@@ -853,6 +799,20 @@ namespace funscript {
     void VM::Stack::duplicate_value() {
         if (size() + 1 > vm.config.stack_values_max) throw StackOverflowError();
         values.push_back(values.back());
+    }
+
+    void VM::Stack::panic(const std::string &msg) {
+        if (size() == vm.config.stack_values_max) pop();
+        push_str(vm.mem.gc_new_auto<String>(vm, FStr(msg, vm.mem.str_alloc())).get());
+        throw Panic();
+    }
+
+    void VM::Stack::op_panic(Operator op) {
+        panic("operator is not defined for these operands");
+    }
+
+    VM::Stack::State VM::Stack::get_state() const {
+        return state;
     }
 
     VM::Stack::~Stack() = default;
@@ -960,13 +920,6 @@ namespace funscript {
     VM::String::String(VM &vm, FStr bytes) : Allocation(vm), bytes(std::move(bytes)) {}
 
     void VM::String::get_refs(const std::function<void(Allocation *)> &callback) {}
-
-    void VM::Error::get_refs(const std::function<void(Allocation *)> &callback) {
-        callback(obj);
-    }
-
-    VM::Error::Error(funscript::VM::Object *obj, const FVec<funscript::VM::Error::stack_trace_element> &stacktrace) :
-            Allocation(obj->vm), obj(obj), stacktrace(stacktrace) {}
 
     void VM::Array::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);
