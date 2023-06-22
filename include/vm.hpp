@@ -386,11 +386,6 @@ namespace funscript {
             void duplicate_value();
 
             /**
-             * Transforms an error on the top of the stack into an object (with separator).
-             */
-            void catch_err();
-
-            /**
              * Pops values until (and including) the value at position `pos`.
              * @param pos The position of bottommost element to pop.
              */
@@ -421,17 +416,6 @@ namespace funscript {
              * @return The value at the specified position of value stack.
              */
             Value &get(pos_t pos);
-
-            class ErrorHandler final : public Allocation {
-                void get_refs(const std::function<void(Allocation *)> &callback) override;
-            public:
-                Scope *const scope;
-                const size_t bytecode_offset;
-                const pos_t stack_pos;
-                ErrorHandler *const prev_handler;
-
-                ErrorHandler(Scope *scope, size_t bytecode_offset, pos_t stack_pos, ErrorHandler *prev_handler);
-            };
         };
     };
 }

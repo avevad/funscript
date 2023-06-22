@@ -104,53 +104,22 @@ namespace funscript {
     volatile sig_atomic_t VM::Stack::kbd_int = 0;
 
     void VM::Stack::exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
-        Frame *frame = frames.back();
-        const auto *bytecode = bytecode_obj->bytes.data();
-        const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
-        auto cur_scope = MemoryManager::AutoPtr(scope);
-        auto cur_handler = MemoryManager::AutoPtr<ErrorHandler>(nullptr);
-        const char *meta_chunk = nullptr;
-        auto handle_err = [&](const std::string &msg) -> bool {
-            if (!cur_handler) {
-                raise_err(msg, frame_start);
-                return false;
-            }
-            cur_scope = MemoryManager::AutoPtr(cur_handler->scope);
-            ip = reinterpret_cast<const Instruction *>(bytecode + cur_handler->bytecode_offset);
-            pop(cur_handler->stack_pos);
-            raise_err(msg, size());
-            catch_err();
-            cur_handler = MemoryManager::AutoPtr(cur_handler->prev_handler);
-            return true;
-        };
-        auto propagate_err = [&]() -> bool {
-            if (!cur_handler) {
-                auto err = MemoryManager::AutoPtr(get(-1).data.err);
-                pop(frame_start);
-                push_err(err.get());
-                return true;
-            }
-            cur_scope = MemoryManager::AutoPtr(cur_handler->scope);
-            ip = reinterpret_cast<const Instruction *>(bytecode + cur_handler->bytecode_offset);
-            auto err = MemoryManager::AutoPtr(get(-1).data.err);
-            pop(cur_handler->stack_pos);
-            push_err(err.get());
-            catch_err();
-            cur_handler = MemoryManager::AutoPtr(cur_handler->prev_handler);
-            return false;
-        };
-        code_met_t meta{.filename = nullptr};
-        while (true) {
-            if (kbd_int) {
-                kbd_int = 0;
-                if (handle_err("keyboard interrupt")) continue;
-                else return;
-            }
-            Instruction ins = *ip;
-            if (meta_chunk && ins.meta) {
-                meta.position = *reinterpret_cast<const code_pos_t *>(meta_chunk + ins.meta);
-            }
-            try {
+        try {
+            Frame *frame = frames.back();
+            const auto *bytecode = bytecode_obj->bytes.data();
+            const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
+            auto cur_scope = MemoryManager::AutoPtr(scope);
+            const char *meta_chunk = nullptr;
+            code_met_t meta{.filename = nullptr};
+            while (true) {
+                if (kbd_int) {
+                    kbd_int = 0;
+                    return raise_err("keyboard interrupt", frame_start);
+                }
+                Instruction ins = *ip;
+                if (meta_chunk && ins.meta) {
+                    meta.position = *reinterpret_cast<const code_pos_t *>(meta_chunk + ins.meta);
+                }
                 switch (ins.op) {
                     case Opcode::NOP:
                         ip++;
@@ -190,26 +159,22 @@ namespace funscript {
                             pop();
                             auto var = cur_scope->vars->get_field(name);
                             if (!var.has_value()) {
-                                if (handle_err("no such field: '" + std::string(name) + "'")) continue;
-                                else return;
+                                return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                             }
                             push(var.value());
                         } else {
                             if (get(-1).type != Type::OBJ) {
-                                if (handle_err("only objects are able to be indexed")) continue;
-                                else return;
+                                return raise_err("only objects are able to be indexed", frame_start);
                             }
                             auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
                             if (get(-1).type != Type::SEP) {
-                                if (handle_err("can't index multiple values")) continue;
-                                else return;
+                                return raise_err("can't index multiple values", frame_start);
                             }
                             pop();
                             auto field = obj->get_field(name);
                             if (!field.has_value()) {
-                                if (handle_err("no such field: '" + std::string(name) + "'")) continue;
-                                else return;
+                                return raise_err("no such field: '" + std::string(name) + "'", frame_start);
                             }
                             push(field.value());
                         }
@@ -220,10 +185,7 @@ namespace funscript {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
                             pop();
-                            if (get(-1).type == Type::SEP) {
-                                if (handle_err("not enough values")) continue;
-                                else return;
-                            }
+                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                             if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                                 get(-1).data.fun->assign_name(name);
                             }
@@ -231,20 +193,13 @@ namespace funscript {
                             pop();
                         } else {
                             if (get(-1).type != Type::OBJ) {
-                                if (handle_err("only objects are able to be indexed")) continue;
-                                else return;
+                                return raise_err("only objects are able to be indexed", frame_start);
                             }
                             auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
                             pop();
-                            if (get(-1).type != Type::SEP) {
-                                if (handle_err("can't index multiple values")) continue;
-                                else return;
-                            }
+                            if (get(-1).type != Type::SEP) return raise_err("can't index multiple values", frame_start);
                             pop();
-                            if (get(-1).type == Type::SEP) {
-                                if (handle_err("not enough values")) continue;
-                                else return;
-                            }
+                            if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                             if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                                 get(-1).data.fun->assign_name(name);
                             }
@@ -258,8 +213,7 @@ namespace funscript {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         auto var = cur_scope->get_var(name);
                         if (!var.has_value()) {
-                            if (handle_err("no such variable: '" + std::string(name) + "'")) continue;
-                            else return;
+                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
                         }
                         push(var.value());
                         ip++;
@@ -267,13 +221,9 @@ namespace funscript {
                     }
                     case Opcode::VST: {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
-                        if (get(-1).type == Type::SEP) {
-                            if (handle_err("not enough values")) continue;
-                            else return;
-                        }
+                        if (get(-1).type == Type::SEP) return raise_err("not enough values", frame_start);
                         if (!cur_scope->set_var(name, get(-1))) {
-                            if (handle_err("no such variable: '" + std::string(name) + "'")) continue;
-                            else return;
+                            return raise_err("no such variable: '" + std::string(name) + "'", frame_start);
                         }
                         if (get(-1).type == Type::FUN && !get(-1).data.fun->get_name().has_value()) {
                             get(-1).data.fun->assign_name(name);
@@ -293,10 +243,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::DIS: {
-                        if (discard() && ins.u16) {
-                            if (handle_err("too many values")) continue;
-                            else return;
-                        }
+                        if (discard() && ins.u16) return raise_err("too many values", frame_start);
                         ip++;
                         break;
                     }
@@ -309,8 +256,10 @@ namespace funscript {
                         auto op = static_cast<Operator>(ins.u16);
                         call_operator(op);
                         if (size() != 0 && get(-1).type == Type::ERR) {
-                            if (propagate_err()) return;
-                            else continue;
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
+                            pop(frame_start);
+                            push_err(err.get());
+                            return;
                         }
                         ip++;
                         break;
@@ -321,8 +270,10 @@ namespace funscript {
                     case Opcode::JNO: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            if (propagate_err()) return;
-                            else continue;
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
+                            pop(frame_start);
+                            push_err(err.get());
+                            return;
                         }
                         if (!get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
@@ -332,8 +283,10 @@ namespace funscript {
                     case Opcode::JYS: {
                         as_boolean();
                         if (get(-1).type == Type::ERR) {
-                            if (propagate_err()) return;
-                            else continue;
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
+                            pop(frame_start);
+                            push_err(err.get());
+                            return;
                         }
                         if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
@@ -364,8 +317,10 @@ namespace funscript {
                     case Opcode::MOV: {
                         call_assignment();
                         if (get(-1).type == Type::ERR) {
-                            if (propagate_err()) return;
-                            else continue;
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
+                            pop(frame_start);
+                            push_err(err.get());
+                            return;
                         }
                         ip++;
                         break;
@@ -393,30 +348,20 @@ namespace funscript {
                     case Opcode::CHK: {
                         call_type_check();
                         if (get(-1).type == Type::ERR) {
-                            if (propagate_err()) return;
-                            else continue;
-                        }
-                        ip++;
-                        break;
-                    }
-                    case Opcode::ERR: {
-                        if (ins.u64) {
-                            cur_handler = vm.mem.gc_new_auto<ErrorHandler>(cur_scope.get(), ins.u64, size(),
-                                                                           cur_handler.get());
-                        } else {
-                            cur_handler = MemoryManager::AutoPtr(cur_handler->prev_handler);
+                            auto err = MemoryManager::AutoPtr(get(-1).data.err);
+                            pop(frame_start);
+                            push_err(err.get());
+                            return;
                         }
                         ip++;
                         break;
                     }
                 }
-            } catch (const OutOfMemoryError &e) {
-                if (handle_err("out of memory")) continue;
-                else return;
-            } catch (const StackOverflowError &e) {
-                if (handle_err("stack overflow")) continue;
-                else return;
             }
+        } catch (const OutOfMemoryError &e) {
+            return raise_err("out of memory", frame_start);
+        } catch (const StackOverflowError &e) {
+            return raise_err("stack overflow", frame_start);
         }
     }
 
@@ -910,18 +855,6 @@ namespace funscript {
         values.push_back(values.back());
     }
 
-    void VM::Stack::catch_err() {
-        if (get(-1).type != Type::ERR) assertion_failed("no error was raised");
-        auto err = MemoryManager::AutoPtr(get(-1).data.err);
-        if (!err->obj->contains_field(ERR_PTR_FIELD_NAME)) {
-            err->obj->set_field(FStr(ERR_PTR_FIELD_NAME, vm.mem.str_alloc()),
-                                {Type::PTR, {.ptr = err->obj}});
-        }
-        pop();
-        push_sep();
-        push_obj(err->obj);
-    }
-
     VM::Stack::~Stack() = default;
 
     void VM::Object::get_refs(const std::function<void(Allocation *)> &callback) {
@@ -1111,15 +1044,5 @@ namespace funscript {
     std::optional<VM::Module *> VM::Module::get_dependency(const funscript::FStr &alias) {
         if (!deps.contains(alias)) return std::nullopt;
         return deps.at(alias);
-    }
-
-    VM::Stack::ErrorHandler::ErrorHandler(Scope *scope, size_t bytecode_offset, pos_t stack_pos,
-                                          ErrorHandler *prev_handler) :
-            Allocation(scope->vm),
-            scope(scope), bytecode_offset(bytecode_offset), prev_handler(prev_handler), stack_pos(stack_pos) {}
-
-    void VM::Stack::ErrorHandler::get_refs(const std::function<void(Allocation *)> &callback) {
-        callback(scope);
-        callback(prev_handler);
     }
 }
