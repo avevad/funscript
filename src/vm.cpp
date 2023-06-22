@@ -804,6 +804,7 @@ namespace funscript {
     void VM::Stack::panic(const std::string &msg) {
         if (size() == vm.config.stack_values_max) pop();
         push_str(vm.mem.gc_new_auto<String>(vm, FStr(msg, vm.mem.str_alloc())).get());
+        state = State::PANICKED;
         throw Panic();
     }
 
