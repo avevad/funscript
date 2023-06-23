@@ -59,10 +59,10 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
     act.sa_handler = sigint_handler;
     sigaction(SIGINT, &act, &act_old);
     // Evaluate the expression and display its result
-    auto stack = util::eval_expr(vm, nullptr, scope, filename, code);
+    auto stack = util::eval_expr(vm, nullptr, scope, filename, code, "'<test>'");
     if (stack->size() != 0) {
-        if (stack->get_state() == funscript::VM::Stack::State::PANICKED) {
-            std::cout << "! " << (*stack)[-1].data.str->bytes << std::endl;
+        if (stack->is_panicked()) {
+            util::print_panic(*stack);
         } else {
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {

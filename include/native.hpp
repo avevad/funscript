@@ -18,7 +18,7 @@ namespace funscript::native {
      */
     template<typename Ret, typename... Args>
     static void
-    call_native_function(VM &vm, VM::Stack &stack, VM::Frame *frame, const std::function<Ret(Args...)> &fn) {
+    call_native_function(VM &vm, VM::Stack &stack, const std::function<Ret(Args...)> &fn) {
         auto frame_start = stack.find_sep();
         stack.reverse();
         try {

@@ -6,7 +6,7 @@
 using namespace funscript;
 using namespace funscript::native;
 
-void fd_write(VM::Stack &stack, VM::Frame *frame) {
+void fd_write(VM::Stack &stack) {
     std::function fn([&stack](fint fd, MemoryManager::AutoPtr<VM::Array> bytes, fint pos, fint len) -> fint {
         if (pos < 0 || len < 0 || pos + len > bytes->len()) stack.panic("invalid range");
         auto buf = std::make_unique<uint8_t[]>(len);
@@ -19,5 +19,5 @@ void fd_write(VM::Stack &stack, VM::Frame *frame) {
         }
         return write(int(fd), buf.get(), len);
     });
-    call_native_function(stack.vm, stack, frame, fn);
+    call_native_function(stack.vm, stack, fn);
 }

@@ -104,8 +104,8 @@ namespace funscript::tests {
         }
 
         auto evaluate(const std::string &expr) {
-            auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr);
-            if (stack->get_state() == VM::Stack::State::PANICKED) {
+            auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr, "'<test>'");
+            if (stack->is_panicked()) {
                 throw EvaluationError(std::string((*stack)[-1].data.str->bytes));
             }
             return stack;

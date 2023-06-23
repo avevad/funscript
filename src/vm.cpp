@@ -21,17 +21,14 @@ namespace funscript {
 
     void VM::Stack::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &val : values) val.get_ref(callback);
-        for (auto *frame : frames) callback(frame);
+        callback(cur_frame);
     }
 
     VM::Stack::Stack(VM &vm, Function *start) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
-                                                frames(vm.mem.std_alloc<Frame *>()), state(State::RUNNABLE) {
-        frames.push_back(vm.mem.gc_new_auto<Frame>(start).get());
-        push_sep(); // Empty arguments for the start function.
-    }
+                                                cur_frame(vm.mem.gc_new_auto<Frame>(start).get()) {}
 
     VM::Stack::Stack(funscript::VM &vm) : Allocation(vm), values(vm.mem.std_alloc<Value>()),
-                                          frames(vm.mem.std_alloc<Frame *>()), state(State::FINISHED) {}
+                                          cur_frame(nullptr) {}
 
     VM::Stack::pos_t VM::Stack::size() const {
         return values.size(); // NOLINT(cppcoreguidelines-narrowing-conversions)
@@ -103,7 +100,6 @@ namespace funscript {
 
     void VM::Stack::exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
         try {
-            Frame *frame = frames.back();
             const auto *bytecode = bytecode_obj->bytes.data();
             const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
             auto cur_scope = MemoryManager::AutoPtr(scope);
@@ -124,7 +120,7 @@ namespace funscript {
                         break;
                     case Opcode::MET: {
                         meta.filename = meta_chunk = bytecode + ins.u64;
-                        frame->meta_ptr = &meta;
+                        cur_frame->meta_ptr = &meta;
                         ip++;
                         break;
                     }
@@ -751,24 +747,17 @@ namespace funscript {
     }
 
     void VM::Stack::call_function(Function *fun) {
-        if (frames.size() >= vm.config.stack_frames_max) panic("stack overflow");
-        auto frame = vm.mem.gc_new_auto<Frame>(fun);
-        frames.push_back(frame.get());
-        fun->call(*this, frame.get());
-        frames.pop_back();
+        if (cur_frame->depth + 1 >= vm.config.stack_frames_max) panic("stack overflow");
+        cur_frame = vm.mem.gc_new_auto<Frame>(fun, cur_frame).get();
+        fun->call(*this);
+        cur_frame = cur_frame->prev_frame;
     }
 
-    void VM::Stack::continue_execution() {
-        if (frames.empty()) assertion_failed("the routine is no longer alive");
+    void VM::Stack::execute() {
+        if (!cur_frame) assertion_failed("this execution stack is dead");
         try {
-            for (pos_t pos = pos_t(frames.size()) - 1; pos >= 0; pos--) {
-                frames[pos]->fun->call(*this, frames[pos]);
-                frames.pop_back();
-            }
-            state = State::FINISHED;
-        } catch (Panic) {
-            state = State::PANICKED;
-        }
+            cur_frame->fun->call(*this);
+        } catch (Panic) {}
     }
 
     void VM::Stack::reverse() {
@@ -801,10 +790,18 @@ namespace funscript {
         values.push_back(values.back());
     }
 
-    void VM::Stack::panic(const std::string &msg) {
+    void VM::Stack::panic(const std::string &msg, const std::source_location &loc) {
         if (size() == vm.config.stack_values_max) pop();
         push_str(vm.mem.gc_new_auto<String>(vm, FStr(msg, vm.mem.str_alloc())).get());
-        state = State::PANICKED;
+        panicked = true;
+        for (Frame *frame = cur_frame; frame; frame = frame->prev_frame) {
+            if (frame == cur_frame && frame->meta_ptr == &frame->fallback_meta) {
+                frame->fallback_meta.filename = loc.file_name();
+                frame->fallback_meta.position = {loc.line(), loc.column()};
+            }
+            frame->fallback_meta = *frame->meta_ptr;
+            frame->meta_ptr = &frame->fallback_meta;
+        }
         throw Panic();
     }
 
@@ -812,8 +809,8 @@ namespace funscript {
         panic("operator is not defined for these operands");
     }
 
-    VM::Stack::State VM::Stack::get_state() const {
-        return state;
+    bool VM::Stack::is_panicked() const {
+        return panicked;
     }
 
     VM::Stack::~Stack() = default;
@@ -871,10 +868,12 @@ namespace funscript {
     VM::Scope::Scope(VM::Object *vars, VM::Scope *prev_scope) : Allocation(vars->vm), vars(vars),
                                                                 prev_scope(prev_scope) {}
 
-    VM::Frame::Frame(Function *fun) : Allocation(fun->vm), fun(fun) {}
+    VM::Frame::Frame(Function *fun, Frame *prev_frame) : Allocation(fun->vm), fun(fun), prev_frame(prev_frame),
+                                                         depth(prev_frame ? prev_frame->depth + 1 : 0) {}
 
     void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(fun);
+        callback(prev_frame);
     }
 
     VM::Bytecode::Bytecode(VM &vm, std::string data) : Allocation(vm), bytes(std::move(data)) {}
@@ -887,7 +886,7 @@ namespace funscript {
         callback(scope);
     }
 
-    void VM::BytecodeFunction::call(VM::Stack &stack, Frame *frame) {
+    void VM::BytecodeFunction::call(VM::Stack &stack) {
         stack.exec_bytecode(mod, scope, bytecode, offset, stack.find_sep());
     }
 
@@ -910,12 +909,12 @@ namespace funscript {
     }
 
     FStr VM::NativeFunction::display() const {
-        if (get_name().has_value()) return "#[native]# function " + get_name().value();
-        return "#[native]# function(" + addr_to_string(this, vm.mem.str_alloc()) + ")";
+        if (get_name().has_value()) return "function #[native]# " + get_name().value();
+        return "function(#[native]# " + addr_to_string(this, vm.mem.str_alloc()) + ")";
     }
 
-    void VM::NativeFunction::call(VM::Stack &stack, funscript::VM::Frame *frame) {
-        return fn(stack, frame);
+    void VM::NativeFunction::call(VM::Stack &stack) {
+        return fn(stack);
     }
 
     VM::String::String(VM &vm, FStr bytes) : Allocation(vm), bytes(std::move(bytes)) {}

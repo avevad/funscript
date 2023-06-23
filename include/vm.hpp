@@ -124,12 +124,15 @@ namespace funscript {
          */
         class Frame final : public Allocation {
             friend VM::Stack;
-            Function *fun; // The function to be called in this frame.
-            code_met_t *meta_ptr = nullptr;
+            Frame *const prev_frame;
+            const size_t depth;
+            Function *const fun; // The function to be called in this frame.
+            code_met_t fallback_meta{.filename = nullptr, .position = {.row = 0, .col = 0}};
+            code_met_t *meta_ptr = &fallback_meta;
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-            explicit Frame(Function *fun);
+            explicit Frame(Function *fun, Frame *prev_frame = nullptr);
         };
 
         /**
@@ -158,7 +161,7 @@ namespace funscript {
             friend VM::Stack;
             std::optional<FStr> name;
 
-            virtual void call(VM::Stack &stack, Frame *frame) = 0;
+            virtual void call(VM::Stack &stack) = 0;
         public:
             Module *const mod; // The origin of the function.
 
@@ -203,7 +206,7 @@ namespace funscript {
             Bytecode *bytecode;
             size_t offset;
 
-            void call(VM::Stack &stack, Frame *frame) override;
+            void call(VM::Stack &stack) override;
         public:
             void get_refs(const std::function<void(Allocation *)> &callback) override;
 
@@ -216,9 +219,9 @@ namespace funscript {
          * CLass of native function value objects.
          */
         class NativeFunction final : public Function {
-            std::function<void(VM::Stack &, Frame *)> fn;
+            std::function<void(VM::Stack &)> fn;
 
-            void call(VM::Stack &stack, funscript::VM::Frame *frame) override;
+            void call(VM::Stack &stack) override;
         public:
             NativeFunction(VM &vm, Module *mod, decltype(fn) fn);
 
@@ -276,11 +279,6 @@ namespace funscript {
         class Stack final : public Allocation {
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
-
-            enum class State {
-                RUNNABLE, PANICKED, FINISHED
-            };
-
             using pos_t = ssize_t; // Type representing position in stack. Can be negative (-1 is the topmost element).
 
             Stack &operator=(const Stack &) = delete;
@@ -313,9 +311,9 @@ namespace funscript {
             void call_assignment();
             void call_type_check();
 
-            void continue_execution();
+            void execute();
 
-            void panic(const std::string &msg);
+            void panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
 
             // Some functions for pushing values onto the value stack.
 
@@ -380,14 +378,31 @@ namespace funscript {
              */
             pos_t find_sep(pos_t before = 0);
 
-            [[nodiscard]] State get_state() const;
+            bool is_panicked() const;
+
+            template<typename Iter>
+            void generate_stack_trace(Iter out) {
+                for (Frame *frame = cur_frame; frame; frame = frame->prev_frame, out++) {
+                    FStr row(vm.mem.str_alloc());
+                    row += std::to_string(frame->depth) + ':';
+                    row += " in ";
+                    row += frame->fun->display();
+                    row += " at ";
+                    if (frame->meta_ptr->filename) row += frame->meta_ptr->filename;
+                    else row += '?';
+                    row += ':';
+                    row += frame->meta_ptr->position.to_string();
+                    *out = row;
+                }
+            }
 
             ~Stack() override;
 
         private:
             FVec<Value> values; // Values stack.
-            FVec<Frame *> frames; // Frames stack.
-            State state;
+            Frame *cur_frame;
+
+            bool panicked = false;
 
             /**
              * Pushes any value onto the value stack.
@@ -406,9 +421,6 @@ namespace funscript {
         };
 
     private:
-        class Yield {
-        };
-
         class Panic {
         };
     };

@@ -13,14 +13,28 @@
 namespace funscript::util {
 
     static MemoryManager::AutoPtr<VM::Stack>
-    eval_fn(VM &vm, VM::Function *start) {
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
-        stack->continue_execution();
+    create_panicked_stack(VM &vm, const std::string &msg) {
+        auto fn = vm.mem.gc_new_auto<VM::NativeFunction>(vm, nullptr, [&msg](VM::Stack &stack) {
+            stack.pop(stack.find_sep());
+            stack.panic(msg);
+        });
+        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, fn.get());
+        stack->push_sep();
+        stack->execute();
         return stack;
     }
 
     static MemoryManager::AutoPtr<VM::Stack>
-    eval_expr(VM &vm, VM::Module *mod, VM::Scope *scope, const std::string &filename, const std::string &expr) try {
+    eval_fn(VM &vm, VM::Function *start) {
+        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
+        stack->push_sep(); // No arguments
+        stack->execute();
+        return stack;
+    }
+
+    static MemoryManager::AutoPtr<VM::Stack>
+    eval_expr(VM &vm, VM::Module *mod, VM::Scope *scope,
+              const std::string &filename, const std::string &expr, const std::string &expr_name) try {
         // Split expression into array of tokens
         std::vector<Token> tokens;
         tokenize(filename, expr, [&tokens](auto token) { tokens.push_back(token); });
@@ -35,32 +49,37 @@ namespace funscript::util {
         auto bytecode = vm.mem.gc_new_auto<VM::Bytecode>(vm, bytes);
         // Create temporary environment for expression evaluation
         auto start = vm.mem.gc_new_auto<VM::BytecodeFunction>(vm, mod, scope, bytecode.get());
-        start->assign_name(FStr("'<start>'", vm.mem.str_alloc()));
+        start->assign_name(FStr(expr_name, vm.mem.str_alloc()));
         return eval_fn(vm, start.get());
     } catch (const CompilationError &err) {
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        try {
-            stack->panic(std::string("compilation error: ") + err.what());
-        } catch (...) {}
-        return stack;
+        return create_panicked_stack(vm, std::string("compilation error: ") + err.what());
     } catch (const VM::StackOverflowError &) {
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        try {
-            stack->panic(std::string("stack overflow"));
-        } catch (...) {}
-        return stack;
+        return create_panicked_stack(vm, "stack overflow");
     } catch (const OutOfMemoryError &) {
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
-        try {
-            stack->panic(std::string("out of memory"));
-        } catch (...) {}
-        return stack;
+        return create_panicked_stack(vm, "out of memory");
+    }
+
+    static void print_panic(VM::Stack &stack) {
+        if (!stack.is_panicked()) assertion_failed("no panic encountered");
+        FVec<FStr> trace(stack.vm.mem.std_alloc<FStr>());
+        stack.generate_stack_trace(std::back_inserter(trace));
+        std::reverse(trace.begin(), trace.end());
+        for (const auto &row : trace) {
+            std::cerr << "! " << row << std::endl;
+        }
+        std::cerr << "! " << stack[-1].data.str->bytes << std::endl;
     }
 
     class ModuleLoadingError : public std::runtime_error {
     public:
-        explicit ModuleLoadingError(const std::string &mod_name, const std::string &why) :
-                std::runtime_error(mod_name + ": " + why) {}
+        MemoryManager::AutoPtr<VM::Stack> stack;
+
+        ModuleLoadingError(const std::string &mod_name, const std::string &why,
+                           MemoryManager::AutoPtr<VM::Stack> &&stack) :
+                std::runtime_error(mod_name + ": " + why), stack(std::move(stack)) {}
+
+        ModuleLoadingError(const std::string &mod_name, const std::string &why) :
+                ModuleLoadingError(mod_name, why, MemoryManager::AutoPtr<VM::Stack>(nullptr)) {}
     };
 
     static MemoryManager::AutoPtr<VM::Module>
@@ -105,9 +124,10 @@ namespace funscript::util {
                                      vm.get_module(FStr(dep_mod, vm.mem.str_alloc())).value());
         }
         // Execute module loader code
-        auto stack = util::eval_expr(vm, mod.get(), module_global_scope.get(), loader_path.string(), loader_code);
-        if (stack->get_state() == VM::Stack::State::PANICKED) {
-            assertion_failed("failed to load module");
+        auto stack = util::eval_expr(vm, mod.get(), module_global_scope.get(),
+                                     loader_path.string(), loader_code, "'<load>'");
+        if (stack->is_panicked()) {
+            throw ModuleLoadingError(name, "module loader panicked", std::move(stack));
         }
         return mod;
     }
@@ -124,27 +144,28 @@ namespace funscript::util {
         auto mod = vm.mem.gc_new_auto<VM::Module>(vm, nullptr, module_obj.get());
         VM::Module *mod_ptr = mod.get();
         auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
-                vm, mod.get(), [lib_handle, mod_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
+                vm, mod.get(), [lib_handle, mod_ptr](VM::Stack &stack) -> void {
                     auto frame_start = stack.find_sep();
                     auto name_val = stack[-1];
                     if (name_val.type != Type::STR || stack[-2].type != Type::SEP) {
                         stack.panic("symbol name is required");
                     }
-                    auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &, VM::Frame *)>(
+                    auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(
                             dlsym(lib_handle, name_val.data.str->bytes.c_str())
                     );
                     if (!fn_ptr) {
-                        stack.panic(std::string("can't load native symbol: ") + dlerror());
+                        stack.panic(std::string("failed to load native symbol: ") + dlerror());
                     }
                     stack.pop(frame_start);
                     auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(
-                            stack.vm, mod_ptr, [fn_ptr](VM::Stack &stack, VM::Frame *frame) -> void {
-                                return fn_ptr(stack, frame);
+                            stack.vm, mod_ptr, [fn_ptr](VM::Stack &stack) -> void {
+                                return fn_ptr(stack);
                             }
                     );
                     stack.push_fun(native_fn.get());
                 }
         );
+        native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()));
         module_exports->set_field(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()),
                                   {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
         );

@@ -76,6 +76,7 @@ int main(int argc, const char **argv) {
             vm.register_module(FStr(module_conf.name.value(), vm.mem.str_alloc()), module_obj.get());
         } catch (const util::ModuleLoadingError &err) {
             std::cerr << args[0] << ": " << err.what() << std::endl;
+            if (err.stack) util::print_panic(*err.stack);
             return 1;
         }
     }
@@ -87,8 +88,10 @@ int main(int argc, const char **argv) {
             return 1;
         }
         auto stack = util::eval_fn(vm, start_val.data.fun);
-        if (stack->get_state() == funscript::VM::Stack::State::PANICKED) {
-            assertion_failed("failed to start module");
+        if (stack->is_panicked()) {
+            std::cerr << args[0] << ": main module panicked" << std::endl;
+            util::print_panic(*stack);
+            return 1;
         }
     }
 }
