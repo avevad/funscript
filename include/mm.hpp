@@ -212,10 +212,10 @@ namespace funscript {
                 free(ptr, sizeof(T));
                 throw;
             }
-            gc_tracked.push_back(ptr);
             ptr->mm_size = sizeof(T);
             ptr->gc_pins++;
             ptr->tracked = true;
+            gc_tracked.push_back(ptr);
             return ptr;
         }
 
@@ -232,9 +232,12 @@ namespace funscript {
             ptr->mm_size = sz;
             ptr->gc_pins++;
             ptr->tracked = true;
+            gc_tracked.push_back(ptr);
             size_t pos = 0;
             try {
-                for (; pos < n; pos++) new(ptr) T(e);
+                for (; pos < n; pos++) {
+                    new(ptr->data() + pos) T(e);
+                }
             } catch (...) {
                 while (pos > 0) {
                     pos--;
