@@ -21,11 +21,17 @@ namespace funscript {
 
     class VM;
 
+    template<typename E>
+    class ArrayAllocation;
+
     /**
      * Abstract class of every allocation managed by VM's MM.
      */
     class Allocation {
         friend MemoryManager;
+
+        template<typename E> friend
+        class ArrayAllocation;
 
         bool tracked = false;
         size_t mm_size = 0;
@@ -52,6 +58,43 @@ namespace funscript {
         Allocation(Allocation &&) = delete;
 
     };
+
+    template<typename E>
+    class ArrayAllocation final : public Allocation {
+    public:
+        explicit ArrayAllocation(VM &vm) : Allocation(vm) {}
+
+        inline E *data();
+        [[nodiscard]] inline size_t size() const;
+        static constexpr size_t data_gap();
+
+        ~ArrayAllocation() override;
+
+        void get_refs(const std::function<void(Allocation *)> &callback) override {}
+    };
+
+    template<typename E>
+    size_t ArrayAllocation<E>::size() const {
+        return (mm_size - sizeof(ArrayAllocation) - data_gap()) / sizeof(E);
+    }
+
+    template<typename E>
+    constexpr size_t ArrayAllocation<E>::data_gap() {
+        if constexpr (sizeof(ArrayAllocation<E>) % alignof(E) == 0) return 0;
+        else return sizeof(E) - sizeof(ArrayAllocation<E>) % alignof(E);
+    }
+
+    template<typename E>
+    E *ArrayAllocation<E>::data() {
+        return reinterpret_cast<E *>(reinterpret_cast<char *>(this) + sizeof(ArrayAllocation) + data_gap());
+    }
+
+    template<typename E>
+    ArrayAllocation<E>::~ArrayAllocation() {
+        for (size_t pos = 0; pos < size(); pos++) {
+            data()[pos].~E();
+        }
+    }
 
     class OutOfMemoryError final : std::bad_alloc {
     public:
@@ -176,6 +219,33 @@ namespace funscript {
             return ptr;
         }
 
+        template<class T>
+        ArrayAllocation<T> *gc_new_arr(VM &vm, size_t n, const T &e) {
+            size_t sz = sizeof(ArrayAllocation<T>) + ArrayAllocation<T>::data_gap() + sizeof(T) * n;
+            auto *ptr = reinterpret_cast<ArrayAllocation<T> *>(allocate<char>(sz));
+            try {
+                new(ptr) ArrayAllocation<T>(vm);
+            } catch (...) {
+                free(ptr, sz);
+                throw;
+            }
+            ptr->mm_size = sz;
+            ptr->gc_pins++;
+            ptr->tracked = true;
+            size_t pos = 0;
+            try {
+                for (; pos < n; pos++) new(ptr) T(e);
+            } catch (...) {
+                while (pos > 0) {
+                    pos--;
+                    ptr->data()[pos].~T();
+                }
+                ptr->~ArrayAllocation();
+                free(ptr, sz);
+            }
+            return ptr;
+        }
+
         /**
          * Looks for unused GC-tracked allocations and destroys them.
          */
@@ -242,7 +312,15 @@ namespace funscript {
         AutoPtr<T> gc_new_auto(A &&... args) {
             auto *alloc = gc_new<T, A...>(std::forward<A>(args)...);
             AutoPtr<T> ptr(alloc);
-            if (alloc) gc_unpin(alloc);
+            gc_unpin(alloc);
+            return ptr;
+        }
+
+        template<class T>
+        AutoPtr<ArrayAllocation<T>> gc_new_auto_arr(VM &vm, size_t n, const T &e) {
+            auto *alloc = gc_new_arr(vm, n, e);
+            AutoPtr<ArrayAllocation<T>> ptr(alloc);
+            gc_unpin(alloc);
             return ptr;
         }
     };

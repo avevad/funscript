@@ -217,6 +217,34 @@ namespace funscript::util {
             }
         };
 
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::String>> {
+            static std::optional<MemoryManager::AutoPtr<VM::String>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack[-1].type != Type::STR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack[-1].data.str);
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::String> &str) {
+                stack.push_str(str.get());
+            }
+        };
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<Allocation>> {
+            static std::optional<MemoryManager::AutoPtr<Allocation>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack[-1].type != Type::PTR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack[-1].data.ptr);
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<Allocation> &ptr) {
+                stack.push_ptr(ptr.get());
+            }
+        };
+
     }
 
     template<typename T>
@@ -248,7 +276,7 @@ namespace funscript::util {
                 throw ValueError("value #" + std::to_string(pos + 1) + " is absent or is of wrong type");
             }
             values_from_stack_impl(vm, stack, pos + 1);
-            return {val.value()};
+            return {std::move(val.value())};
         }
 
         template<typename Values0, typename Values1, typename... Values>
