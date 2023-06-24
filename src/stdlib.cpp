@@ -3,21 +3,26 @@
 
 #include <memory>
 
-using namespace funscript;
-using namespace funscript::native;
+namespace funscript::stdlib {
 
-void fd_write(VM::Stack &stack) {
-    std::function fn([&stack](fint fd, MemoryManager::AutoPtr<VM::Array> bytes, fint pos, fint len) -> fint {
-        if (pos < 0 || len < 0 || pos + len > bytes->len()) stack.panic("invalid range");
-        auto buf = std::make_unique<uint8_t[]>(len);
-        for (size_t buf_pos = 0; buf_pos < len; buf_pos++) {
-            auto val = (*bytes)[pos + buf_pos];
-            if (val.type != Type::INT || val.data.num < 0 || 255 < val.data.num) {
-                stack.panic("invalid value in bytes array");
-            }
-            *(buf.get() + buf_pos) = val.data.num;
+    void str_to_bytes(VM::Stack &stack) {
+        std::function fn([&stack](MemoryManager::AutoPtr<VM::String> str) -> MemoryManager::AutoPtr<Allocation> {
+            auto ptr = stack.vm.mem.gc_new_auto_arr<char>(stack.vm, str->bytes.size(), '\0');
+            std::copy(str->bytes.data(), str->bytes.data() + str->bytes.size(), ptr->data());
+            return MemoryManager::AutoPtr<Allocation>(ptr.get());
+        });
+        native::call_function(stack.vm, stack, fn);
+    }
+
+    namespace io {
+        void fd_write(VM::Stack &stack) {
+            std::function fn([&stack](fint fd, MemoryManager::AutoPtr<Allocation> bytes) -> fint {
+                auto ptr = MemoryManager::AutoPtr<ArrayAllocation<char>>(dynamic_cast<ArrayAllocation<char> *>(bytes.get()));
+                if (!ptr) stack.panic("invalid pointer");
+                return fint(write(int(fd), ptr->data(), ptr->size()));
+            });
+            native::call_function(stack.vm, stack, fn);
         }
-        return write(int(fd), buf.get(), len);
-    });
-    call_native_function(stack.vm, stack, fn);
+    }
+
 }
