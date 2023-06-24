@@ -19,9 +19,9 @@ namespace funscript {
         ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, COLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
         EXCLAMATION_MARK, LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
-        LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET,
+        LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK,
 
-        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR, NAN, INF, IS
+        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR, NAN, INF, IS,
     };
 
     /**
@@ -42,6 +42,7 @@ namespace funscript {
                 {Keyword::DOUBLE_EQUAL_SIGN,    "=="},
                 {Keyword::NOT_EQUAL,            "!="},
                 {Keyword::EXCLAMATION_MARK,     "!"},
+                {Keyword::QUESTION_MARK,        "?"},
                 {Keyword::LESS_SIGN,            "<"},
                 {Keyword::GREATER_SIGN,         ">"},
                 {Keyword::LESS_EQUAL_SIGN,      "<="},
@@ -179,7 +180,8 @@ namespace funscript {
                 {Keyword::DO,                 Operator::DO},
                 {Keyword::AND,                Operator::AND},
                 {Keyword::OR,                 Operator::OR},
-                {Keyword::IS, Operator::IS}
+                {Keyword::IS,                 Operator::IS},
+                {Keyword::QUESTION_MARK,      Operator::EXTRACT}
         };
         return OPERATOR_KEYWORDS;
     }

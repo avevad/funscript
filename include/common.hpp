@@ -202,7 +202,11 @@ namespace funscript {
         /**
          * @brief Execute type check call.
          */
-        CHK
+        CHK,
+        /**
+         * @brief Extract values from the object.
+         */
+        EXT
     };
 
     /**
@@ -245,7 +249,8 @@ namespace funscript {
         DO,
         AND,
         OR,
-        IS
+        IS,
+        EXTRACT
     };
 
     /**
@@ -263,7 +268,8 @@ namespace funscript {
         static const std::unordered_map<Operator, OperatorMeta> OPERATORS{
                 {Operator::INDEX,         {0,  true}},
                 {Operator::CALL,          {0,  false /* should not be used */ }},
-                {Operator::NOT,           {1,  false}},
+                {Operator::EXTRACT,       {1,  false}},
+                {Operator::NOT,           {2,  false}},
                 {Operator::TIMES,         {3,  true}},
                 {Operator::DIVIDE,        {4,  true}},
                 {Operator::MODULO,        {4,  true}},
@@ -304,6 +310,7 @@ namespace funscript {
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
     static const char *TYPE_CHECK_NAME = "check_value";
+    static const char *ERR_FLAG_NAME = "is_err";
 
     // Aliases for Funscript primitive types
 

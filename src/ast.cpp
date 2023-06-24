@@ -190,6 +190,18 @@ namespace funscript {
                                     0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
+            case Operator::EXTRACT: {
+                if (dynamic_cast<VoidAST *>(right.get())) { // As in `.file = io.open(path)?`
+                    ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                        0, 0});
+                    auto u_opt = left->compile_eval(as, ch, {});
+                    ch.put_instruction({Opcode::EXT, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        0, 0});
+                    return {.no_scope = u_opt.no_scope};
+                } else { // As in `.name = next_string() ? 'Unnamed'`
+                    assertion_failed("not implemented");
+                }
+            }
             default: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
                                     0, 0});

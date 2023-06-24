@@ -326,6 +326,30 @@ namespace funscript {
                         ip++;
                         break;
                     }
+                    case Opcode::EXT: {
+                        if (get(-1).type != Type::OBJ) panic("object expected");
+                        auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
+                        pop();
+                        if (get(-1).type != Type::SEP) panic("too many values");
+                        pop();
+                        if (ins.u64) {
+                            assertion_failed("not implemented");
+                        } else {
+                            auto flag = obj->get_field(ERR_FLAG_NAME);
+                            if (flag.has_value() && flag.value().type == Type::BLN && flag.value().data.bln) {
+                                pop(frame_start);
+                                push_obj(obj.get());
+                                return;
+                            } else [[likely]] {
+                                size_t push_cnt = obj->get_values().size();
+                                values.resize(size() + push_cnt);
+                                std::copy(obj->get_values().data(), obj->get_values().data() + push_cnt,
+                                          values.data() + size() - push_cnt);
+                            }
+                            ip++;
+                        }
+                        break;
+                    }
                 }
             }
         } catch (const OutOfMemoryError &e) {
