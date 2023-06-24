@@ -126,7 +126,6 @@ namespace funscript {
                     }
                     case Opcode::VAL: {
                         Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
-                        if (val.type == Type::OBJ) val.data.obj = cur_scope->vars;
                         if (val.type == Type::FUN) {
                             auto *fun = vm.mem.gc_new<BytecodeFunction>(vm, mod, cur_scope.get(), bytecode_obj,
                                                                         size_t(ins.u64));
@@ -139,6 +138,13 @@ namespace funscript {
                             throw;
                         }
                         if (val.type == Type::FUN) vm.mem.gc_unpin(val.data.fun);
+                        ip++;
+                        break;
+                    }
+                    case Opcode::OBJ: {
+                        cur_scope->vars->init_values(values.data() + find_sep() + 1, values.data() + size());
+                        pop(find_sep());
+                        push_obj(cur_scope->vars);
                         ip++;
                         break;
                     }
@@ -836,7 +842,15 @@ namespace funscript {
         return fields;
     }
 
-    VM::Object::Object(VM &vm) : Allocation(vm), fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()) {}
+    VM::Object::Object(VM &vm) :
+            Allocation(vm),
+            fields(vm.mem.std_alloc<std::pair<const FStr, Value>>()),
+            values(vm.mem.std_alloc<Value>()) {
+    }
+
+    void VM::Object::init_values(const funscript::VM::Value *beg, const funscript::VM::Value *end) {
+        values.assign(beg, end);
+    }
 
     bool VM::Object::contains_field(const char *key) const {
         return fields.contains(FStr(key, vm.mem.str_alloc()));
@@ -846,6 +860,10 @@ namespace funscript {
         FStr key_f(key, vm.mem.str_alloc());
         if (!fields.contains(key_f)) return std::nullopt;
         return fields.at(key_f);
+    }
+
+    const decltype(VM::Object::values) &VM::Object::get_values() const {
+        return values;
     }
 
     void VM::Scope::get_refs(const std::function<void(Allocation *)> &callback) {

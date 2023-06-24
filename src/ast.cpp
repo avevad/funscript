@@ -304,13 +304,12 @@ namespace funscript {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(child->get_location().beg)),
                                     0, 0});
                 u_opt0 = child->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(child->get_location().end)),
-                                    0, 0}); // Discard all values produced by sub-expression
                 ch.put_instruction(
-                        {Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.end)), static_cast<uint16_t>(Type::OBJ),
-                         0}); // Create an object from scope
+                        {Opcode::OBJ, uint32_t(as.data_chunk().put(token_loc.end)),
+                         0, 0}); // Create an object from scope
                 ch.put_instruction(
-                        {Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.end)), false, 0}); // Discard object scope
+                        {Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.end)),
+                         false, 0}); // Discard object scope
                 break;
             }
             case Bracket::SQUARE: {

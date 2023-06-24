@@ -170,6 +170,10 @@ namespace funscript {
          */
         ARR,
         /**
+         * @brief Create and push an object (from current scope and the topmost value pack).
+         */
+        OBJ,
+        /**
          * @brief Execute assignment call (as in `arr[5] = 1`).
          */
         MOV,

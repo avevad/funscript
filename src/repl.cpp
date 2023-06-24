@@ -17,9 +17,18 @@ std::string display(const VM::Value &val) {
         case Type::FLP:
             out << val.data.flp;
             break;
-        case Type::OBJ:
-            out << "object(" << val.data.obj << ")";
+        case Type::OBJ: {
+            VM::Object &obj = *val.data.obj;
+            if (obj.get_fields().empty()) {
+                out << '{';
+                for (size_t pos = 0; pos < obj.get_values().size(); pos++) {
+                    if (pos) out << ", ";
+                    out << display(obj.get_values()[pos]);
+                }
+                out << '}';
+            } else out << "object(" << val.data.obj << ")";
             break;
+        }
         case Type::FUN:
             out << val.data.fun->display();
             break;

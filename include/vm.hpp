@@ -73,6 +73,7 @@ namespace funscript {
          */
         class Object : public Allocation {
         private:
+            FVec<Value> values; // Dictionary of object's indexed values.
             FMap<FStr, Value> fields; // Dictionary of object's fields.
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
@@ -85,6 +86,9 @@ namespace funscript {
             [[nodiscard]] std::optional<Value> get_field(const char *key) const;
             void set_field(const FStr &key, Value val);
             const decltype(fields) &get_fields() const;
+
+            void init_values(const Value *beg, const Value *end);
+            const decltype(values) &get_values() const;
 
             ~Object() override = default;
         };
