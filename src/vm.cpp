@@ -332,21 +332,29 @@ namespace funscript {
                         pop();
                         if (get(-1).type != Type::SEP) panic("too many values");
                         pop();
+                        bool is_err = obj->contains_field(ERR_FLAG_NAME);
                         if (ins.u64) {
-                            assertion_failed("not implemented");
-                        } else {
-                            auto flag = obj->get_field(ERR_FLAG_NAME);
-                            if (flag.has_value() && flag.value().type == Type::BLN && flag.value().data.bln) {
-                                pop(frame_start);
-                                push_obj(obj.get());
-                                return;
-                            } else [[likely]] {
+                            if (is_err) [[unlikely]] {
+                                ip++;
+                            } else {
                                 size_t push_cnt = obj->get_values().size();
                                 values.resize(size() + push_cnt);
                                 std::copy(obj->get_values().data(), obj->get_values().data() + push_cnt,
                                           values.data() + size() - push_cnt);
+                                ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                             }
-                            ip++;
+                        } else {
+                            if (is_err) [[unlikely]] {
+                                pop(frame_start);
+                                push_obj(obj.get());
+                                return;
+                            } else {
+                                size_t push_cnt = obj->get_values().size();
+                                values.resize(size() + push_cnt);
+                                std::copy(obj->get_values().data(), obj->get_values().data() + push_cnt,
+                                          values.data() + size() - push_cnt);
+                                ip++;
+                            }
                         }
                         break;
                     }
@@ -847,6 +855,7 @@ namespace funscript {
 
     void VM::Object::get_refs(const std::function<void(Allocation *)> &callback) {
         for (const auto &[key, val] : fields) val.get_ref(callback);
+        for (const auto &val : values) val.get_ref(callback);
     }
 
     bool VM::Object::contains_field(const FStr &key) const {

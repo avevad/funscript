@@ -310,7 +310,7 @@ namespace funscript {
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
     static const char *TYPE_CHECK_NAME = "check_value";
-    static const char *ERR_FLAG_NAME = "is_err";
+    static const char *ERR_FLAG_NAME = "err";
 
     // Aliases for Funscript primitive types
 
