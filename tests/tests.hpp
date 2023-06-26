@@ -7,6 +7,7 @@
 #include "catch2/matchers/catch_matchers_templated.hpp"
 
 #include <utility>
+#include <any>
 
 namespace funscript::tests {
 
@@ -86,7 +87,10 @@ namespace funscript::tests {
 
     class EvaluationError : std::runtime_error {
     public:
-        explicit EvaluationError(const std::string &msg) : std::runtime_error(msg) {}
+        MemoryManager::AutoPtr<VM::Stack> stack;
+
+        explicit EvaluationError(MemoryManager::AutoPtr<VM::Stack> &&stack, const std::string &msg) :
+                stack(std::move(stack)), std::runtime_error(msg) {}
     };
 
     class TestEnv {
@@ -95,19 +99,27 @@ namespace funscript::tests {
         MemoryManager::AutoPtr<VM::Scope> scope;
     public:
         explicit TestEnv(
-                size_t memory_max_bytes = 1073741824 /* 1 GiB */,
-                size_t frames_max = 1024 /* 1 Ki */,
-                size_t values_max = 67108864 /* 64 Mi */
+                size_t memory_max_bytes = 8388608 /* 8 MiB */,
+                size_t frames_max = 32,
+                size_t values_max = 1024 /* 1 Ki */
         ) : allocator(memory_max_bytes),
             vm({.mm{.allocator = &allocator}, .stack_values_max = values_max, .stack_frames_max = frames_max}),
             scope(vm.mem.gc_new_auto<VM::Scope>(vm.mem.gc_new_auto<VM::Object>(vm).get(), nullptr)) {
         }
 
         auto evaluate(const std::string &expr) {
+            std::cout << ": " << expr << std::endl;
             auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr, "'<test>'");
             if (stack->is_panicked()) {
-                throw EvaluationError(std::string((*stack)[-1].data.str->bytes));
+                util::print_panic(*stack);
+                throw EvaluationError(std::move(stack), std::string((*stack)[-1].data.str->bytes));
             }
+            std::cout << "= ";
+            for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
+                if (pos != 0) std::cout << ", ";
+                std::cout << util::display_value((*stack)[pos]);
+            }
+            std::cout << std::endl;
             return stack;
         }
     };
@@ -137,29 +149,31 @@ namespace funscript::tests {
         }
     };
 
-    struct Fails : Catch::Matchers::MatcherGenericBase {
+    struct Panics : Catch::Matchers::MatcherGenericBase {
         TestEnv &env;
 
-        explicit Fails(TestEnv &env) : env(env) {}
+        explicit Panics(TestEnv &env) : env(env) {}
 
         bool match(const std::string &expr) const {
             try {
                 auto stack = env.evaluate(expr);
                 return false;
             } catch (const EvaluationError &err) {
-                return true;
+                std::vector<std::any> st;
+                err.stack->generate_stack_trace(std::back_inserter(st));
+                return !st.empty();
             }
         }
 
         std::string describe() const override {
-            return "fails";
+            return "panics";
         }
     };
 
-    struct Succeeds : Catch::Matchers::MatcherGenericBase {
+    struct Evaluates : Catch::Matchers::MatcherGenericBase {
         TestEnv &env;
 
-        explicit Succeeds(TestEnv &env) : env(env) {}
+        explicit Evaluates(TestEnv &env) : env(env) {}
 
         bool match(const std::string &expr) const {
             try {
@@ -171,7 +185,7 @@ namespace funscript::tests {
         }
 
         std::string describe() const override {
-            return "succeeds";
+            return "evaluates";
         }
     };
 

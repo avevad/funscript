@@ -99,12 +99,12 @@ namespace funscript {
     volatile sig_atomic_t VM::Stack::kbd_int = 0;
 
     void VM::Stack::exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start) {
+        const auto *bytecode = bytecode_obj->bytes.data();
+        const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
+        auto cur_scope = MemoryManager::AutoPtr(scope);
+        const char *meta_chunk = nullptr;
+        code_met_t meta{.filename = nullptr};
         try {
-            const auto *bytecode = bytecode_obj->bytes.data();
-            const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
-            auto cur_scope = MemoryManager::AutoPtr(scope);
-            const char *meta_chunk = nullptr;
-            code_met_t meta{.filename = nullptr};
             while (true) {
                 if (kbd_int) {
                     kbd_int = 0;
@@ -361,8 +361,11 @@ namespace funscript {
                 }
             }
         } catch (const OutOfMemoryError &e) {
+            pop(frame_start);
+            scope = nullptr;
             panic("out of memory");
         } catch (const StackOverflowError &e) {
+            pop(frame_start);
             panic("stack overflow");
         }
     }

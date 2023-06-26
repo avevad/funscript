@@ -5,59 +5,6 @@
 
 using namespace funscript;
 
-std::string display(const VM::Value &val) {
-    std::ostringstream out;
-    switch (val.type) {
-        case Type::NUL:
-            out << "nul";
-            break;
-        case Type::INT:
-            out << val.data.num;
-            break;
-        case Type::FLP:
-            out << val.data.flp;
-            break;
-        case Type::OBJ: {
-            VM::Object &obj = *val.data.obj;
-            if (obj.get_fields().empty()) {
-                out << '{';
-                for (size_t pos = 0; pos < obj.get_values().size(); pos++) {
-                    if (pos) out << ", ";
-                    out << display(obj.get_values()[pos]);
-                }
-                out << '}';
-            } else out << "object(" << val.data.obj << ")";
-            break;
-        }
-        case Type::FUN:
-            out << val.data.fun->display();
-            break;
-        case Type::BLN:
-            out << (val.data.bln ? "yes" : "no");
-            break;
-        case Type::STR:
-            out << "'" << val.data.str->bytes << "'";
-            break;
-        case Type::ARR: {
-            out << "[";
-            VM::Array &arr = *val.data.arr;
-            for (size_t pos = 0; pos < arr.len(); pos++) {
-                if (pos) out << ", ";
-                out << display(arr[pos]);
-            }
-            out << "]";
-            break;
-        }
-        case Type::PTR: {
-            out << "pointer(" << val.data.ptr << ")";
-            break;
-        }
-        default:
-            assertion_failed("unknown value");
-    }
-    return out.str();
-}
-
 void sigint_handler(int) {
     VM::Stack::kbd_int = 1;
 }
@@ -76,7 +23,7 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
                 if (pos != 0) std::cout << ", ";
-                std::cout << display((*stack)[pos]);
+                std::cout << util::display_value((*stack)[pos]);
             }
             std::cout << std::endl;
         }

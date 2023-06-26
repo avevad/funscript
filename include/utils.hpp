@@ -14,13 +14,10 @@ namespace funscript::util {
 
     static MemoryManager::AutoPtr<VM::Stack>
     create_panicked_stack(VM &vm, const std::string &msg) {
-        auto fn = vm.mem.gc_new_auto<VM::NativeFunction>(vm, nullptr, [&msg](VM::Stack &stack) {
-            stack.pop(stack.find_sep());
-            stack.panic(msg);
-        });
-        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, fn.get());
-        stack->push_sep();
-        stack->execute();
+        auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
+        try {
+            stack->panic(msg);
+        } catch (...) {}
         return stack;
     }
 
@@ -57,6 +54,59 @@ namespace funscript::util {
         return create_panicked_stack(vm, "stack overflow");
     } catch (const OutOfMemoryError &) {
         return create_panicked_stack(vm, "out of memory");
+    }
+
+    std::string display_value(const VM::Value &val) {
+        std::ostringstream out;
+        switch (val.type) {
+            case Type::NUL:
+                out << "nul";
+                break;
+            case Type::INT:
+                out << val.data.num;
+                break;
+            case Type::FLP:
+                out << val.data.flp;
+                break;
+            case Type::OBJ: {
+                VM::Object &obj = *val.data.obj;
+                if (obj.get_fields().empty()) {
+                    out << '{';
+                    for (size_t pos = 0; pos < obj.get_values().size(); pos++) {
+                        if (pos) out << ", ";
+                        out << display_value(obj.get_values()[pos]);
+                    }
+                    out << '}';
+                } else out << "object(" << val.data.obj << ")";
+                break;
+            }
+            case Type::FUN:
+                out << val.data.fun->display();
+                break;
+            case Type::BLN:
+                out << (val.data.bln ? "yes" : "no");
+                break;
+            case Type::STR:
+                out << "'" << val.data.str->bytes << "'";
+                break;
+            case Type::ARR: {
+                out << "[";
+                VM::Array &arr = *val.data.arr;
+                for (size_t pos = 0; pos < arr.len(); pos++) {
+                    if (pos) out << ", ";
+                    out << display_value(arr[pos]);
+                }
+                out << "]";
+                break;
+            }
+            case Type::PTR: {
+                out << "pointer(" << val.data.ptr << ")";
+                break;
+            }
+            default:
+                assertion_failed("unknown value");
+        }
+        return out.str();
     }
 
     static void print_panic(VM::Stack &stack) {

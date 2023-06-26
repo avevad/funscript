@@ -16,4 +16,4 @@ jobs:
       - name: Build project
         run: cd cmake-build-debug; cmake --build . -j$(nproc)
       - name: Run tests
-        run: cd cmake-build-debug; ctest
+        run: cd cmake-build-debug; ctest --verbose
