@@ -100,7 +100,7 @@ TEST_CASE("Conditionals", "[conditionals]") {
         REQUIRE_THAT(".answer = 42", EVALUATES);
         CHECK_THAT("answer == 32 then 'it cannot be'", EVALUATES_TO());
         CHECK_THAT("answer == 42 then 'of course it is'", EVALUATES_TO("of course it is"));
-        CHECK_THAT("!(answer < 0) then 'must be so'", EVALUATES_TO("must be so"));
+        CHECK_THAT("not (answer < 0) then 'must be so'", EVALUATES_TO("must be so"));
     };
     SECTION("Else clause") {
         REQUIRE_THAT(".val1, .val2 = 54, 35", EVALUATES);

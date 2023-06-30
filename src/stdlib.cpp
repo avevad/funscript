@@ -1,5 +1,5 @@
 #include "vm.hpp"
-#include "native.hpp"
+#include "utils.hpp"
 
 #include <memory>
 
@@ -11,7 +11,7 @@ namespace funscript::stdlib {
             std::copy(str->bytes.data(), str->bytes.data() + str->bytes.size(), ptr->data());
             return MemoryManager::AutoPtr<Allocation>(ptr.get());
         });
-        native::call_function(stack.vm, stack, fn);
+        util::call_native_function(stack.vm, stack, fn);
     }
 
     namespace io {
@@ -21,7 +21,7 @@ namespace funscript::stdlib {
                 if (!ptr) stack.panic("invalid pointer");
                 return fint(write(int(fd), ptr->data(), ptr->size()));
             });
-            native::call_function(stack.vm, stack, fn);
+            util::call_native_function(stack.vm, stack, fn);
         }
     }
 

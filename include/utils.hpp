@@ -12,6 +12,170 @@
 
 namespace funscript::util {
 
+    namespace {
+
+        template<typename T>
+        struct ValueTransformer {
+
+        };
+
+        template<>
+        struct ValueTransformer<fint> {
+            static std::optional<fint> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack.top_value().type != Type::INT) return std::nullopt;
+                fint result = stack.top_value().data.num;
+                stack.pop_value();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, fint num) {
+                stack.push_int(num);
+            }
+        };
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::Array>> {
+            static std::optional<MemoryManager::AutoPtr<VM::Array>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack.top_value().type != Type::ARR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack.top_value().data.arr);
+                stack.pop_value();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::Array> &arr) {
+                stack.push_arr(arr.get());
+            }
+        };
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::String>> {
+            static std::optional<MemoryManager::AutoPtr<VM::String>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack.top_value().type != Type::STR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack.top_value().data.str);
+                stack.pop_value();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::String> &str) {
+                stack.push_str(str.get());
+            }
+        };
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<Allocation>> {
+            static std::optional<MemoryManager::AutoPtr<Allocation>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack.top_value().type != Type::PTR) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack.top_value().data.ptr);
+                stack.pop_value();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<Allocation> &ptr) {
+                stack.push_ptr(ptr.get());
+            }
+        };
+
+
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::Function>> {
+            static std::optional<MemoryManager::AutoPtr<VM::Function>> from_stack(VM &vm, VM::Stack &stack) {
+                if (stack.top_value().type != Type::FUN) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack.top_value().data.fun);
+                stack.pop_value();
+                return result;
+            }
+
+            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::Function> &ptr) {
+                stack.push_fun(ptr.get());
+            }
+        };
+    }
+
+    template<typename T>
+    static std::optional<T> value_from_stack(VM &vm, VM::Stack &stack) {
+        return ValueTransformer<T>::from_stack(vm, stack);
+    }
+
+    template<typename T>
+    static void value_to_stack(VM &vm, VM::Stack &stack, const T &val) {
+        ValueTransformer<T>::to_stack(vm, stack, val);
+    }
+
+    class ValueError : public std::runtime_error {
+    public:
+        explicit ValueError(const std::string &what) : std::runtime_error(what) {}
+    };
+
+    namespace {
+
+        std::tuple<> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            if (stack.find_beg() != stack.size()) {
+                throw ValueError("too many values, required " + std::to_string(pos));
+            }
+            stack.pop_pack();
+            return {};
+        }
+
+        template<typename Values0>
+        std::tuple<Values0> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            if (stack.find_beg() == stack.size()) {
+                throw ValueError("not enough values");
+            }
+            auto val = value_from_stack<Values0>(vm, stack);
+            if (!val.has_value()) {
+                throw ValueError("value #" + std::to_string(pos + 1) + " is of wrong type");
+            }
+            values_from_stack_impl(vm, stack, pos + 1);
+            return {std::move(val.value())};
+        }
+
+        template<typename Values0, typename Values1, typename... Values>
+        std::tuple<Values0, Values1, Values...>
+        values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
+            if (stack.find_beg() == stack.size()) {
+                throw ValueError("not enough values");
+            }
+            auto val = value_from_stack<Values0>(vm, stack);
+            if (!val.has_value()) {
+                throw ValueError("value #" + std::to_string(pos + 1) + " is of wrong type");
+            }
+            auto vals = values_from_stack_impl<Values1, Values...>(vm, stack, pos + 1);
+            return std::tuple_cat(std::tuple<Values0>(std::move(val.value())), std::move(vals));
+        }
+
+    }
+
+    template<typename... Values>
+    std::tuple<Values...> values_from_stack(VM &vm, VM::Stack &stack) {
+        if constexpr (sizeof...(Values) == 0) {
+            return values_from_stack_impl(vm, stack, 0);
+        } else {
+            return values_from_stack_impl<Values...>(vm, stack, 0);
+        }
+    }
+
+    /**
+     * Helper function that allows to transform stack values into C++ values and pass them as arguments to any function.
+     * It also transforms return value of the C++ function into Funscript values and pushes it onto the stack.
+     * @tparam Ret Return type of the C++ function.
+     * @tparam Args Argument types of the C++ function.
+     * @param stack Execution stack to operate with.
+     * @param frame Current frame of execution stack.
+     * @param fn The C++ function itself.
+     */
+    template<typename Ret, typename... Args>
+    static void
+    call_native_function(VM &vm, VM::Stack &stack, const std::function<Ret(Args...)> &fn) {
+        stack.reverse();
+        try {
+            auto args = util::values_from_stack<Args...>(vm, stack);
+            auto ret = std::apply(fn, std::move(args));
+            util::value_to_stack(vm, stack, ret);
+        } catch (const util::ValueError &err) {
+            stack.panic(err.what());
+        }
+    }
+
     static MemoryManager::AutoPtr<VM::Stack>
     create_panicked_stack(VM &vm, const std::string &msg) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm);
@@ -24,7 +188,7 @@ namespace funscript::util {
     static MemoryManager::AutoPtr<VM::Stack>
     eval_fn(VM &vm, VM::Function *start) {
         auto stack = vm.mem.gc_new_auto<VM::Stack>(vm, start);
-        stack->push_sep(); // No arguments
+        stack->separate(); // No arguments
         stack->execute();
         return stack;
     }
@@ -117,7 +281,7 @@ namespace funscript::util {
         for (const auto &row : trace) {
             std::cerr << "! " << row << std::endl;
         }
-        std::cerr << "! " << stack[-1].data.str->bytes << std::endl;
+        std::cerr << "! " << stack.top_value().data.str->bytes << std::endl;
     }
 
     class ModuleLoadingError : public std::runtime_error {
@@ -144,8 +308,8 @@ namespace funscript::util {
                   std::back_inserter(loader_code));
         // Prepare module object and scope
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
-        module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()), {.type = Type::NUL});
-        module_obj->set_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc()), {.type = Type::NUL});
+        module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()), Type::NUL);
+        module_obj->set_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc()), Type::NUL);
         auto module_scope = vm.mem.gc_new_auto<VM::Scope>(module_obj.get(), nullptr);
         // Prepare module globals object and global scope
         auto module_globals = vm.mem.gc_new_auto<VM::Object>(vm);
@@ -194,33 +358,31 @@ namespace funscript::util {
         auto mod = vm.mem.gc_new_auto<VM::Module>(vm, nullptr, module_obj.get());
         VM::Module *mod_ptr = mod.get();
         auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
-                vm, mod.get(), [lib_handle, mod_ptr](VM::Stack &stack) -> void {
-                    auto frame_start = stack.find_sep();
-                    auto name_val = stack[-1];
-                    if (name_val.type != Type::STR || stack[-2].type != Type::SEP) {
-                        stack.panic("symbol name is required");
-                    }
-                    auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(
-                            dlsym(lib_handle, name_val.data.str->bytes.c_str())
-                    );
-                    if (!fn_ptr) {
-                        stack.panic(std::string("failed to load native symbol: ") + dlerror());
-                    }
-                    stack.pop(frame_start);
-                    auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(
-                            stack.vm, mod_ptr, [fn_ptr](VM::Stack &stack) -> void {
-                                return fn_ptr(stack);
-                            }
-                    );
-                    stack.push_fun(native_fn.get());
+                vm, mod.get(), [&vm, lib_handle, mod_ptr](VM::Stack &stack) -> void {
+                    std::function fn([&stack, lib_handle, mod_ptr](
+                            MemoryManager::AutoPtr<VM::String> name) -> MemoryManager::AutoPtr<VM::Function> {
+                        auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(
+                                dlsym(lib_handle, name->bytes.c_str())
+                        );
+                        if (!fn_ptr) {
+                            stack.panic(std::string("failed to load native symbol: ") + dlerror());
+                        }
+                        auto native_fn = stack.vm.mem.gc_new_auto<VM::NativeFunction>(
+                                stack.vm, mod_ptr, [fn_ptr](VM::Stack &stack) -> void {
+                                    return fn_ptr(stack);
+                                }
+                        );
+                        return MemoryManager::AutoPtr(dynamic_cast<VM::Function *>(native_fn.get()));
+                    });
+                    call_native_function(vm, stack, fn);
                 }
         );
         native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()));
         module_exports->set_field(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()),
-                                  {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
+                                  {Type::FUN, {.fun = native_sym_fn.get()}}
         );
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
-                              {.type = Type::OBJ, .data = {.obj = module_exports.get()}});
+                              {Type::OBJ, {.obj = module_exports.get()}});
         return mod;
     }
 
@@ -230,125 +392,6 @@ namespace funscript::util {
         if (std::filesystem::exists(get_src_module_loader_path(name))) return load_src_module(vm, name, imps, deps);
         if (std::filesystem::exists(get_native_module_lib_path(name))) return load_native_module(vm, name);
         throw ModuleLoadingError(name, "failed to find module loader");
-    }
-
-    namespace {
-
-        template<typename T>
-        struct ValueTransformer {
-
-        };
-
-        template<>
-        struct ValueTransformer<fint> {
-            static std::optional<fint> from_stack(VM &vm, VM::Stack &stack) {
-                if (stack[-1].type != Type::INT) return std::nullopt;
-                fint result = stack[-1].data.num;
-                stack.pop();
-                return result;
-            }
-
-            static void to_stack(VM &vm, VM::Stack &stack, fint num) {
-                stack.push_int(num);
-            }
-        };
-
-        template<>
-        struct ValueTransformer<MemoryManager::AutoPtr<VM::Array>> {
-            static std::optional<MemoryManager::AutoPtr<VM::Array>> from_stack(VM &vm, VM::Stack &stack) {
-                if (stack[-1].type != Type::ARR) return std::nullopt;
-                auto result = MemoryManager::AutoPtr(stack[-1].data.arr);
-                stack.pop();
-                return result;
-            }
-
-            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::Array> &arr) {
-                stack.push_arr(arr.get());
-            }
-        };
-
-        template<>
-        struct ValueTransformer<MemoryManager::AutoPtr<VM::String>> {
-            static std::optional<MemoryManager::AutoPtr<VM::String>> from_stack(VM &vm, VM::Stack &stack) {
-                if (stack[-1].type != Type::STR) return std::nullopt;
-                auto result = MemoryManager::AutoPtr(stack[-1].data.str);
-                stack.pop();
-                return result;
-            }
-
-            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<VM::String> &str) {
-                stack.push_str(str.get());
-            }
-        };
-
-        template<>
-        struct ValueTransformer<MemoryManager::AutoPtr<Allocation>> {
-            static std::optional<MemoryManager::AutoPtr<Allocation>> from_stack(VM &vm, VM::Stack &stack) {
-                if (stack[-1].type != Type::PTR) return std::nullopt;
-                auto result = MemoryManager::AutoPtr(stack[-1].data.ptr);
-                stack.pop();
-                return result;
-            }
-
-            static void to_stack(VM &vm, VM::Stack &stack, const MemoryManager::AutoPtr<Allocation> &ptr) {
-                stack.push_ptr(ptr.get());
-            }
-        };
-
-    }
-
-    template<typename T>
-    static std::optional<T> value_from_stack(VM &vm, VM::Stack &stack) {
-        return ValueTransformer<T>::from_stack(vm, stack);
-    }
-
-    template<typename T>
-    static void value_to_stack(VM &vm, VM::Stack &stack, const T &val) {
-        ValueTransformer<T>::to_stack(vm, stack, val);
-    }
-
-    class ValueError : public std::runtime_error {
-    public:
-        explicit ValueError(const std::string &what) : std::runtime_error(what) {}
-    };
-
-    namespace {
-
-        std::tuple<> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
-            if (stack[-1].type != Type::SEP) throw ValueError("too many values, required " + std::to_string(pos));
-            return {};
-        }
-
-        template<typename Values0>
-        std::tuple<Values0> values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
-            auto val = value_from_stack<Values0>(vm, stack);
-            if (!val.has_value()) {
-                throw ValueError("value #" + std::to_string(pos + 1) + " is absent or is of wrong type");
-            }
-            values_from_stack_impl(vm, stack, pos + 1);
-            return {std::move(val.value())};
-        }
-
-        template<typename Values0, typename Values1, typename... Values>
-        std::tuple<Values0, Values1, Values...>
-        values_from_stack_impl(VM &vm, VM::Stack &stack, size_t pos) {
-            auto val = value_from_stack<Values0>(vm, stack);
-            if (!val.has_value()) {
-                throw ValueError("value #" + std::to_string(pos + 1) + " is absent or is of wrong type");
-            }
-            auto vals = values_from_stack_impl<Values1, Values...>(vm, stack, pos + 1);
-            return std::tuple_cat(std::tuple<Values0>(std::move(val.value())), std::move(vals));
-        }
-
-    }
-
-    template<typename... Values>
-    std::tuple<Values...> values_from_stack(VM &vm, VM::Stack &stack) {
-        if constexpr (sizeof...(Values) == 0) {
-            return values_from_stack_impl(vm, stack, 0);
-        } else {
-            return values_from_stack_impl<Values...>(vm, stack, 0);
-        }
     }
 
 }

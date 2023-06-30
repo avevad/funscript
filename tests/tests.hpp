@@ -74,8 +74,8 @@ namespace funscript::tests {
         template<typename... Values, size_t... Indices>
         bool check_values_impl(const VM::Stack &values, const std::tuple<Values...> &values_exp,
                                std::index_sequence<Indices...>) {
-            return values.size() == sizeof...(Values) &&
-                   (check_value(values[Indices], get<Indices>(values_exp)) && ...);
+            return !values.has_pack() && values.size() == sizeof...(Values) &&
+                   (check_value(values.raw_values()[Indices], get<Indices>(values_exp)) && ...);
         }
     }
 
@@ -112,12 +112,12 @@ namespace funscript::tests {
             auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr, "'<test>'");
             if (stack->is_panicked()) {
                 util::print_panic(*stack);
-                throw EvaluationError(std::move(stack), std::string((*stack)[-1].data.str->bytes));
+                throw EvaluationError(std::move(stack), std::string(stack->top_value().data.str->bytes));
             }
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
                 if (pos != 0) std::cout << ", ";
-                std::cout << util::display_value((*stack)[pos]);
+                std::cout << util::display_value(stack->raw_values()[pos]);
             }
             std::cout << std::endl;
             return stack;
