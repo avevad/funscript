@@ -100,7 +100,7 @@ TEST_CASE("Conditionals", "[conditionals]") {
         REQUIRE_THAT(".answer = 42", EVALUATES);
         CHECK_THAT("answer == 32 then 'it cannot be'", EVALUATES_TO());
         CHECK_THAT("answer == 42 then 'of course it is'", EVALUATES_TO("of course it is"));
-        CHECK_THAT("!(answer < 0) then 'must be so'", EVALUATES_TO("must be so"));
+        CHECK_THAT("not (answer < 0) then 'must be so'", EVALUATES_TO("must be so"));
     };
     SECTION("Else clause") {
         REQUIRE_THAT(".val1, .val2 = 54, 35", EVALUATES);
@@ -162,9 +162,9 @@ TEST_CASE("Strings", "[strings]") {
 TEST_CASE("Loops", "[loops]") {
     TestEnv env;
     SECTION("Pre-condition loop") {
-        CHECK_THAT(".i = 0; i != 5 do (i, (i = i + 1))", EVALUATES_TO(0, 1, 2, 3, 4));
-        CHECK_THAT("(1 == 0) do (5)", EVALUATES_TO());
-        CHECK_THAT("yes do 1", PANICS); // Stack overflow
+        CHECK_THAT(".i = 0; i != 5 repeats (i, (i = i + 1))", EVALUATES_TO(0, 1, 2, 3, 4));
+        CHECK_THAT("(1 == 0) repeats (5)", EVALUATES_TO());
+        CHECK_THAT("yes repeats 1", PANICS); // Stack overflow
     };
     SECTION("Post-condition loop") {
         CHECK_THAT(".i = 0; (i = i + 1; i) until i == 7", EVALUATES_TO(1, 2, 3, 4, 5, 6, 7));

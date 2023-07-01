@@ -246,7 +246,7 @@ namespace funscript {
         THEN,
         ELSE,
         UNTIL,
-        DO,
+        REPEATS,
         AND,
         OR,
         IS,
@@ -291,7 +291,7 @@ namespace funscript {
                 {Operator::THEN,          {12, false}},
                 {Operator::ELSE,          {13, false}},
                 {Operator::UNTIL,         {14, false}},
-                {Operator::DO,            {14, false}},
+                {Operator::REPEATS,       {14, false}},
                 {Operator::DISCARD,       {15, false}},
         };
         return OPERATORS;

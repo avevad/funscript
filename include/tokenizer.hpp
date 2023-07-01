@@ -17,11 +17,11 @@ namespace funscript {
      */
     enum class Keyword {
         ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, COLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
-        EXCLAMATION_MARK, LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
+        LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK,
 
-        THEN, ELSE, UNTIL, DO, YES, NO, NUL, AND, OR, NAN, INF, IS,
+        THEN, ELSE, UNTIL, REPEATS, YES, NO, NUL, AND, OR, NAN, INF, IS, NOT
     };
 
     /**
@@ -41,7 +41,6 @@ namespace funscript {
                 {Keyword::PERCENT,              "%"},
                 {Keyword::DOUBLE_EQUAL_SIGN,    "=="},
                 {Keyword::NOT_EQUAL,            "!="},
-                {Keyword::EXCLAMATION_MARK,     "!"},
                 {Keyword::QUESTION_MARK,        "?"},
                 {Keyword::LESS_SIGN,            "<"},
                 {Keyword::GREATER_SIGN,         ">"},
@@ -56,7 +55,7 @@ namespace funscript {
                 {Keyword::THEN,                 "then"},
                 {Keyword::ELSE,                 "else"},
                 {Keyword::UNTIL,                "until"},
-                {Keyword::DO,                   "do"},
+                {Keyword::REPEATS,              "repeats"},
                 {Keyword::YES,                  "yes"},
                 {Keyword::NO,                   "no"},
                 {Keyword::NUL,                  "nul"},
@@ -65,6 +64,7 @@ namespace funscript {
                 {Keyword::NAN,                  "nan"},
                 {Keyword::INF,                  "inf"},
                 {Keyword::IS,                   "is"},
+                {Keyword::NOT,                  "not"}
         };
         return KEYWORD_STRINGS;
     }
@@ -169,7 +169,7 @@ namespace funscript {
                 {Keyword::PERCENT,            Operator::MODULO},
                 {Keyword::DOUBLE_EQUAL_SIGN,  Operator::EQUALS},
                 {Keyword::NOT_EQUAL,          Operator::DIFFERS},
-                {Keyword::EXCLAMATION_MARK,   Operator::NOT},
+                {Keyword::NOT,                Operator::NOT},
                 {Keyword::LESS_SIGN,          Operator::LESS},
                 {Keyword::GREATER_SIGN,       Operator::GREATER},
                 {Keyword::LESS_EQUAL_SIGN,    Operator::LESS_EQUAL},
@@ -177,7 +177,7 @@ namespace funscript {
                 {Keyword::THEN,               Operator::THEN},
                 {Keyword::ELSE,               Operator::ELSE},
                 {Keyword::UNTIL,              Operator::UNTIL},
-                {Keyword::DO,                 Operator::DO},
+                {Keyword::REPEATS,            Operator::REPEATS},
                 {Keyword::AND,                Operator::AND},
                 {Keyword::OR,                 Operator::OR},
                 {Keyword::IS,                 Operator::IS},

@@ -138,7 +138,7 @@ namespace funscript {
                 as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), ch.id, pos);
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
-            case Operator::DO: {
+            case Operator::REPEATS: {
                 auto pos0 = ch.size(); // Position of where to jump back
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
                 u_ev_opt_info u_opt1 = left->compile_eval(as, ch, {});
