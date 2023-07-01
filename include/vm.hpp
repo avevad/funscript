@@ -248,11 +248,8 @@ namespace funscript {
                 Array *arr;
                 Allocation *ptr;
             };
-            Type type;
-            uint32_t seps; // Count of separators beneath this value.
-            Data data;
-
-            Value(Type type = Type::NUL, Data data = {.obj = nullptr});
+            Type type = Type::NUL;
+            Data data = {.obj = nullptr};
 
             void get_ref(const std::function<void(Allocation *)> &callback) const {
                 if (type == Type::OBJ) callback(data.obj);
@@ -306,12 +303,11 @@ namespace funscript {
             explicit Stack(VM &vm);
 
             [[nodiscard]] pos_t size() const;
+            const Value &operator[](pos_t pos) const; // Value stack indexing.
 
             static volatile std::sig_atomic_t kbd_int; // This flag is used to interrupt running execution stack.
 
-            void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset,
-                               pos_t frame_start, size_t frame_seps);
-            void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset);
+            void exec_bytecode(Module *mod, Scope *scope, Bytecode *bytecode_obj, size_t offset, pos_t frame_start);
 
             void call_function(Function *fun);
 
@@ -321,11 +317,11 @@ namespace funscript {
 
             void execute();
 
-            [[noreturn]] void
-            panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
+            void panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
 
             // Some functions for pushing values onto the value stack.
 
+            void push_sep();
             void push_nul();
             void push_int(fint num);
             void push_flp(fflp flp);
@@ -335,11 +331,6 @@ namespace funscript {
             void push_bln(fbln bln);
             void push_arr(Array *arr);
             void push_ptr(Allocation *ptr);
-
-            /**
-             * @return Count of separators on the top of the stack.
-             */
-            [[nodiscard]] size_t get_seps_count() const;
 
             /**
              * Weak conversion of value pack to boolean.
@@ -366,28 +357,30 @@ namespace funscript {
             /**
              * Removes the topmost separator.
              */
-            void join();
+            void remove();
+
+            /**
+             * Inserts a separator beneath the topmost value.
+             */
+            void insert_sep();
 
             /**
              * Duplicates the topmost value.
              */
             void duplicate_value();
 
-            void separate();
+            /**
+             * Pops values until (and including) the value at position `pos`.
+             * @param pos The position of bottommost element to pop.
+             */
+            void pop(pos_t pos = -1);
 
-            void pop_pack();
-
-            pos_t find_beg() const;
-
-            void pop_value();
-
-            const Value &top_value() const;
-
-            size_t pack_size() const;
-
-            const Value *raw_values() const;
-
-            bool has_pack() const;
+            /**
+             * Finds the topmost separator value in value stack.
+             * @param before Upper bound of search.
+             * @return Absolute (non-negative) position of the requested separator.
+             */
+            pos_t find_sep(pos_t before = 0);
 
             bool is_panicked() const;
 
@@ -410,7 +403,6 @@ namespace funscript {
             ~Stack() override;
 
         private:
-            size_t seps = 0; // Count of separators on the top of the stack.
             FVec<Value> values; // Values stack.
             Frame *cur_frame;
 
@@ -424,30 +416,17 @@ namespace funscript {
 
             void op_panic(Operator op);
 
-            std::pair<pos_t, pos_t> find_operands() const;
-
-            pos_t find_beg(pos_t before) const;
+            /**
+             * Returns mutable reference to the value stack element at the specified position.
+             * @param pos Position to index.
+             * @return The value at the specified position of value stack.
+             */
+            Value &get(pos_t pos);
         };
 
     private:
-        class Panic final {
+        class Panic {
         };
-    };
-
-    class ValueHolder final {
-        VM::Value val;
-    public:
-        ValueHolder(const VM::Value &val);
-        ValueHolder(const ValueHolder &val);
-        ValueHolder(ValueHolder &&val) noexcept;
-
-        const VM::Value &get() const;
-        void set(const VM::Value &val);
-
-        ValueHolder &operator=(const ValueHolder &val1);
-        ValueHolder &operator=(ValueHolder &&val1) noexcept;
-
-        ~ValueHolder();
     };
 }
 

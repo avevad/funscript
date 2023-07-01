@@ -24,14 +24,11 @@ namespace funscript {
     template<typename E>
     class ArrayAllocation;
 
-    class ValueHolder;
-
     /**
      * Abstract class of every allocation managed by VM's MM.
      */
     class Allocation {
         friend MemoryManager;
-        friend ValueHolder;
 
         template<typename E> friend
         class ArrayAllocation;

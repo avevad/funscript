@@ -75,6 +75,7 @@ namespace funscript {
      */
     enum class Type : uint8_t {
         NUL, // Type that represents absence of value.
+        SEP, // Special type of values which separate value packs from each other (unavailable in Funscript code).
         INT, // Type of integer values.
         OBJ, // Type of freeform objects (basically, just key-value mappings).
         FUN, // Type of function values (lambdas).

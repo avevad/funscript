@@ -23,7 +23,7 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
             std::cout << "= ";
             for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
                 if (pos != 0) std::cout << ", ";
-                std::cout << util::display_value(stack->raw_values()[pos]);
+                std::cout << util::display_value((*stack)[pos]);
             }
             std::cout << std::endl;
         }
