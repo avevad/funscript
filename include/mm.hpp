@@ -262,6 +262,8 @@ namespace funscript {
          */
         template<typename A>
         class AutoPtr {
+            template<typename A1> friend
+            class AutoPtr;
         private:
             A *alloc;
         public:
@@ -269,7 +271,9 @@ namespace funscript {
                 if (alloc) alloc->vm.mem.gc_pin(alloc);
             }
 
-            AutoPtr(AutoPtr &&other) noexcept: alloc(other.alloc) {
+            template<typename A1>
+            AutoPtr(AutoPtr<A1> &&other) noexcept: alloc(other.alloc) {
+                static_assert(std::is_convertible_v<A1 *, A *>);
                 other.alloc = nullptr;
             }
 
