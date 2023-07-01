@@ -333,12 +333,6 @@ namespace funscript {
             void push_ptr(Allocation *ptr);
 
             /**
-             * Weak conversion of value pack to boolean.
-             * @return
-             */
-            void as_boolean();
-
-            /**
              * Discards values until (and including) the topmost separator.
              * @return `true` if any values were actually discarded.
              */

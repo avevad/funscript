@@ -59,15 +59,6 @@ namespace funscript {
 
     void VM::Stack::push_ptr(Allocation *ptr) { return push({Type::PTR, {.ptr = ptr}}); }
 
-    void VM::Stack::as_boolean() {
-        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
-            panic("no implicit conversion to boolean");
-        }
-        bool bln = get(-1).data.bln;
-        pop(find_sep());
-        push_bln(bln);
-    }
-
     bool VM::Stack::discard() {
         bool res = values.back().type != Type::SEP;
         pop(find_sep());
@@ -262,17 +253,21 @@ namespace funscript {
                         return;
                     }
                     case Opcode::JNO: {
-                        as_boolean();
+                        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
+                            panic("single boolean expected");
+                        }
                         if (!get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
-                        pop();
+                        pop(-2);
                         break;
                     }
                     case Opcode::JYS: {
-                        as_boolean();
+                        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) {
+                            panic("single boolean expected");
+                        }
                         if (get(-1).data.bln) ip = reinterpret_cast<const Instruction *>(bytecode + ins.u64);
                         else ip++;
-                        pop();
+                        pop(-2);
                         break;
                     }
                     case Opcode::JMP: {
