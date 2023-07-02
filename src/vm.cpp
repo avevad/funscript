@@ -304,21 +304,6 @@ namespace funscript {
                         ip++;
                         break;
                     }
-                    case Opcode::INS: {
-                        insert_sep();
-                        ip++;
-                        break;
-                    }
-                    case Opcode::DP1: {
-                        duplicate_value();
-                        ip++;
-                        break;
-                    }
-                    case Opcode::CHK: {
-                        call_type_check();
-                        ip++;
-                        break;
-                    }
                     case Opcode::EXT: {
                         if (get(-1).type != Type::OBJ) panic("object expected");
                         auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
@@ -763,23 +748,6 @@ namespace funscript {
         }
     }
 
-    void VM::Stack::call_type_check() {
-        pos_t frame_start = find_sep(find_sep() - 1);
-        try {
-            if (get(-1).type != Type::OBJ) panic("type must be an object");
-            if (get(-2).type != Type::SEP) panic("too many values");
-            auto typ = MemoryManager::AutoPtr(get(-1).data.obj);
-            pop(-2);
-            if (!typ->contains_field(TYPE_CHECK_NAME)) {
-                panic("type object does not provide type check function");
-            }
-            auto fn = MemoryManager::AutoPtr(typ->get_field(TYPE_CHECK_NAME).value().data.fun);
-            call_function(fn.get());
-        } catch (const OutOfMemoryError &e) {
-            panic("out of memory");
-        }
-    }
-
     void VM::Stack::call_function(Function *fun) {
         if (cur_frame->depth + 1 >= vm.config.stack_frames_max) panic("stack overflow");
         cur_frame = vm.mem.gc_new_auto<Frame>(fun, cur_frame).get();
@@ -812,16 +780,6 @@ namespace funscript {
         pos_t pos = find_sep();
         std::move(values.data() + pos + 1, values.data() + size(), values.data() + pos);
         values.pop_back();
-    }
-
-    void VM::Stack::insert_sep() {
-        if (size() + 1 > vm.config.stack_values_max) throw StackOverflowError();
-        values.insert(values.end() - 1, {Type::SEP});
-    }
-
-    void VM::Stack::duplicate_value() {
-        if (size() + 1 > vm.config.stack_values_max) throw StackOverflowError();
-        values.push_back(values.back());
     }
 
     void VM::Stack::panic(const std::string &msg, const std::source_location &loc) {

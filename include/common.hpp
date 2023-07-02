@@ -191,18 +191,6 @@ namespace funscript {
          */
         MET,
         /**
-         * @brief Insert a separator beneath the topmost value.
-         */
-        INS,
-        /**
-         * @brief Duplicate the topmost value.
-         */
-        DP1,
-        /**
-         * @brief Execute type check call.
-         */
-        CHK,
-        /**
          * @brief Extract values from the object.
          */
         EXT

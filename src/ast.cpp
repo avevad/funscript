@@ -254,17 +254,6 @@ namespace funscript {
                                     0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
-            case Operator::LAMBDA: {
-                ch.put_instruction({Opcode::DP1, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                ch.put_instruction({Opcode::INS, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                ch.put_instruction({Opcode::INS, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::CHK, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)), 0, 0});
-                u_mv_opt_info u_opt2 = left->compile_move(as, ch, {});
-                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
-            }
             default:
                 throw CompilationError(filename, get_location(), "expression is not assignable");
         }
