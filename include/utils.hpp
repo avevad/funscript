@@ -212,9 +212,6 @@ namespace funscript::util {
     std::string display_value(const VM::Value &val) {
         std::ostringstream out;
         switch (val.type) {
-            case Type::NUL:
-                out << "nul";
-                break;
             case Type::INT:
                 out << val.data.num;
                 break;
@@ -297,8 +294,8 @@ namespace funscript::util {
                   std::back_inserter(loader_code));
         // Prepare module object and scope
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
-        module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()), {.type = Type::NUL});
-        module_obj->set_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc()), {.type = Type::NUL});
+        module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()), Type::INT);
+        module_obj->set_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc()), Type::INT);
         auto module_scope = vm.mem.gc_new_auto<VM::Scope>(module_obj.get(), nullptr);
         // Prepare module globals object and global scope
         auto module_globals = vm.mem.gc_new_auto<VM::Object>(vm);
@@ -358,10 +355,10 @@ namespace funscript::util {
         );
         native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()));
         module_exports->set_field(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()),
-                                  {.type = Type::FUN, .data = {.fun = native_sym_fn.get()}}
+                                  {Type::FUN, {.fun = native_sym_fn.get()}}
         );
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
-                              {.type = Type::OBJ, .data = {.obj = module_exports.get()}});
+                              {Type::OBJ, {.obj = module_exports.get()}});
         return mod;
     }
 

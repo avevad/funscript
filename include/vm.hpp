@@ -248,16 +248,12 @@ namespace funscript {
                 Array *arr;
                 Allocation *ptr;
             };
-            Type type = Type::NUL;
-            Data data = {.obj = nullptr};
+            Type type;
+            Data data;
 
-            void get_ref(const std::function<void(Allocation *)> &callback) const {
-                if (type == Type::OBJ) callback(data.obj);
-                if (type == Type::FUN) callback(data.fun);
-                if (type == Type::STR) callback(data.str);
-                if (type == Type::ARR) callback(data.arr);
-                if (type == Type::PTR) callback(data.ptr);
-            }
+            Value(Type type = Type::INT, Data data = {.num = 0});
+
+            void get_ref(const std::function<void(Allocation *)> &callback) const;
         };
 
         const Config config; // Configuration of current VM instance.
@@ -322,7 +318,6 @@ namespace funscript {
             // Some functions for pushing values onto the value stack.
 
             void push_sep();
-            void push_nul();
             void push_int(fint num);
             void push_flp(fflp flp);
             void push_obj(Object *obj);

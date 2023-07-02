@@ -81,7 +81,6 @@ funscript::Token funscript::get_token(const std::string &token_str) {
     if (get_inverse_keyword_mapping().contains(token_str)) {
         Keyword keyword = get_inverse_keyword_mapping().at(token_str);
         // Literal keywords
-        if (keyword == Keyword::NUL) return {Token::NUL};
         if (keyword == Keyword::YES) return {Token::BOOLEAN, true};
         if (keyword == Keyword::NO) return {Token::BOOLEAN, false};
         if (keyword == Keyword::NAN) return {Token::FLOAT, nan()};

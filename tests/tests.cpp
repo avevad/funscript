@@ -179,14 +179,14 @@ TEST_CASE("Arrays", "[arrays]") {
         REQUIRE_THAT(".five_nums = [11, 12, 13, 14, 15]", EVALUATES);
         REQUIRE_THAT(".empty_arr = []", EVALUATES);
         REQUIRE_THAT(".my_str = 'some_string'", EVALUATES);
-        REQUIRE_THAT(".stuff = [0, nul, 5., my_str, no]", EVALUATES);
+        REQUIRE_THAT(".stuff = [0, (.x: x + 1), 5., my_str, no]", EVALUATES);
     };
     SECTION("Element access") {
         REQUIRE_THAT(".three_nums = [11, 12, 13]", EVALUATES);
         CHECK_THAT("three_nums[2]", EVALUATES_TO(13));
         CHECK_THAT("three_nums[-1]", PANICS);
-        CHECK_THAT("three_nums[nul]", PANICS);
-        REQUIRE_THAT(".stuff = ['str', 0, nul, yes, no, 5]", EVALUATES);
+        CHECK_THAT("three_nums[[]]", PANICS);
+        REQUIRE_THAT(".stuff = ['str', 0, (:), yes, no, 5]", EVALUATES);
         REQUIRE_THAT(".num1, .num2, .bln, .str = stuff[5, 1, 3, 0]", EVALUATES);
         CHECK_THAT("str, num2, bln", EVALUATES_TO("str", 0, true));
     };

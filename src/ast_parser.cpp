@@ -29,7 +29,6 @@ namespace funscript {
             const auto &token = tokens[pos];
             switch (token.type) {
                 // These literal-like token types act the same
-                case Token::NUL:
                 case Token::INTEGER:
                 case Token::FLOAT:
                 case Token::BOOLEAN:
@@ -134,10 +133,6 @@ namespace funscript {
         std::vector<AST *> ast;
         for (const Token &token : queue) {
             switch (token.type) {
-                case Token::NUL: {
-                    ast.push_back(new NulAST(filename, token.location));
-                    break;
-                }
                 case Token::ID: {
                     ast.push_back(new IdentifierAST(filename, token.location, get<std::string>(token.data)));
                     break;

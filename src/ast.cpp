@@ -280,18 +280,6 @@ namespace funscript {
         return {left->get_location().beg, right->get_location().end};
     }
 
-    u_ev_opt_info NulAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
-        ch.put_instruction({Opcode::VAL, uint32_t(as.data_chunk().put(token_loc.beg)),
-                            static_cast<uint16_t>(Type::NUL), 0});
-        return {.no_scope = true};
-    }
-
-    u_mv_opt_info NulAST::compile_move(Assembler &as, Assembler::Chunk &ch, const d_mv_opt_info &d_opt) {
-        throw CompilationError(filename, get_location(), "expression is not assignable");
-    }
-
-    NulAST::NulAST(const std::string &filename, code_loc_t token_loc) : AST(filename, token_loc) {}
-
     u_ev_opt_info VoidAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         return {.no_scope = true};
     }

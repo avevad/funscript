@@ -249,16 +249,6 @@ namespace funscript {
     };
 
     /**
-     * Class of AST leaves which represent `nul` literals.
-     */
-    class NulAST : public AST {
-        u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
-        u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
-    public:
-        NulAST(const std::string &filename, code_loc_t token_loc);
-    };
-
-    /**
      * Class of AST leaves which represent void literal.
      */
     class VoidAST : public AST {

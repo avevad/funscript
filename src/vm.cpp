@@ -41,9 +41,7 @@ namespace funscript {
 
     void VM::Stack::push_sep() { return push({Type::SEP}); }
 
-    void VM::Stack::push_nul() { return push({Type::NUL}); }
-
-    void VM::Stack::push_int(fint num) { return push({Type::INT, num}); }
+    void VM::Stack::push_int(fint num) { return push({Type::INT, {.num = num}}); }
 
     void VM::Stack::push_flp(fflp flp) { return push({Type::FLP, {.flp = flp}}); }
 
@@ -116,7 +114,7 @@ namespace funscript {
                         break;
                     }
                     case Opcode::VAL: {
-                        Value val{.type = static_cast<Type>(ins.u16), .data{.num = static_cast<fint>(ins.u64)}};
+                        Value val(static_cast<Type>(ins.u16), {.num = static_cast<fint>(ins.u64)});
                         if (val.type == Type::FUN) {
                             auto *fun = vm.mem.gc_new<BytecodeFunction>(vm, mod, cur_scope.get(), bytecode_obj,
                                                                         size_t(ins.u64));
@@ -975,13 +973,13 @@ namespace funscript {
     }
 
     VM::Array::Array(VM &vm, funscript::VM::Value *beg, size_t len) : Allocation(vm),
-                                                                      values(len, Value{Type::NUL},
+                                                                      values(len, Type::INT,
                                                                              vm.mem.std_alloc<Value>()) {
         std::copy(beg, beg + len, values.data());
     }
 
     VM::Array::Array(funscript::VM &vm, size_t len) : Allocation(vm),
-                                                      values(len, {Type::NUL}, vm.mem.std_alloc<Value>()) {}
+                                                      values(len, Type::INT, vm.mem.std_alloc<Value>()) {}
 
     VM::Value &VM::Array::operator[](size_t pos) {
         return values[pos];
@@ -1046,5 +1044,15 @@ namespace funscript {
     std::optional<VM::Module *> VM::Module::get_dependency(const funscript::FStr &alias) {
         if (!deps.contains(alias)) return std::nullopt;
         return deps.at(alias);
+    }
+
+    VM::Value::Value(funscript::Type type, funscript::VM::Value::Data data) : type(type), data(data) {}
+
+    void VM::Value::get_ref(const std::function<void(Allocation *)> &callback) const {
+        if (type == Type::OBJ) callback(data.obj);
+        if (type == Type::FUN) callback(data.fun);
+        if (type == Type::STR) callback(data.str);
+        if (type == Type::ARR) callback(data.arr);
+        if (type == Type::PTR) callback(data.ptr);
     }
 }

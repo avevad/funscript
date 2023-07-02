@@ -21,7 +21,7 @@ namespace funscript {
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK,
 
-        THEN, ELSE, UNTIL, REPEATS, YES, NO, NUL, AND, OR, NAN, INF, IS, NOT
+        THEN, ELSE, UNTIL, REPEATS, YES, NO, AND, OR, NAN, INF, IS, NOT
     };
 
     /**
@@ -58,7 +58,6 @@ namespace funscript {
                 {Keyword::REPEATS,              "repeats"},
                 {Keyword::YES,                  "yes"},
                 {Keyword::NO,                   "no"},
-                {Keyword::NUL,                  "nul"},
                 {Keyword::AND,                  "and"},
                 {Keyword::OR,                   "or"},
                 {Keyword::NAN,                  "nan"},
@@ -139,7 +138,6 @@ namespace funscript {
             OPERATOR,
             LEFT_BRACKET,
             RIGHT_BRACKET,
-            NUL,
             VOID, // Implicitly inserted during parsing.
             BOOLEAN,
             STRING,
