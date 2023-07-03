@@ -352,363 +352,357 @@ namespace funscript {
         // Calculate stack positions of operands and their lengths
         pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
         pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
-        try {
-            switch (op) {
-                case Operator::TIMES: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_int(a * b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_flp(a * b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::INT) {
-                        fint k = get(pos_b).data.num;
-                        size_t len = get(pos_a).data.arr->len();
-                        Value *src = get(pos_a).data.arr->begin();
-                        auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
-                        for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
-                        pop(-4);
-                        push_arr(dst.get());
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::ARR) {
-                        fint k = get(pos_a).data.num;
-                        size_t len = get(pos_b).data.arr->len();
-                        Value *src = get(pos_b).data.arr->begin();
-                        auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
-                        for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
-                        pop(-4);
-                        push_arr(dst.get());
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(TIMES_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(TIMES_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::DIVIDE: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        if (b == 0) panic("division by zero");
-                        pop(-4);
-                        push_int(a / b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_flp(a / b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(DIVIDE_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(DIVIDE_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::PLUS: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
-                        FStr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
-                        pop(-4);
-                        auto str = vm.mem.gc_new_auto<String>(vm, a + b);
-                        push_str(str.get());
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
-                        size_t a_len = get(pos_a).data.arr->len();
-                        Value *a_dat = get(pos_a).data.arr->begin();
-                        size_t b_len = get(pos_b).data.arr->len();
-                        Value *b_dat = get(pos_b).data.arr->begin();
-                        auto arr = vm.mem.gc_new_auto<Array>(vm, a_len + b_len);
-                        std::copy(a_dat, a_dat + a_len, arr->begin());
-                        std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
-                        pop(-4);
-                        push_arr(arr.get());
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_int(a + b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_flp(a + b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(PLUS_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(PLUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::MINUS: {
-                    if (cnt_a == 0) {
-                        if (cnt_b == 1 && get(pos_b).type == Type::INT) {
-                            fint num = get(pos_b).data.num;
-                            pop(-3);
-                            push_int(-num);
-                            break;
-                        }
-                        if (cnt_b == 1 && get(pos_b).type == Type::FLP) {
-                            fflp flp = get(pos_b).data.flp;
-                            pop(-3);
-                            push_flp(-flp);
-                            break;
-                        }
-                        return op_panic(op);
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_int(a - b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_flp(a - b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(MINUS_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(MINUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::CALL: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
-                        MemoryManager::AutoPtr<Array> arr(get(pos_a).data.arr);
-                        MemoryManager::AutoPtr<Array> ind(get(pos_b).data.arr);
-                        pop(-4);
-                        pos_t beg = size();
-                        for (const auto &val : *ind) {
-                            if (val.type != Type::INT || val.data.num < 0 || arr->len() <= val.data.num) {
-                                panic("invalid array index");
-                            }
-                            push((*arr)[val.data.num]);
-                        }
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::FUN) {
-                        auto fn = MemoryManager::AutoPtr(get(pos_a).data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(CALL_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(CALL_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::MODULO: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_int(a % b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(MODULO_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(MODULO_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::EQUALS: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a == b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a == b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(EQUALS_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(EQUALS_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::DIFFERS: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a != b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a != b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(DIFFERS_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(DIFFERS_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::NOT: {
-                    if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::BLN) {
-                        fbln bln = get(pos_b).data.bln;
-                        pop(-3);
-                        push_bln(!bln);
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::LESS: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a < b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a < b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(LESS_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(LESS_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::GREATER: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a > b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a > b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(GREATER_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(GREATER_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::LESS_EQUAL: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a <= b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a <= b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::GREATER_EQUAL: {
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
-                        fint a = get(pos_a).data.num, b = get(pos_b).data.num;
-                        pop(-4);
-                        push_bln(a >= b);
-                        break;
-                    }
-                    if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
-                        fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
-                        pop(-4);
-                        push_bln(a >= b);
-                        break;
-                    }
-                    if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
-                        get(pos_a).data.obj->contains_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME)) {
-                        auto fn = MemoryManager::AutoPtr<Function>(
-                                get(pos_a).data.obj->get_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
-                        pop(-2);
-                        call_function(fn.get());
-                        break;
-                    }
-                    return op_panic(op);
-                }
-                case Operator::IS: {
-                    fbln same = cnt_a == cnt_b &&
-                                std::memcmp(values.data() + pos_a, values.data() + pos_b, sizeof(Value) * cnt_a) == 0;
-                    pop(pos_b - 1);
-                    push_bln(same);
+        switch (op) {
+            case Operator::TIMES: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a * b);
                     break;
                 }
-                default:
-                    assertion_failed("unknown operator");
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_flp(a * b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::INT) {
+                    fint k = get(pos_b).data.num;
+                    size_t len = get(pos_a).data.arr->len();
+                    Value *src = get(pos_a).data.arr->begin();
+                    auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
+                    for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
+                    pop(-4);
+                    push_arr(dst.get());
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::ARR) {
+                    fint k = get(pos_a).data.num;
+                    size_t len = get(pos_b).data.arr->len();
+                    Value *src = get(pos_b).data.arr->begin();
+                    auto dst = vm.mem.gc_new_auto<Array>(vm, len * k);
+                    for (size_t pos = 0; pos < len * k; pos += len) std::copy(src, src + len, dst->begin() + pos);
+                    pop(-4);
+                    push_arr(dst.get());
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(TIMES_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(TIMES_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
             }
-        } catch (const OutOfMemoryError &e) {
-            panic("out of memory");
-        } catch (const StackOverflowError &e) {
-            panic("stack overflow");
+            case Operator::DIVIDE: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    if (b == 0) panic("division by zero");
+                    pop(-4);
+                    push_int(a / b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_flp(a / b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(DIVIDE_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(DIVIDE_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::PLUS: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
+                    FStr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
+                    pop(-4);
+                    auto str = vm.mem.gc_new_auto<String>(vm, a + b);
+                    push_str(str.get());
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+                    size_t a_len = get(pos_a).data.arr->len();
+                    Value *a_dat = get(pos_a).data.arr->begin();
+                    size_t b_len = get(pos_b).data.arr->len();
+                    Value *b_dat = get(pos_b).data.arr->begin();
+                    auto arr = vm.mem.gc_new_auto<Array>(vm, a_len + b_len);
+                    std::copy(a_dat, a_dat + a_len, arr->begin());
+                    std::copy(b_dat, b_dat + b_len, arr->begin() + a_len);
+                    pop(-4);
+                    push_arr(arr.get());
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a + b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_flp(a + b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(PLUS_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(PLUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::MINUS: {
+                if (cnt_a == 0) {
+                    if (cnt_b == 1 && get(pos_b).type == Type::INT) {
+                        fint num = get(pos_b).data.num;
+                        pop(-3);
+                        push_int(-num);
+                        break;
+                    }
+                    if (cnt_b == 1 && get(pos_b).type == Type::FLP) {
+                        fflp flp = get(pos_b).data.flp;
+                        pop(-3);
+                        push_flp(-flp);
+                        break;
+                    }
+                    return op_panic(op);
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a - b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_flp(a - b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(MINUS_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(MINUS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::CALL: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+                    MemoryManager::AutoPtr<Array> arr(get(pos_a).data.arr);
+                    MemoryManager::AutoPtr<Array> ind(get(pos_b).data.arr);
+                    pop(-4);
+                    pos_t beg = size();
+                    for (const auto &val : *ind) {
+                        if (val.type != Type::INT || val.data.num < 0 || arr->len() <= val.data.num) {
+                            panic("invalid array index");
+                        }
+                        push((*arr)[val.data.num]);
+                    }
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::FUN) {
+                    auto fn = MemoryManager::AutoPtr(get(pos_a).data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(CALL_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(CALL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::MODULO: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a % b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(MODULO_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(MODULO_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::EQUALS: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a == b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a == b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(EQUALS_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(EQUALS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::DIFFERS: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a != b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a != b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(DIFFERS_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(DIFFERS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::NOT: {
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::BLN) {
+                    fbln bln = get(pos_b).data.bln;
+                    pop(-3);
+                    push_bln(!bln);
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::LESS: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a < b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a < b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(LESS_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(LESS_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::GREATER: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a > b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a > b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(GREATER_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(GREATER_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::LESS_EQUAL: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a <= b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a <= b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(LESS_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::GREATER_EQUAL: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_bln(a >= b);
+                    break;
+                }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::FLP && get(pos_b).type == Type::FLP) {
+                    fflp a = get(pos_a).data.flp, b = get(pos_b).data.flp;
+                    pop(-4);
+                    push_bln(a >= b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(GREATER_EQUAL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::IS: {
+                fbln same = cnt_a == cnt_b &&
+                            std::memcmp(values.data() + pos_a, values.data() + pos_b, sizeof(Value) * cnt_a) == 0;
+                pop(pos_b - 1);
+                push_bln(same);
+                break;
+            }
+            default:
+                assertion_failed("unknown operator");
         }
     }
 
@@ -716,36 +710,32 @@ namespace funscript {
         // Calculate stack positions of operands and their lengths
         pos_t pos_a = find_sep() + 1, pos_b = find_sep(pos_a - 1) + 1;
         pos_t cnt_a = size() - pos_a, cnt_b = pos_a - pos_b - 1;
-        try {
-            if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
-                Array &arr = *get(pos_a).data.arr;
-                Array &ind = *get(pos_b).data.arr;
-                vm.mem.gc_pin(&arr);
-                vm.mem.gc_pin(&ind);
-                pop(-4);
-                pos_t beg = size();
-                for (const auto &val : ind) {
-                    if (val.type != Type::INT || val.data.num < 0 || arr.len() <= val.data.num) {
-                        vm.mem.gc_unpin(&arr);
-                        vm.mem.gc_unpin(&ind);
-                        panic("invalid array index");
-                    }
-                    if (get(-1).type == Type::SEP) {
-                        vm.mem.gc_unpin(&arr);
-                        vm.mem.gc_unpin(&ind);
-                        panic("not enough values");
-                    }
-                    arr[val.data.num] = get(-1);
-                    pop();
+        if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::ARR && get(pos_b).type == Type::ARR) {
+            Array &arr = *get(pos_a).data.arr;
+            Array &ind = *get(pos_b).data.arr;
+            vm.mem.gc_pin(&arr);
+            vm.mem.gc_pin(&ind);
+            pop(-4);
+            pos_t beg = size();
+            for (const auto &val : ind) {
+                if (val.type != Type::INT || val.data.num < 0 || arr.len() <= val.data.num) {
+                    vm.mem.gc_unpin(&arr);
+                    vm.mem.gc_unpin(&ind);
+                    panic("invalid array index");
                 }
-                vm.mem.gc_unpin(&arr);
-                vm.mem.gc_unpin(&ind);
-                return;
+                if (get(-1).type == Type::SEP) {
+                    vm.mem.gc_unpin(&arr);
+                    vm.mem.gc_unpin(&ind);
+                    panic("not enough values");
+                }
+                arr[val.data.num] = get(-1);
+                pop();
             }
-            return op_panic(Operator::CALL);
-        } catch (const OutOfMemoryError &e) {
-            panic("out of memory");
+            vm.mem.gc_unpin(&arr);
+            vm.mem.gc_unpin(&ind);
+            return;
         }
+        return op_panic(Operator::CALL);
     }
 
     void VM::Stack::call_function(Function *fun) {
