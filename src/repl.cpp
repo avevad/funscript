@@ -15,7 +15,7 @@ void run_code(VM &vm, VM::Scope *scope, const std::string &filename, const std::
     act.sa_handler = sigint_handler;
     sigaction(SIGINT, &act, &act_old);
     // Evaluate the expression and display its result
-    auto stack = util::eval_expr(vm, nullptr, scope, filename, code, "'<test>'");
+    auto stack = util::eval_expr(vm, nullptr, scope, filename, code, "'<main>'");
     if (stack->size() != 0) {
         if (stack->is_panicked()) {
             util::print_panic(*stack);

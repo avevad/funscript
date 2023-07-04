@@ -336,6 +336,26 @@ namespace funscript {
                         }
                         break;
                     }
+                    case Opcode::CHK: {
+                        pos_t i = find_sep() + 1, j = find_sep(i - 1) + 1;
+                        size_t cnt_i = size() - i, cnt_j = i - 1 - j;
+                        if (cnt_j < cnt_i) panic("not enough values");
+                        if (cnt_j > cnt_i && !ins.u16) panic("too many values");
+                        j = pos_t(i - 1 - cnt_i);
+                        for (; i < size(); i++, j++) {
+                            if (get(i).type != Type::OBJ) panic("type must be an object");
+                            Value fn_val = get(i).data.obj->get_field(TYPE_CHECK_NAME).value_or(Type::INT);
+                            if (fn_val.type != Type::FUN) panic("type object does not provide typecheck function");
+                            push_sep();
+                            push_sep();
+                            push(get(j));
+                            call_function(fn_val.data.fun);
+                            discard();
+                        }
+                        discard();
+                        ip++;
+                        break;
+                    }
                 }
             }
         } catch (const OutOfMemoryError &e) {

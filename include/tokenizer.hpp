@@ -16,10 +16,10 @@ namespace funscript {
      * Enumeration of names of special character combinations.
      */
     enum class Keyword {
-        ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, COLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
+        ASTERISK, SLASH, PLUS, MINUS, EQUAL_SIGN, DOT, COMMA, SEMICOLON, PERCENT, DOUBLE_EQUAL_SIGN, NOT_EQUAL,
         LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
-        LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK,
+        LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK, ARROW, COLON,
 
         THEN, ELSE, UNTIL, REPEATS, YES, NO, AND, OR, NAN, INF, IS, NOT
     };
@@ -37,7 +37,6 @@ namespace funscript {
                 {Keyword::DOT,                  "."},
                 {Keyword::COMMA,                ","},
                 {Keyword::SEMICOLON,            ";"},
-                {Keyword::COLON,                ":"},
                 {Keyword::PERCENT,              "%"},
                 {Keyword::DOUBLE_EQUAL_SIGN,    "=="},
                 {Keyword::NOT_EQUAL,            "!="},
@@ -52,6 +51,8 @@ namespace funscript {
                 {Keyword::RIGHT_CURLY_BRACKET,  "}"},
                 {Keyword::LEFT_SQUARE_BRACKET,  "["},
                 {Keyword::RIGHT_SQUARE_BRACKET, "]"},
+                {Keyword::ARROW,                "->"},
+                {Keyword::COLON,                ":"},
                 {Keyword::THEN,                 "then"},
                 {Keyword::ELSE,                 "else"},
                 {Keyword::UNTIL,                "until"},
@@ -63,7 +64,7 @@ namespace funscript {
                 {Keyword::NAN,                  "nan"},
                 {Keyword::INF,                  "inf"},
                 {Keyword::IS,                   "is"},
-                {Keyword::NOT,                  "not"}
+                {Keyword::NOT,                  "not"},
         };
         return KEYWORD_STRINGS;
     }
@@ -162,7 +163,7 @@ namespace funscript {
                 {Keyword::EQUAL_SIGN,         Operator::ASSIGN},
                 {Keyword::COMMA,              Operator::APPEND},
                 {Keyword::SEMICOLON,          Operator::DISCARD},
-                {Keyword::COLON,              Operator::LAMBDA},
+                {Keyword::ARROW,              Operator::LAMBDA},
                 {Keyword::DOT,                Operator::INDEX},
                 {Keyword::PERCENT,            Operator::MODULO},
                 {Keyword::DOUBLE_EQUAL_SIGN,  Operator::EQUALS},
@@ -179,7 +180,8 @@ namespace funscript {
                 {Keyword::AND,                Operator::AND},
                 {Keyword::OR,                 Operator::OR},
                 {Keyword::IS,                 Operator::IS},
-                {Keyword::QUESTION_MARK,      Operator::EXTRACT}
+                {Keyword::QUESTION_MARK,      Operator::EXTRACT},
+                {Keyword::COLON,              Operator::CHECK},
         };
         return OPERATOR_KEYWORDS;
     }

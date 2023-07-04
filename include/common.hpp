@@ -191,9 +191,17 @@ namespace funscript {
          */
         MET,
         /**
-         * @brief Extract values from the object.
+         * @brief Extract values from the result object.
+         * @param u64 Where to jump if the result object is not an error. Zero if error objects should be propagated.
          */
-        EXT
+        EXT,
+        /**
+         * @brief Make a type check.
+         *
+         * The topmost value pack is treated as types, the next value pack is the values to be checked against this types.
+         * @param u16 `true` if excess values should be ignored.
+         */
+        CHK
     };
 
     /**
@@ -237,7 +245,8 @@ namespace funscript {
         AND,
         OR,
         IS,
-        EXTRACT
+        EXTRACT,
+        CHECK
     };
 
     /**
@@ -268,18 +277,18 @@ namespace funscript {
                 {Operator::GREATER,       {5,  true}},
                 {Operator::LESS_EQUAL,    {5,  true}},
                 {Operator::GREATER_EQUAL, {5,  true}},
-                {Operator::GREATER_EQUAL, {5,  true}},
                 {Operator::IS,            {6,  true}},
                 {Operator::AND,           {7,  true}},
                 {Operator::OR,            {8,  true}},
-                {Operator::LAMBDA,        {9,  false}},
-                {Operator::APPEND,        {10, false}},
-                {Operator::ASSIGN,        {11, true}},
-                {Operator::THEN,          {12, false}},
-                {Operator::ELSE,          {13, false}},
-                {Operator::UNTIL,         {14, false}},
-                {Operator::REPEATS,       {14, false}},
-                {Operator::DISCARD,       {15, false}},
+                {Operator::CHECK,         {9,  true}},
+                {Operator::LAMBDA,        {10, false}},
+                {Operator::APPEND,        {11, false}},
+                {Operator::ASSIGN,        {12, true}},
+                {Operator::THEN,          {13, false}},
+                {Operator::ELSE,          {14, false}},
+                {Operator::UNTIL,         {15, false}},
+                {Operator::REPEATS,       {15, false}},
+                {Operator::DISCARD,       {16, false}},
         };
         return OPERATORS;
     }

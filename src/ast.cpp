@@ -74,6 +74,8 @@ namespace funscript {
                 as.add_pointer(new_ch.id, new_ch.size() - sizeof(Instruction::u64), as.data_chunk().id, 0);
                 new_ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(token_loc.beg)),
                                         true, 0}); // Create the scope of the function
+                new_ch.put_instruction({Opcode::REV, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        0, 0}); // Prepare arguments for assignment
                 u_mv_opt_info u_opt1 = left->compile_move(as, new_ch, {}); // Assign function arguments
                 new_ch.put_instruction({Opcode::DIS, uint32_t(as.data_chunk().put(token_loc.beg)),
                                         true, 0}); // Discard the separator after the arguments
@@ -210,6 +212,19 @@ namespace funscript {
                     return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
                 }
             }
+            case Operator::CHECK: {
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
+                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
+                u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
+                ch.put_instruction({Opcode::CHK, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    false, 0});
+                ch.put_instruction({Opcode::REM, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    0, 0});
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
             default: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
                                     0, 0});
@@ -252,6 +267,17 @@ namespace funscript {
                 u_ev_opt_info u_opt2 = left->compile_eval(as, ch, {});
                 ch.put_instruction({Opcode::MOV, uint32_t(as.data_chunk().put(token_loc.beg)),
                                     0, 0});
+                return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
+            }
+            case Operator::CHECK: {
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
+                                    0, 0});
+                u_ev_opt_info u_opt1 = right->compile_eval(as, ch, {});
+                ch.put_instruction({Opcode::REV, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    0, 0});
+                ch.put_instruction({Opcode::CHK, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    true, 0});
+                u_mv_opt_info u_opt2 = left->compile_move(as, ch, {});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
             default:

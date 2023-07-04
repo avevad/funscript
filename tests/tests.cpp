@@ -112,28 +112,30 @@ TEST_CASE("Conditionals", "[conditionals]") {
 TEST_CASE("Functions", "[functions]") {
     TestEnv env;
     SECTION("Creation and calling") {
-        REQUIRE_THAT(".sum = (.a, .b): a + b", EVALUATES);
+        REQUIRE_THAT(".sum = (.a, .b) -> a + b", EVALUATES);
         CHECK_THAT("sum(13, 27)", EVALUATES_TO(13 + 27));
         CHECK_THAT("a", PANICS);
         CHECK_THAT("b", PANICS);
+        REQUIRE_THAT(".divmod = (.a, .b) -> (a / b, a % b)", EVALUATES);
+        CHECK_THAT("divmod(32, 10)", EVALUATES_TO(3, 2));
     };
     SECTION("Arguments") {
-        REQUIRE_THAT(".sum3 = (.a, .b, .c): a + b + c", EVALUATES);
+        REQUIRE_THAT(".sum3 = (.a, .b, .c) -> a + b + c", EVALUATES);
         CHECK_THAT("sum3(1, 2, 3, 4)", PANICS);
         CHECK_THAT("sum3(1, 10, 15)", EVALUATES_TO(1 + 10 + 15));
         CHECK_THAT("sum3(1, 5)", PANICS);
         CHECK_THAT("sum3()", PANICS);
     };
     SECTION("Multiple return") {
-        REQUIRE_THAT(".sum5 = (.a, .b, .c, .d, .e): a + b + c + d + e", EVALUATES);
-        REQUIRE_THAT(".plus_minus = .n: (n - 1, n + 1)", EVALUATES);
+        REQUIRE_THAT(".sum5 = (.a, .b, .c, .d, .e) -> a + b + c + d + e", EVALUATES);
+        REQUIRE_THAT(".plus_minus = .n -> (n - 1, n + 1)", EVALUATES);
         CHECK_THAT("plus_minus 5", EVALUATES_TO(4, 6));
         CHECK_THAT("sum5(plus_minus 2, 5, plus_minus 8)", EVALUATES_TO(1 + 3 + 5 + 7 + 9));
     };
     SECTION("Recursion") {
-        REQUIRE_THAT(".factorial = .n: (n == 0 then 1 else factorial(n - 1) * n)", EVALUATES);
+        REQUIRE_THAT(".factorial = .n -> (n == 0 then 1 else factorial(n - 1) * n)", EVALUATES);
         CHECK_THAT("factorial 10 == 3628800", EVALUATES_TO(true));
-        REQUIRE_THAT(".f = : f()", EVALUATES);
+        REQUIRE_THAT(".f = -> f()", EVALUATES);
         CHECK_THAT("f()", PANICS);
     }
 }
@@ -179,14 +181,14 @@ TEST_CASE("Arrays", "[arrays]") {
         REQUIRE_THAT(".five_nums = [11, 12, 13, 14, 15]", EVALUATES);
         REQUIRE_THAT(".empty_arr = []", EVALUATES);
         REQUIRE_THAT(".my_str = 'some_string'", EVALUATES);
-        REQUIRE_THAT(".stuff = [0, (.x: x + 1), 5., my_str, no]", EVALUATES);
+        REQUIRE_THAT(".stuff = [0, (.x -> x + 1), 5., my_str, no]", EVALUATES);
     };
     SECTION("Element access") {
         REQUIRE_THAT(".three_nums = [11, 12, 13]", EVALUATES);
         CHECK_THAT("three_nums[2]", EVALUATES_TO(13));
         CHECK_THAT("three_nums[-1]", PANICS);
         CHECK_THAT("three_nums[[]]", PANICS);
-        REQUIRE_THAT(".stuff = ['str', 0, (:), yes, no, 5]", EVALUATES);
+        REQUIRE_THAT(".stuff = ['str', 0, (->), yes, no, 5]", EVALUATES);
         REQUIRE_THAT(".num1, .num2, .bln, .str = stuff[5, 1, 3, 0]", EVALUATES);
         CHECK_THAT("str, num2, bln", EVALUATES_TO("str", 0, true));
     };
@@ -234,7 +236,7 @@ TEST_CASE("Objects", "[objects]") {
         CHECK_THAT("dog.age < 5", EVALUATES_TO(false));
     };
     SECTION("Methods") {
-        REQUIRE_THAT(".Counter = .val: {.value = : val; .inc = : (val = val + 1); .dec = : (val = val - 1); }",
+        REQUIRE_THAT(".Counter = .val -> {.value = -> val; .inc = -> (val = val + 1); .dec = -> (val = val - 1); }",
                      EVALUATES);
         REQUIRE_THAT(".cnt = Counter(5)", EVALUATES);
         REQUIRE_THAT("cnt.value()", EVALUATES_TO(5));
@@ -242,14 +244,25 @@ TEST_CASE("Objects", "[objects]") {
         CHECK_THAT("cnt.value()", EVALUATES_TO(6));
     };
     SECTION("Result unwrapping") {
-        REQUIRE_THAT(".panic = : 0 / 0", EVALUATES);
+        REQUIRE_THAT(".panic = -> 0 / 0", EVALUATES);
         CHECK_THAT("{1, 2, 3, no, yes, 'sus'}?", EVALUATES_TO(1, 2, 3, false, true, "sus"));
         CHECK_THAT("{.err = yes; {}, [], {{}}} ? panic()", PANICS);
         REQUIRE_THAT(".fail = yes", EVALUATES);
-        REQUIRE_THAT(".get_str = : (fail then {.err = yes} else {'avevad'})", EVALUATES);
-        REQUIRE_THAT(".display_username = : {'The username is: ' + get_str()?}", EVALUATES);
+        REQUIRE_THAT(".get_str = -> (fail then {.err = yes} else {'avevad'})", EVALUATES);
+        REQUIRE_THAT(".display_username = -> {'The username is: ' + get_str()?}", EVALUATES);
         CHECK_THAT("display_username() ? panic()", PANICS);
         REQUIRE_THAT(".fail = no", EVALUATES);
         CHECK_THAT("display_username() ? panic()", EVALUATES_TO("The username is: avevad"));
     };
+    SECTION("Typechecking") {
+        REQUIRE_THAT(".int = {.check_value = .x -> x % 1}", EVALUATES);
+        REQUIRE_THAT(".f = (.x: int, .y: int) -> int: x + y", EVALUATES);
+        CHECK_THAT("f(12, 34)", EVALUATES_TO(12 + 34));
+        CHECK_THAT("f('test', 'text')", PANICS);
+        CHECK_THAT("f()", PANICS);
+        CHECK_THAT("f(12, 34, 56)", PANICS);
+        REQUIRE_THAT(".float = {.check_value = .x -> x + 0.}", EVALUATES);
+        REQUIRE_THAT(".g = (.x: int, .y: float) -> (float, int): (y, x)", EVALUATES);
+        CHECK_THAT("g(1, 0.5)", EVALUATES_TO(0.5, 1));
+    }
 }
