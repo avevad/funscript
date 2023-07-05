@@ -106,6 +106,11 @@ namespace funscript {
          */
         IND,
         /**
+         * @brief Check if an object contains a field.
+         * @param u64 The offset of identifier string.
+         */
+        HAS,
+        /**
          * @brief Get a field of an object.
          * @param u64 The offset of identifier string.
          */
@@ -251,7 +256,8 @@ namespace funscript {
         OR,
         IS,
         EXTRACT,
-        CHECK
+        CHECK,
+        HAS
     };
 
     /**
@@ -282,18 +288,19 @@ namespace funscript {
                 {Operator::GREATER,       {5,  true}},
                 {Operator::LESS_EQUAL,    {5,  true}},
                 {Operator::GREATER_EQUAL, {5,  true}},
-                {Operator::IS,            {6,  true}},
-                {Operator::AND,           {7,  true}},
-                {Operator::OR,            {8,  true}},
-                {Operator::CHECK,         {9,  true}},
-                {Operator::LAMBDA,        {10, false}},
-                {Operator::APPEND,        {11, false}},
-                {Operator::ASSIGN,        {12, true}},
-                {Operator::THEN,          {13, false}},
-                {Operator::ELSE,          {14, false}},
-                {Operator::UNTIL,         {15, false}},
-                {Operator::REPEATS,       {15, false}},
-                {Operator::DISCARD,       {16, false}},
+                {Operator::HAS,           {6,  true}},
+                {Operator::IS,            {7,  true}},
+                {Operator::AND,           {8,  true}},
+                {Operator::OR,            {9,  true}},
+                {Operator::CHECK,         {10, true}},
+                {Operator::LAMBDA,        {11, false}},
+                {Operator::APPEND,        {12, false}},
+                {Operator::ASSIGN,        {13, true}},
+                {Operator::THEN,          {14, false}},
+                {Operator::ELSE,          {15, false}},
+                {Operator::UNTIL,         {16, false}},
+                {Operator::REPEATS,       {16, false}},
+                {Operator::DISCARD,       {17, false}},
         };
         return OPERATORS;
     }

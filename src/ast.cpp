@@ -231,6 +231,19 @@ namespace funscript {
                                     0, 0});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
+            case Operator::HAS: {
+                ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
+                                    0, 0});
+                u_ev_opt_info u_opt = left->compile_eval(as, ch, {});
+                auto *right_id = dynamic_cast<IdentifierAST *>(right.get());
+                if (right_id) {
+                    ch.put_instruction({Opcode::HAS, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        false, 0 /* Will be overwritten to actual name location */});
+                    as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
+                    return {.no_scope = false};
+                }
+                throw CompilationError(filename, right->get_location(), "identifier expected");
+            }
             default: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),
                                     0, 0});

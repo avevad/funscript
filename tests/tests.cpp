@@ -234,6 +234,8 @@ TEST_CASE("Objects", "[objects]") {
         REQUIRE_THAT(".person = {.name = 'John'; .age = 31; .male = yes; }", EVALUATES);
         CHECK_THAT("person.name", EVALUATES_TO("John"));
         CHECK_THAT("person.friends", PANICS);
+        CHECK_THAT("person has friends", EVALUATES_TO(false));
+        CHECK_THAT("person has name", EVALUATES_TO(true));
     };
     SECTION("Field modification") {
         REQUIRE_THAT(".dog = {.name = 'Bailey'; .breed = 'Golden retriever'; .age = 4}", EVALUATES);

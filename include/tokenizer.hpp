@@ -21,7 +21,7 @@ namespace funscript {
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK, ARROW, COLON,
 
-        THEN, ELSE, UNTIL, REPEATS, YES, NO, AND, OR, NAN, INF, IS, NOT
+        THEN, ELSE, UNTIL, REPEATS, YES, NO, AND, OR, NAN, INF, IS, NOT, HAS
     };
 
     /**
@@ -65,6 +65,7 @@ namespace funscript {
                 {Keyword::INF,                  "inf"},
                 {Keyword::IS,                   "is"},
                 {Keyword::NOT,                  "not"},
+                {Keyword::HAS,                  "has"},
         };
         return KEYWORD_STRINGS;
     }
@@ -182,6 +183,7 @@ namespace funscript {
                 {Keyword::IS,                 Operator::IS},
                 {Keyword::QUESTION_MARK,      Operator::EXTRACT},
                 {Keyword::COLON,              Operator::CHECK},
+                {Keyword::HAS, Operator::HAS}
         };
         return OPERATOR_KEYWORDS;
     }

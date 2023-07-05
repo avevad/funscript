@@ -155,6 +155,26 @@ namespace funscript {
                         ip++;
                         break;
                     }
+                    case Opcode::HAS: {
+                        FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
+                        if (get(-1).type == Type::SEP) {
+                            pop();
+                            push_bln(cur_scope->vars->get_field(name).has_value());
+                        } else {
+                            if (get(-1).type != Type::OBJ) {
+                                panic("only objects are able to be indexed");
+                            }
+                            auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
+                            pop();
+                            if (get(-1).type != Type::SEP) {
+                                panic("can't index multiple values");
+                            }
+                            pop();
+                            push_bln(obj->get_field(name).has_value());
+                        }
+                        ip++;
+                        break;
+                    }
                     case Opcode::GET: {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {
