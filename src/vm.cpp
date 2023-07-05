@@ -142,6 +142,19 @@ namespace funscript {
                         ip++;
                         break;
                     }
+                    case Opcode::IND: {
+                        if (get(-1).type != Type::OBJ || get(-2).type != Type::SEP) {
+                            panic("single object expected");
+                        }
+                        auto obj = MemoryManager::AutoPtr(get(-1).data.obj);
+                        pop(-2);
+                        if (obj->get_values().size() <= ins.u64) {
+                            panic("object index out of range");
+                        }
+                        push(obj->get_values()[ins.u64]);
+                        ip++;
+                        break;
+                    }
                     case Opcode::GET: {
                         FStr name(reinterpret_cast<const FStr::value_type *>(bytecode + ins.u64), vm.mem.str_alloc());
                         if (get(-1).type == Type::SEP) {

@@ -49,7 +49,7 @@ namespace funscript {
                     // As in `(+5)` or `val, *arr`
                     if (pos == 0 || insert_void_after(tokens[pos - 1].type)) {
                         auto beg = pos == 0 ? code_pos_t{1, 1} : tokens[pos - 1].location.end;
-                        queue.emplace_back(Token::VOID, 0,
+                        queue.emplace_back(Token::VOID, 0u,
                                            code_loc_t{beg, tokens[pos].location.beg});
                     }
                     OperatorMeta op1 = get_operators_meta().at(std::get<Operator>(token.data)); // Current operator meta
@@ -90,7 +90,7 @@ namespace funscript {
                     // As it is with operators, we need to insert void token in the same cases
                     if (pos == 0 || insert_void_after(tokens[pos - 1].type)) {
                         auto beg = pos == 0 ? code_pos_t{1, 1} : tokens[pos - 1].location.end;
-                        queue.emplace_back(Token::VOID, 0,
+                        queue.emplace_back(Token::VOID, 0u,
                                            code_loc_t{beg, tokens[pos].location.beg});
                     }
                     // We pop any remaining operators inside current bracket onto the output queue
@@ -118,7 +118,7 @@ namespace funscript {
         }
         // Sometimes we need to insert void token right at the end of code, as in `k = 50%`
         if (insert_void_after(tokens.back().type)) {
-            queue.push_back({Token::VOID, 0,
+            queue.push_back({Token::VOID, 0u,
                              code_loc_t{tokens.back().location.end, tokens.back().location.end}});
         }
         // Pop any remaining operators onto the output queue while also checking for orphaned brackets
@@ -138,7 +138,7 @@ namespace funscript {
                     break;
                 }
                 case Token::INTEGER: {
-                    ast.push_back(new IntegerAST(filename, token.location, get<int64_t>(token.data)));
+                    ast.push_back(new IntegerAST(filename, token.location, get<uint64_t>(token.data)));
                     break;
                 }
                 case Token::FLOAT: {

@@ -22,12 +22,12 @@ void funscript::TokenAutomaton::append(char c) {
     else if (id_part) id_part = std::isalnum(c) || c == '_';
     // Every integer literal is just digits
     if (int_part) int_part = std::isdigit(c);
-    // Every floating-point literal is digits with maximum one dot
+    // Every floating-point literal is digits with maximum one dot (not in the beginning)
     if (flp_part) {
         if (std::isdigit(c)) {
             flp_part = true;
         } else if (c == '.') {
-            if (flp_dot) flp_part = false;
+            if (len == 0 || flp_dot) flp_part = false;
             else flp_dot = true;
         } else flp_part = false;
     }
@@ -100,7 +100,7 @@ funscript::Token funscript::get_token(const std::string &token_str) {
         return {Token::UNKNOWN};
     }
     // Token can be an integer literal
-    if (std::all_of(token_str.begin(), token_str.end(), isdigit)) return {Token::INTEGER, std::stoll(token_str)};
+    if (std::all_of(token_str.begin(), token_str.end(), isdigit)) return {Token::INTEGER, std::stoull(token_str)};
     // Token can be a floating-point literal
     if (std::all_of(token_str.begin(), token_str.end(), [](char c) -> bool { return isdigit(c) || c == '.'; })) {
         if (std::count(token_str.begin(), token_str.end(), '.') <= 1) {

@@ -20,8 +20,8 @@ namespace funscript {
         throw CompilationError(filename, get_location(), "expression is not assignable");
     }
 
-    IntegerAST::IntegerAST(const std::string &filename, code_loc_t token_loc, int64_t num) : AST(filename, token_loc),
-                                                                                             num(num) {}
+    IntegerAST::IntegerAST(const std::string &filename, code_loc_t token_loc, uint64_t num) : AST(filename, token_loc),
+                                                                                              num(num) {}
 
     u_ev_opt_info IdentifierAST::compile_eval(Assembler &as, Assembler::Chunk &ch, const d_ev_opt_info &d_opt) {
         ch.put_instruction({Opcode::VGT, uint32_t(as.data_chunk().put(token_loc.beg)),
@@ -90,14 +90,20 @@ namespace funscript {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
                                     0, 0});
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::GET, uint32_t(as.data_chunk().put(token_loc.beg)),
-                                    false, 0 /* Will be overwritten to actual name location */});
                 auto *right_id = dynamic_cast<IdentifierAST *>(right.get());
-                if (!right_id) {
-                    throw CompilationError(filename, right->get_location(), "identifier expected");
+                if (right_id) {
+                    ch.put_instruction({Opcode::GET, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        false, 0 /* Will be overwritten to actual name location */});
+                    as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
+                    return {.no_scope = false};
                 }
-                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
-                return {.no_scope = false};
+                auto *right_int = dynamic_cast<IntegerAST *>(right.get());
+                if (right_int) {
+                    ch.put_instruction({Opcode::IND, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        0, right_int->num});
+                    return {.no_scope = false};
+                }
+                throw CompilationError(filename, right->get_location(), "identifier or number expected");
             }
             case Operator::THEN: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),

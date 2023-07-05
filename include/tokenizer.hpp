@@ -144,7 +144,7 @@ namespace funscript {
             STRING,
             COMMENT
         };
-        using Data = std::variant<Operator, Bracket, int64_t, std::string, bool, double>;
+        using Data = std::variant<Operator, Bracket, uint64_t, std::string, bool, double>;
         Type type;
         Data data;
         code_loc_t location;

@@ -37,7 +37,7 @@ TEST_CASE("Integers", "[integers]") {
 TEST_CASE("Floating point numbers", "[floats]") {
     TestEnv env;
     SECTION("Arithmetic") {
-        CHECK_THAT("5. / 2., .5 * 2.", EVALUATES_TO(2.5, 1.));
+        CHECK_THAT("5. / 2., 0.5 * 2.", EVALUATES_TO(2.5, 1.));
         CHECK_THAT("1. + 2., 1. - 2.", EVALUATES_TO(3., -1.));
         CHECK_THAT("5. / 0.", EVALUATES_TO(inf()));
     };
@@ -224,6 +224,11 @@ TEST_CASE("Objects", "[objects]") {
         CHECK_THAT("{.str = 'a'; .int = 2; .bln = yes; }", EVALUATES);
         CHECK_THAT("{1, 2, 'some str', yes}", EVALUATES);
         CHECK_THAT("{.err = yes; 'unknown error'}", EVALUATES);
+    };
+    SECTION("Tuple element access") {
+        REQUIRE_THAT(".obj = {1, 2., 'o_o', yes}", EVALUATES);
+        CHECK_THAT("obj.2", EVALUATES_TO("o_o"));
+        CHECK_THAT("obj.5", PANICS);
     };
     SECTION("Field access") {
         REQUIRE_THAT(".person = {.name = 'John'; .age = 31; .male = yes; }", EVALUATES);

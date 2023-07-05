@@ -101,6 +101,11 @@ namespace funscript {
          */
         SEP,
         /**
+         * Get indexed value of an object.
+         * @param u64 The index of the value.
+         */
+        IND,
+        /**
          * @brief Get a field of an object.
          * @param u64 The offset of identifier string.
          */

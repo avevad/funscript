@@ -199,12 +199,12 @@ namespace funscript {
      * Class of AST leaves which represent integer literals.
      */
     class IntegerAST : public AST {
-        int64_t num; // Number represented by the literal.
-
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
-        explicit IntegerAST(const std::string &filename, code_loc_t token_loc, int64_t num);
+        const uint64_t num; // Number represented by the literal.
+
+        explicit IntegerAST(const std::string &filename, code_loc_t token_loc, uint64_t num);
     };
 
     /**
