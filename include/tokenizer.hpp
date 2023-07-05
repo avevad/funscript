@@ -217,7 +217,7 @@ namespace funscript {
      * @param token_str A string to parse.
      * @return Parsed token info.
      */
-    Token get_token(const std::string &token_str);
+    Token get_token(const std::string &filename, const code_loc_t &loc, const std::string &token_str);
 
     /**
      * Converts Funscript code into stream of tokens.
