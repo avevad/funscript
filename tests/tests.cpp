@@ -253,9 +253,9 @@ TEST_CASE("Objects", "[objects]") {
     SECTION("Result unwrapping") {
         REQUIRE_THAT(".panic = -> 0 / 0", EVALUATES);
         CHECK_THAT("{1, 2, 3, no, yes, 'sus'}?", EVALUATES_TO(1, 2, 3, false, true, "sus"));
-        CHECK_THAT("{.err = yes; {}, [], {{}}} ? panic()", PANICS);
+        CHECK_THAT("{.error = yes; {}, [], {{}}} ? panic()", PANICS);
         REQUIRE_THAT(".fail = yes", EVALUATES);
-        REQUIRE_THAT(".get_str = -> (fail then {.err = yes} else {'avevad'})", EVALUATES);
+        REQUIRE_THAT(".get_str = -> (fail then {.error = yes} else {'avevad'})", EVALUATES);
         REQUIRE_THAT(".display_username = -> {'The username is: ' + get_str()?}", EVALUATES);
         CHECK_THAT("display_username() ? panic()", PANICS);
         REQUIRE_THAT(".fail = no", EVALUATES);

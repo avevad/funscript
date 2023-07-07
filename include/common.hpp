@@ -278,8 +278,8 @@ namespace funscript {
                 {Operator::EXTRACT,       {1,  false}},
                 {Operator::NOT,           {2,  false}},
                 {Operator::TIMES,         {3,  true}},
-                {Operator::DIVIDE,        {4,  true}},
-                {Operator::MODULO,        {4,  true}},
+                {Operator::DIVIDE,        {3,  true}},
+                {Operator::MODULO,        {3,  true}},
                 {Operator::PLUS,          {4,  true}},
                 {Operator::MINUS,         {4,  true}},
                 {Operator::EQUALS,        {5,  true}},
@@ -318,7 +318,7 @@ namespace funscript {
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
     static const char *TYPE_CHECK_NAME = "check_value";
-    static const char *ERR_FLAG_NAME = "err";
+    static const char *ERR_FLAG_NAME = "error";
 
     // Aliases for Funscript primitive types
 
