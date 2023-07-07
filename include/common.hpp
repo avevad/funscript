@@ -267,7 +267,8 @@ namespace funscript {
         BW_XOR,
         BW_SHL,
         BW_SHR,
-        BW_NOT
+        BW_NOT,
+        SIZEOF
     };
 
     /**
@@ -288,6 +289,7 @@ namespace funscript {
                 {Operator::EXTRACT,       {1,  false}},
                 {Operator::NOT,           {2,  false}},
                 {Operator::BW_NOT,        {2,  false}},
+                {Operator::SIZEOF,        {2,  false}},
                 {Operator::TIMES,         {3,  true}},
                 {Operator::DIVIDE,        {3,  true}},
                 {Operator::MODULO,        {3,  true}},
@@ -338,6 +340,8 @@ namespace funscript {
     static const char *BW_XOR_OPERATOR_OVERLOAD_NAME = "bitwise_xor";
     static const char *BW_OR_OPERATOR_OVERLOAD_NAME = "bitwise_or";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
+
+    static const char *SIZEOF_OPERATOR_OVERLOAD_NAME = "get_size";
 
     static const char *TYPE_CHECK_NAME = "check_value";
     static const char *ERR_FLAG_NAME = "error";

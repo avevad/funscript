@@ -857,6 +857,35 @@ namespace funscript {
                 push_bln(same);
                 break;
             }
+            case Operator::SIZEOF: {
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::ARR) {
+                    fint size = fint(get(pos_b).data.arr->len());
+                    pop(-3);
+                    push_int(size);
+                    break;
+                }
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::OBJ) {
+                    if (get(pos_b).data.obj->contains_field(SIZEOF_OPERATOR_OVERLOAD_NAME)) {
+                        auto fn = MemoryManager::AutoPtr<Function>(
+                                get(pos_b).data.obj->get_field(SIZEOF_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                        pop(-2);
+                        call_function(fn.get());
+                        break;
+                    } else {
+                        fint size = fint(get(pos_b).data.obj->get_values().size());
+                        pop(-3);
+                        push_int(size);
+                    }
+                    break;
+                }
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::STR) {
+                    fint size = fint(get(pos_b).data.str->bytes.size());
+                    pop(-3);
+                    push_int(size);
+                    break;
+                }
+                return op_panic(op);
+            }
             default:
                 assertion_failed("unknown operator");
         }
