@@ -147,6 +147,10 @@ TEST_CASE("Strings", "[strings]") {
         REQUIRE_THAT(".some = 'some str'", EVALUATES);
         CHECK_THAT("some, empty", EVALUATES_TO("some str", ""));
     };
+    SECTION("Escape sequences") {
+        REQUIRE_THAT("'\\\\frac{5}{4}'", EVALUATES_TO("\\frac{5}{4}"));
+        REQUIRE_THAT("'Line 1\\x0aLine 2\\x0A'", EVALUATES_TO("Line 1\nLine 2\n"));
+    };
     SECTION("Concatenation") {
         REQUIRE_THAT(".str1 = 'impostor'", EVALUATES);
         REQUIRE_THAT(".str2 = 'is sus'", EVALUATES);
@@ -271,5 +275,15 @@ TEST_CASE("Objects", "[objects]") {
         REQUIRE_THAT(".float = {.check_value = .x -> x + 0.}", EVALUATES);
         REQUIRE_THAT(".g = (.x: int, .y: float) -> (float, int): (y, x)", EVALUATES);
         CHECK_THAT("g(1, 0.5)", EVALUATES_TO(0.5, 1));
+    };
+    SECTION("Object-scopes") {
+        REQUIRE_THAT(".obj = {.foo = 1; .bar = 2; .baz = 3}", EVALUATES);
+        REQUIRE_THAT(".lol = 4", EVALUATES);
+        CHECK_THAT("obj.(foo, bar, baz, lol)", EVALUATES_TO(1, 2, 3, 4));
+        CHECK_THAT("obj.(obj) is obj", EVALUATES_TO(true));
+        CHECK_THAT("obj.(.lol)", PANICS);
+        REQUIRE_THAT("obj.(.test, .var) = 5, 6", EVALUATES);
+        CHECK_THAT("obj.var", EVALUATES_TO(6));
+        CHECK_THAT("var", PANICS);
     }
 }
