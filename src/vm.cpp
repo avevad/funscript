@@ -482,6 +482,91 @@ namespace funscript {
                 }
                 return op_panic(op);
             }
+            case Operator::BW_SHL: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a << b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(BW_SHL_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(BW_SHL_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::BW_SHR: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a >> b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(BW_SHR_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(BW_SHR_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::BW_AND: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a & b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(BW_AND_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(BW_AND_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::BW_XOR: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a ^ b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(BW_XOR_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(BW_XOR_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::BW_OR: {
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::INT && get(pos_b).type == Type::INT) {
+                    fint a = get(pos_a).data.num, b = get(pos_b).data.num;
+                    pop(-4);
+                    push_int(a | b);
+                    break;
+                }
+                if (cnt_a == 1 && get(pos_a).type == Type::OBJ &&
+                    get(pos_a).data.obj->contains_field(BW_OR_OPERATOR_OVERLOAD_NAME)) {
+                    auto fn = MemoryManager::AutoPtr<Function>(
+                            get(pos_a).data.obj->get_field(BW_OR_OPERATOR_OVERLOAD_NAME).value().data.fun);
+                    pop(-2);
+                    call_function(fn.get());
+                    break;
+                }
+                return op_panic(op);
+            }
             case Operator::PLUS: {
                 if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::STR && get(pos_b).type == Type::STR) {
                     FStr a = get(pos_a).data.str->bytes, b = get(pos_b).data.str->bytes;
@@ -660,6 +745,15 @@ namespace funscript {
                     fbln bln = get(pos_b).data.bln;
                     pop(-3);
                     push_bln(!bln);
+                    break;
+                }
+                return op_panic(op);
+            }
+            case Operator::BW_NOT: {
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::INT) {
+                    fint num = get(pos_b).data.num;
+                    pop(-3);
+                    push_int(~num);
                     break;
                 }
                 return op_panic(op);

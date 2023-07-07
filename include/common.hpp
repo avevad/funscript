@@ -261,7 +261,13 @@ namespace funscript {
         IS,
         EXTRACT,
         CHECK,
-        HAS
+        HAS,
+        BW_AND,
+        BW_OR,
+        BW_XOR,
+        BW_SHL,
+        BW_SHR,
+        BW_NOT
     };
 
     /**
@@ -281,6 +287,7 @@ namespace funscript {
                 {Operator::CALL,          {0,  false /* should not be used */ }},
                 {Operator::EXTRACT,       {1,  false}},
                 {Operator::NOT,           {2,  false}},
+                {Operator::BW_NOT,        {2,  false}},
                 {Operator::TIMES,         {3,  true}},
                 {Operator::DIVIDE,        {3,  true}},
                 {Operator::MODULO,        {3,  true}},
@@ -292,19 +299,24 @@ namespace funscript {
                 {Operator::GREATER,       {5,  true}},
                 {Operator::LESS_EQUAL,    {5,  true}},
                 {Operator::GREATER_EQUAL, {5,  true}},
-                {Operator::HAS,           {6,  true}},
-                {Operator::IS,            {7,  true}},
-                {Operator::AND,           {8,  true}},
-                {Operator::OR,            {9,  true}},
-                {Operator::CHECK,         {10, true}},
-                {Operator::LAMBDA,        {11, false}},
-                {Operator::APPEND,        {12, false}},
-                {Operator::ASSIGN,        {13, true}},
-                {Operator::THEN,          {14, false}},
-                {Operator::ELSE,          {15, false}},
-                {Operator::UNTIL,         {16, false}},
-                {Operator::REPEATS,       {16, false}},
-                {Operator::DISCARD,       {17, false}},
+                {Operator::BW_SHL,        {6,  true}},
+                {Operator::BW_SHR,        {6,  true}},
+                {Operator::BW_AND,        {7,  true}},
+                {Operator::BW_XOR,        {8,  true}},
+                {Operator::BW_OR,         {9,  true}},
+                {Operator::HAS,           {10, true}},
+                {Operator::IS,            {11, true}},
+                {Operator::AND,           {12, true}},
+                {Operator::OR,            {13, true}},
+                {Operator::CHECK,         {14, true}},
+                {Operator::LAMBDA,        {15, false}},
+                {Operator::APPEND,        {16, false}},
+                {Operator::ASSIGN,        {17, true}},
+                {Operator::THEN,          {18, false}},
+                {Operator::ELSE,          {19, false}},
+                {Operator::UNTIL,         {20, false}},
+                {Operator::REPEATS,       {20, false}},
+                {Operator::DISCARD,       {21, false}},
         };
         return OPERATORS;
     }
@@ -320,7 +332,13 @@ namespace funscript {
     static const char *LESS_OPERATOR_OVERLOAD_NAME = "less_than";
     static const char *GREATER_OPERATOR_OVERLOAD_NAME = "greater_than";
     static const char *LESS_EQUAL_OPERATOR_OVERLOAD_NAME = "less_equal_than";
+    static const char *BW_SHL_OPERATOR_OVERLOAD_NAME = "bitwise_shift_left_by";
+    static const char *BW_SHR_OPERATOR_OVERLOAD_NAME = "bitwise_shift_right_by";
+    static const char *BW_AND_OPERATOR_OVERLOAD_NAME = "bitwise_and";
+    static const char *BW_XOR_OPERATOR_OVERLOAD_NAME = "bitwise_xor";
+    static const char *BW_OR_OPERATOR_OVERLOAD_NAME = "bitwise_or";
     static const char *GREATER_EQUAL_OPERATOR_OVERLOAD_NAME = "greater_equal_than";
+
     static const char *TYPE_CHECK_NAME = "check_value";
     static const char *ERR_FLAG_NAME = "error";
 

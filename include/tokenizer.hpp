@@ -20,6 +20,7 @@ namespace funscript {
         LESS_SIGN, GREATER_SIGN, LESS_EQUAL_SIGN, GREATER_EQUAL_SIGN,
         LEFT_PLAIN_BRACKET, RIGHT_PLAIN_BRACKET, LEFT_CURLY_BRACKET, RIGHT_CURLY_BRACKET,
         LEFT_SQUARE_BRACKET, RIGHT_SQUARE_BRACKET, QUESTION_MARK, ARROW, COLON,
+        SHIFT_LEFT, SHIFT_RIGHT, TILDE, VERTICAL_BAR, AMPERSAND, CARET,
 
         THEN, ELSE, UNTIL, REPEATS, YES, NO, AND, OR, NAN, INF, IS, NOT, HAS
     };
@@ -53,6 +54,12 @@ namespace funscript {
                 {Keyword::RIGHT_SQUARE_BRACKET, "]"},
                 {Keyword::ARROW,                "->"},
                 {Keyword::COLON,                ":"},
+                {Keyword::SHIFT_LEFT,           "<<"},
+                {Keyword::SHIFT_RIGHT,          ">>"},
+                {Keyword::TILDE,                "~"},
+                {Keyword::VERTICAL_BAR,         "|"},
+                {Keyword::AMPERSAND,            "&"},
+                {Keyword::CARET,                "^"},
                 {Keyword::THEN,                 "then"},
                 {Keyword::ELSE,                 "else"},
                 {Keyword::UNTIL,                "until"},
@@ -183,7 +190,13 @@ namespace funscript {
                 {Keyword::IS,                 Operator::IS},
                 {Keyword::QUESTION_MARK,      Operator::EXTRACT},
                 {Keyword::COLON,              Operator::CHECK},
-                {Keyword::HAS, Operator::HAS}
+                {Keyword::HAS,                Operator::HAS},
+                {Keyword::TILDE,              Operator::BW_NOT},
+                {Keyword::VERTICAL_BAR,       Operator::BW_OR},
+                {Keyword::CARET,              Operator::BW_XOR},
+                {Keyword::AMPERSAND,          Operator::BW_AND},
+                {Keyword::SHIFT_LEFT,         Operator::BW_SHL},
+                {Keyword::SHIFT_RIGHT,        Operator::BW_SHR},
         };
         return OPERATOR_KEYWORDS;
     }
