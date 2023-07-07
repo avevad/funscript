@@ -103,7 +103,17 @@ namespace funscript {
                                         0, right_int->num});
                     return {.no_scope = false};
                 }
-                throw CompilationError(filename, right->get_location(), "identifier or number expected");
+                auto *right_br = dynamic_cast<BracketAST *>(right.get());
+                if (right_br && right_br->type == Bracket::PLAIN) {
+                    ch.put_instruction({Opcode::OSC, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        0, 0});
+                    u_ev_opt_info u_opt1 = right_br->child->compile_eval(as, ch, {});
+                    ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(right->get_location().end)),
+                                        false, 0});
+                    return {.no_scope = u_opt0.no_scope && u_opt1.no_scope};
+                }
+                throw CompilationError(filename, right->get_location(),
+                                       "an identifier, a number or parentheses expected");
             }
             case Operator::THEN: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)),
@@ -268,14 +278,23 @@ namespace funscript {
             case Operator::INDEX: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(left->get_location().beg)), 0, 0});
                 u_ev_opt_info u_opt0 = left->compile_eval(as, ch, {});
-                ch.put_instruction({Opcode::SET, uint32_t(as.data_chunk().put(token_loc.beg)),
-                                    false, 0 /* Will be overwritten to actual name location */});
                 auto *right_id = dynamic_cast<IdentifierAST *>(right.get());
-                if (!right_id) {
-                    throw CompilationError(filename, left->get_location(), "identifier expected");
+                if (right_id) {
+                    ch.put_instruction({Opcode::SET, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        false, 0 /* Will be overwritten to actual name location */});
+                    as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
+                    return {.no_scope = false};
                 }
-                as.add_pointer(ch.id, ch.size() - sizeof(Instruction::u64), 0, as.add_string(right_id->name));
-                return {.no_scope = false};
+                auto *right_br = dynamic_cast<BracketAST *>(right.get());
+                if (right_br && right_br->type == Bracket::PLAIN) {
+                    ch.put_instruction({Opcode::OSC, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                        0, 0});
+                    u_mv_opt_info u_opt1 = right_br->child->compile_move(as, ch, {});
+                    ch.put_instruction({Opcode::SCP, uint32_t(as.data_chunk().put(right->get_location().end)),
+                                        false, 0});
+                    return {.no_scope = u_opt0.no_scope && u_opt1.no_scope};
+                }
+                throw CompilationError(filename, right->get_location(), "an identifier or parentheses expected");
             }
             case Operator::CALL: {
                 ch.put_instruction({Opcode::SEP, uint32_t(as.data_chunk().put(right->get_location().beg)),

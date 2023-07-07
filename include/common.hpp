@@ -211,7 +211,11 @@ namespace funscript {
          * The topmost value pack is treated as types, the next value pack is the values to be checked against this types.
          * @param u16 `true` if excess values should be ignored.
          */
-        CHK
+        CHK,
+        /**
+         * @brief Make a new scope from an object.
+         */
+        OSC
     };
 
     /**

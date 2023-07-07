@@ -264,6 +264,15 @@ namespace funscript {
                         ip++;
                         break;
                     }
+                    case Opcode::OSC: {
+                        if (get(-1).type != Type::OBJ || get(-2).type != Type::SEP) {
+                            panic("single object expected");
+                        }
+                        cur_scope = vm.mem.gc_new_auto<Scope>(get(-1).data.obj, cur_scope.get());
+                        pop(-2);
+                        ip++;
+                        break;
+                    }
                     case Opcode::DIS: {
                         if (discard() && ins.u16) panic("too many values");
                         ip++;

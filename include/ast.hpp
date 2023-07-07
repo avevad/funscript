@@ -263,11 +263,12 @@ namespace funscript {
      * These AST nodes have brackets' sub-expression as their child.
      */
     class BracketAST : public AST {
-        Bracket type; // Type of the brackets in this expression.
-        ast_ptr child; // The sub-expression which is enclosed by brackets.
         u_ev_opt_info compile_eval(Assembler &as, Assembler::Chunk &chunk, const d_ev_opt_info &d_opt) override;
         u_mv_opt_info compile_move(Assembler &as, Assembler::Chunk &chunk, const d_mv_opt_info &d_opt) override;
     public:
+        const Bracket type; // Type of the brackets in this expression.
+        const ast_ptr child; // The sub-expression which is enclosed by brackets.
+
         BracketAST(const std::string &filename, code_loc_t token_loc, AST *child, Bracket type);
     };
 
