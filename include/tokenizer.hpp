@@ -104,6 +104,7 @@ namespace funscript {
         size_t len = 0; // Current token part length.
         bool id_part = true; // Is current token part a prefix of an identifier.
         bool int_part = true; // Is current token part a prefix of an integer literal.
+        bool hex_part = true; // Is current token part a prefix of a hexadecimal integer literal.
         bool flp_part = true; // Is current token part a prefix of a floating-point literal.
         bool flp_dot = false; // Was the dot of the floating-point literal already found.
         bool str_part = true; // Is current token part a prefix of a string literal.

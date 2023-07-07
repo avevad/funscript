@@ -264,6 +264,7 @@ namespace funscript {
         class AutoPtr {
             template<typename A1> friend
             class AutoPtr;
+
         private:
             A *alloc;
         public:

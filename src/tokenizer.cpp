@@ -24,6 +24,12 @@ namespace funscript {
         else if (id_part) id_part = std::isalnum(c) || c == '_';
         // Every integer literal is just digits
         if (int_part) int_part = std::isdigit(c);
+        // Every hexadecimal literal begins with `0x` and contains digits or letters a-z or A-Z
+        if (hex_part) {
+            if (len == 0) hex_part = c == '0';
+            else if (len == 1) hex_part = c == 'x';
+            else hex_part = std::isdigit(c) || ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z');
+        }
         // Every floating-point literal is digits with maximum one dot (not in the beginning)
         if (flp_part) {
             if (std::isdigit(c)) {
@@ -62,7 +68,8 @@ namespace funscript {
     }
 
     bool funscript::TokenAutomaton::is_valid() const {
-        return str_part || id_part || int_part || flp_part || line_comm_part || block_comm_part || !kws_part.empty();
+        return str_part || id_part || int_part || hex_part || flp_part || line_comm_part || block_comm_part ||
+               !kws_part.empty();
     }
 
     namespace {
@@ -130,6 +137,14 @@ namespace funscript {
         }
         // Token can be an integer literal
         if (std::all_of(token_str.begin(), token_str.end(), isdigit)) return {Token::INTEGER, std::stoull(token_str)};
+        // Token can be a hexadecimal integer literal
+        if (token_str.starts_with("0x")) {
+            if (std::all_of(token_str.begin() + 2, token_str.end(), [](char c) -> bool {
+                return std::isdigit(c) || ('A' <= c && c <= 'Z' || 'a' <= c && c <= 'z');
+            })) {
+                return {Token::INTEGER, std::stoull(token_str, nullptr, 16)};
+            }
+        }
         // Token can be a floating-point literal
         if (std::all_of(token_str.begin(), token_str.end(), [](char c) -> bool { return isdigit(c) || c == '.'; })) {
             if (std::count(token_str.begin(), token_str.end(), '.') <= 1) {
