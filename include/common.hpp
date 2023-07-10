@@ -61,15 +61,6 @@ namespace funscript {
         explicit CompilationError(const std::string &filename, const code_loc_t &loc, const std::string &msg);
     };
 
-
-    /**
-     * Structure that represents the execution metadata (filename, line, column)
-     */
-    struct code_met_t {
-        const char *filename;
-        code_pos_t position;
-    };
-
     /**
      * Enumeration of all the value types available in Funscript VM.
      */

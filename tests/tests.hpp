@@ -178,6 +178,9 @@ namespace funscript::tests {
         bool match(const std::string &expr) const {
             try {
                 auto stack = env.evaluate(expr);
+                for (VM::Stack::pos_t pos = 0; pos < stack->size(); pos++) {
+                    if ((*stack)[pos].type == Type::SEP) return false;
+                }
                 return true;
             } catch (const EvaluationError &err) {
                 return false;

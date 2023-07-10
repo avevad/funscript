@@ -121,6 +121,15 @@ namespace funscript {
             bool set_var(const FStr &name, Value val);
         };
 
+        /**
+         * Structure that represents the execution metadata (filename, line, column)
+         */
+        struct code_met_t {
+            const char *filename;
+            code_pos_t position;
+            Scope *scope;
+        };
+
         class Function;
 
         /**
@@ -128,15 +137,18 @@ namespace funscript {
          */
         class Frame final : public Allocation {
             friend VM::Stack;
-            Frame *const prev_frame;
-            const size_t depth;
-            Function *const fun; // The function to be called in this frame.
-            code_met_t fallback_meta{.filename = nullptr, .position = {.row = 0, .col = 0}};
+            code_met_t fallback_meta{.filename = nullptr, .position = {.row = 0, .col = 0}, .scope = nullptr};
             code_met_t *meta_ptr = &fallback_meta;
 
             void get_refs(const std::function<void(Allocation *)> &callback) override;
         public:
+            Frame *const prev_frame;
+            const size_t depth;
+            Function *const fun; // The function to be called in this frame.
+
             explicit Frame(Function *fun, Frame *prev_frame = nullptr);
+
+            const code_met_t &get_meta() const;
         };
 
         /**
@@ -150,8 +162,9 @@ namespace funscript {
         public:
             Object *const globals; // Globals of the module.
             Object *const object; // Module object.
+            const FStr name;
 
-            Module(VM &vm, Object *globals, Object *object);
+            Module(VM &vm, const FStr &name, Object *globals, Object *object);
 
             void register_dependency(const FStr &alias, Module *mod);
 
@@ -312,7 +325,8 @@ namespace funscript {
 
             void execute();
 
-            void panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
+            [[noreturn]] void
+            panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
 
             // Some functions for pushing values onto the value stack.
 
@@ -361,6 +375,8 @@ namespace funscript {
             pos_t find_sep(pos_t before = 0);
 
             bool is_panicked() const;
+
+            Frame *get_current_frame() const;
 
             template<typename Iter>
             void generate_stack_trace(Iter out) {

@@ -92,7 +92,7 @@ namespace funscript {
         const auto *ip = reinterpret_cast<const Instruction *>(bytecode + offset);
         auto cur_scope = MemoryManager::AutoPtr(scope);
         const char *meta_chunk = nullptr;
-        code_met_t meta{.filename = nullptr};
+        code_met_t meta{.filename = nullptr, .position = {0, 0}, .scope = nullptr};
         try {
             while (true) {
                 if (kbd_int) {
@@ -102,6 +102,7 @@ namespace funscript {
                 Instruction ins = *ip;
                 if (meta_chunk && ins.meta) {
                     meta.position = *reinterpret_cast<const code_pos_t *>(meta_chunk + ins.meta);
+                    meta.scope = cur_scope.get();
                 }
                 switch (ins.op) {
                     case Opcode::NOP:
@@ -980,6 +981,10 @@ namespace funscript {
         return panicked;
     }
 
+    VM::Frame *VM::Stack::get_current_frame() const {
+        return cur_frame;
+    }
+
     VM::Stack::~Stack() = default;
 
     void VM::Object::get_refs(const std::function<void(Allocation *)> &callback) {
@@ -1054,6 +1059,10 @@ namespace funscript {
     void VM::Frame::get_refs(const std::function<void(Allocation *)> &callback) {
         callback(fun);
         callback(prev_frame);
+    }
+
+    const VM::code_met_t &VM::Frame::get_meta() const {
+        return *meta_ptr;
     }
 
     VM::Bytecode::Bytecode(VM &vm, std::string data) : Allocation(vm), bytes(std::move(data)) {}
@@ -1164,9 +1173,11 @@ namespace funscript {
         for (const auto &[alias, mod] : deps) callback(mod);
     }
 
-    VM::Module::Module(VM &vm, VM::Object *globals, VM::Object *object) : Allocation(vm), globals(globals),
-                                                                          object(object),
-                                                                          deps(vm.mem.std_alloc<decltype(deps)::value_type>()) {
+    VM::Module::Module(VM &vm, const FStr &name, VM::Object *globals, VM::Object *object) : Allocation(vm),
+                                                                                            name(name),
+                                                                                            globals(globals),
+                                                                                            object(object),
+                                                                                            deps(vm.mem.std_alloc<decltype(deps)::value_type>()) {
 
     }
 

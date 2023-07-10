@@ -89,6 +89,19 @@ namespace funscript::util {
             }
         };
 
+        template<>
+        struct ValueTransformer<MemoryManager::AutoPtr<VM::Object>> {
+            static std::optional<MemoryManager::AutoPtr<VM::Object>> from_stack(VM::Stack &stack) {
+                if (stack[-1].type != Type::OBJ) return std::nullopt;
+                auto result = MemoryManager::AutoPtr(stack[-1].data.obj);
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM::Stack &stack, const MemoryManager::AutoPtr<VM::Object> &obj) {
+                stack.push_obj(obj.get());
+            }
+        };
     }
 
     template<typename T>
@@ -110,6 +123,7 @@ namespace funscript::util {
 
         std::tuple<> values_from_stack_impl(VM::Stack &stack, size_t pos) {
             if (stack[-1].type != Type::SEP) throw ValueError("too many values, required " + std::to_string(pos));
+            stack.pop();
             return {};
         }
 
@@ -158,9 +172,15 @@ namespace funscript::util {
     static void
     call_native_function(VM::Stack &stack, const std::function<Ret(VM::Stack &, Args...)> &fn) try {
         stack.reverse();
-        util::value_to_stack(stack, std::apply([&stack, &fn](Args... args) -> Ret {
-            return fn(stack, std::move(args)...);
-        }, util::values_from_stack<Args...>(stack)));
+        if constexpr (std::is_same_v<Ret, void>) {
+            std::apply([&stack, &fn](Args... args) -> Ret {
+                return fn(stack, std::move(args)...);
+            }, util::values_from_stack<Args...>(stack));
+        } else {
+            util::value_to_stack(stack, std::apply([&stack, &fn](Args... args) -> Ret {
+                return fn(stack, std::move(args)...);
+            }, util::values_from_stack<Args...>(stack)));
+        }
     } catch (const util::ValueError &err) {
         stack.panic(err.what());
     }
@@ -314,13 +334,14 @@ namespace funscript::util {
                 module_globals->set_field(expt_name, expt_val);
             }
         }
-        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, module_globals.get(), module_obj.get());
+        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, FStr(name, vm.mem.str_alloc()), module_globals.get(),
+                                                  module_obj.get());
         // Register module dependencies
         for (const auto &dep_mod : deps) {
             if (!vm.get_module(FStr(dep_mod, vm.mem.str_alloc())).has_value()) {
                 throw ModuleLoadingError(name, "invalid dependency " + dep_mod + ": the module is not registered");
             }
-            mod->register_dependency(FStr(dep_mod, vm.mem.str_alloc()),
+            mod->register_dependency(FStr(get_module_alias(dep_mod), vm.mem.str_alloc()),
                                      vm.get_module(FStr(dep_mod, vm.mem.str_alloc())).value());
         }
         // Execute module loader code
@@ -339,7 +360,7 @@ namespace funscript::util {
         if (!lib) throw ModuleLoadingError(name, dlerror());
         auto module_exports = vm.mem.gc_new_auto<VM::Object>(vm);
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
-        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, nullptr, module_obj.get());
+        auto mod = vm.mem.gc_new_auto<VM::Module>(vm, FStr(name, vm.mem.str_alloc()), nullptr, module_obj.get());
         auto *mod_ptr = mod.get();
         std::function load_native_sym([mod_ptr, lib](VM::Stack &stack, MemoryManager::AutoPtr<VM::String> sym) ->
                                               MemoryManager::AutoPtr<VM::Function> {
