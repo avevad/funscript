@@ -23,19 +23,16 @@
     .new_type = {
         .type = Type;
         .check_value = .obj: object -> (): (
-            not (obj has type) then panic 'object does not have a type';
+            not (obj has type) then panic(name + ' expected');
             .result = no;
             .cur_type = obj.type;
             (
                 result = cur_type is new_type;
                 cur_type has supertype then cur_type = cur_type.supertype;
             ) until result or not (cur_type has supertype);
+            not result then panic(name + ' expected');
         );
-        .create_base = -> {
-            .type = new_type;
-            .get_debug_str = -> string: name + '{ #[...]# }';
-        };
-        .get_debug_str = -> string: name;
+        .get_dbg_str = -> string: name;
     };
     new_type
 );
@@ -46,68 +43,28 @@ Type: Type = Type; # Type self-check
 Type.create = create_type;
 
 .integer = Type.create('integer');
-integer.(
-    .check_value = .int -> (
-        not is_integer(int) then panic 'not an integer';
-    );
-    .create = -> 0;
-);
+integer.check_value = .int -> (not is_integer(int) then panic 'integer expected');
 
 .object = Type.create('object');
-object.(
-    .check_value = .obj -> (
-        not is_object(obj) then panic 'not an object';
-    );
-    .create = -> {};
-);
+object.check_value = .obj -> (not is_object(obj) then panic 'object expected');
 
 .string = Type.create('string');
-string.(
-    .check_value = .str -> (
-        not is_string(str) then panic 'not a string';
-    );
-    .create = -> '';
-);
+string.check_value = .str -> (not is_string(str) then panic 'string expected');
 
 .array = Type.create('array');
-array.(
-    .check_value = .arr -> (
-        not is_array(arr) then panic 'not an array';
-    );
-    .create = -> [];
-);
+array.check_value = .arr -> (not is_array(arr) then panic 'array expected');
 
 .boolean = Type.create('boolean');
-boolean.(
-    .check_value = .bln -> (
-        not is_boolean(bln) then panic 'not a boolean';
-    );
-    .create = -> false;
-);
+boolean.check_value = .bln -> (not is_boolean(bln) then panic 'boolean expected');
 
 .float = Type.create('float');
-float.(
-    .check_value = .flp -> (
-        not is_float(flp) then panic 'not a float';
-    );
-    .create = -> 0.0;
-);
+float.check_value = .flp -> (not is_float(flp) then panic 'float expected');
 
 .function = Type.create('function');
-function.(
-    .check_value = .fun -> (
-        not is_function(fun) then panic 'not a function';
-    );
-    .create = -> (->);
-);
+function.check_value = .fun -> (not is_function(fun) then panic 'function expected');
 
 .pointer = Type.create('pointer');
-pointer.(
-    .check_value = .ptr -> (
-        not is_pointer(ptr) then panic 'not a pointer';
-    );
-    .create = -> panic 'cannot create a pointer';
-);
+pointer.check_value = .ptr -> (not is_pointer(ptr) then panic 'pointer expected');
 
 # Redefinition with typechecking enabled
 Type.create = .name: string -> Type: create_type(name);
