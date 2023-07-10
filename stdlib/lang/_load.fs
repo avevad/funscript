@@ -13,6 +13,9 @@
     .module = load_native_sym '_ZN9funscript6stdlib4lang7module_ERNS_2VM5StackE';
     .submodule = load_native_sym '_ZN9funscript6stdlib4lang9submoduleERNS_2VM5StackE';
     .import = load_native_sym '_ZN9funscript6stdlib4lang7import_ERNS_2VM5StackE';
+
+    .bytes_allocate = load_native_sym '_ZN9funscript6stdlib4lang14bytes_allocateERNS_2VM5StackE';
+    .bytes_paste_from_string = load_native_sym '_ZN9funscript6stdlib4lang23bytes_paste_from_stringERNS_2VM5StackE';
 };
 
 # Temporary placeholders
@@ -75,6 +78,31 @@ Type.create = .name: string -> Type: create_type(name);
 .submodule = .alias: string -> object: native.submodule(alias);
 .import = .obj: object -> (): native.import(obj);
 
+.Bytes = Type.create('Bytes');
+Bytes.(
+    .allocate = .size: integer -> Bytes: {
+        .type = Bytes;
+
+        .data = native.bytes_allocate(size);
+        .size = size;
+
+        .get_size = -> size;
+
+        .paste_from_string = (.pos: integer, .str: string, .beg: integer, .end: integer) -> (): (
+            pos < 0 or pos > size then panic 'invalid position';
+            beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
+            native.bytes_paste_from_string(data, pos, str, beg, end);
+        );
+    };
+
+    .from_string = (.str: string, .beg: integer, .end: integer) -> Bytes: (
+        beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
+        .bytes = Bytes.allocate(end - beg);
+        bytes.paste_from_string(0, str, beg, end);
+        bytes
+    );
+);
+
 exports = {
     .panic = panic;
 
@@ -92,4 +120,6 @@ exports = {
     .boolean = boolean;
     .function = function;
     .pointer = pointer;
+
+    .Bytes = Bytes;
 }

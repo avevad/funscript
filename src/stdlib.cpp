@@ -2,6 +2,7 @@
 #include "utils.hpp"
 
 #include <memory>
+#include <cstring>
 
 namespace funscript::stdlib {
 
@@ -138,6 +139,23 @@ namespace funscript::stdlib {
                 for (const auto &[var, val] : obj->get_fields()) {
                     caller_scope->vars->set_field(var, val);
                 }
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void bytes_allocate(VM::Stack &stack) {
+            std::function fn([&stack](fint size) -> MemoryManager::AutoPtr<Allocation> {
+                auto ptr = stack.vm.mem.gc_new_auto_arr(stack.vm, size_t(size), char(0));
+                return MemoryManager::AutoPtr<Allocation>(ptr.get());
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void bytes_paste_from_string(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> data,
+                                fint pos, MemoryManager::AutoPtr<VM::String> str, fint beg, fint end) -> void {
+                char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
+                std::memcpy(bytes, str->bytes.c_str() + beg, end - beg);
             });
             util::call_native_function(stack, fn);
         }
