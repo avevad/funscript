@@ -81,13 +81,13 @@ int main(int argc, const char **argv) {
         }
     }
     { // Start main module
-        auto start_val = vm.get_module(FStr(modules.back().name.value(), vm.mem.str_alloc())).value()->
-                object->get_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc())).value();
-        if (start_val.type != Type::FUN) {
-            std::cerr << args[0] << ": '" << modules.back().name.value() << "' has no start function" << std::endl;
+        auto run_val = vm.get_module(FStr(modules.back().name.value(), vm.mem.str_alloc())).value()->
+                object->get_field(FStr(MODULE_RUNNER_VAR, vm.mem.str_alloc())).value();
+        if (run_val.type != Type::FUN) {
+            std::cerr << args[0] << ": '" << modules.back().name.value() << "' is not runnable" << std::endl;
             return 1;
         }
-        auto stack = util::eval_fn(vm, start_val.data.fun);
+        auto stack = util::eval_fn(vm, run_val.data.fun);
         if (stack->is_panicked()) {
             std::cerr << args[0] << ": main module panicked" << std::endl;
             util::print_panic(*stack);

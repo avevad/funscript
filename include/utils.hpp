@@ -170,15 +170,15 @@ namespace funscript::util {
      */
     template<typename Ret, typename... Args>
     static void
-    call_native_function(VM::Stack &stack, const std::function<Ret(VM::Stack &, Args...)> &fn) try {
+    call_native_function(VM::Stack &stack, const std::function<Ret(Args...)> &fn) try {
         stack.reverse();
         if constexpr (std::is_same_v<Ret, void>) {
-            std::apply([&stack, &fn](Args... args) -> Ret {
-                return fn(stack, std::move(args)...);
+            std::apply([&fn](Args... args) -> Ret {
+                return fn(std::move(args)...);
             }, util::values_from_stack<Args...>(stack));
         } else {
-            util::value_to_stack(stack, std::apply([&stack, &fn](Args... args) -> Ret {
-                return fn(stack, std::move(args)...);
+            util::value_to_stack(stack, std::apply([&fn](Args... args) -> Ret {
+                return fn(std::move(args)...);
             }, util::values_from_stack<Args...>(stack)));
         }
     } catch (const util::ValueError &err) {
@@ -315,7 +315,7 @@ namespace funscript::util {
         // Prepare module object and scope
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()), Type::INT);
-        module_obj->set_field(FStr(MODULE_STARTER_VAR, vm.mem.str_alloc()), Type::INT);
+        module_obj->set_field(FStr(MODULE_RUNNER_VAR, vm.mem.str_alloc()), Type::INT);
         auto module_scope = vm.mem.gc_new_auto<VM::Scope>(module_obj.get(), nullptr);
         // Prepare module globals object and global scope
         auto module_globals = vm.mem.gc_new_auto<VM::Object>(vm);
@@ -362,15 +362,15 @@ namespace funscript::util {
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
         auto mod = vm.mem.gc_new_auto<VM::Module>(vm, FStr(name, vm.mem.str_alloc()), nullptr, module_obj.get());
         auto *mod_ptr = mod.get();
-        std::function load_native_sym([mod_ptr, lib](VM::Stack &stack, MemoryManager::AutoPtr<VM::String> sym) ->
-                                              MemoryManager::AutoPtr<VM::Function> {
-            dlerror();
-            auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(dlsym(lib, sym->bytes.c_str()));
-            if (!fn_ptr) stack.panic(std::string("failed to load native symbol: ") + dlerror());
-            return stack.vm.mem.gc_new_auto<VM::NativeFunction>(stack.vm, mod_ptr, fn_ptr);
-        });
         auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
-                vm, mod.get(), [load_native_sym](VM::Stack &stack) -> void {
+                vm, mod.get(), [mod_ptr, lib](VM::Stack &stack) -> void {
+                    std::function load_native_sym([&stack, mod_ptr, lib](MemoryManager::AutoPtr<VM::String> sym) ->
+                                                          MemoryManager::AutoPtr<VM::Function> {
+                        dlerror();
+                        auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(dlsym(lib, sym->bytes.c_str()));
+                        if (!fn_ptr) stack.panic(std::string("failed to load native symbol: ") + dlerror());
+                        return stack.vm.mem.gc_new_auto<VM::NativeFunction>(stack.vm, mod_ptr, fn_ptr);
+                    });
                     call_native_function(stack, load_native_sym);
                 }
         );

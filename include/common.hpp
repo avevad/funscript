@@ -412,7 +412,7 @@ namespace funscript {
     }
 
     static const char *MODULE_EXPORTS_VAR = "exports"; // Name of the variable that holds module's exports.
-    static const char *MODULE_STARTER_VAR = "start"; // Name of the variable that holds module's starter function.
+    static const char *MODULE_RUNNER_VAR = "run"; // Name of the variable that holds module's runner function.
 
     // Name of the variable that holds native module's symbol lookup function.
     static const char *NATIVE_MODULE_SYMBOL_LOADER_VAR = "load_native_sym";

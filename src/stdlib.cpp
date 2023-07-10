@@ -8,7 +8,7 @@ namespace funscript::stdlib {
     namespace lang {
 
         void panic(VM::Stack &stack) {
-            std::function fn([](VM::Stack &stack, MemoryManager::AutoPtr<VM::String> msg) -> void {
+            std::function fn([&stack](MemoryManager::AutoPtr<VM::String> msg) -> void {
                 stack.panic(std::string(msg->bytes));
             });
             util::call_native_function(stack, fn);
@@ -85,7 +85,7 @@ namespace funscript::stdlib {
         }
 
         void module_(VM::Stack &stack) {
-            std::function fn([](VM::Stack &stack, MemoryManager::AutoPtr<VM::String> alias_val) ->
+            std::function fn([&stack](MemoryManager::AutoPtr<VM::String> alias_val) ->
                                      MemoryManager::AutoPtr<VM::Object> {
                 FStr alias = alias_val->bytes;
                 if (alias.empty()) stack.panic("module alias cannot be empty");
@@ -105,7 +105,7 @@ namespace funscript::stdlib {
         }
 
         void submodule(VM::Stack &stack) {
-            std::function fn([](VM::Stack &stack, MemoryManager::AutoPtr<VM::String> alias_val) ->
+            std::function fn([&stack](MemoryManager::AutoPtr<VM::String> alias_val) ->
                                      MemoryManager::AutoPtr<VM::Object> {
                 FStr alias = alias_val->bytes;
                 if (alias.empty()) stack.panic("module alias cannot be empty");
@@ -133,7 +133,7 @@ namespace funscript::stdlib {
         }
 
         void import_(VM::Stack &stack) {
-            std::function fn([](VM::Stack &stack, MemoryManager::AutoPtr<VM::Object> obj) -> void {
+            std::function fn([&stack](MemoryManager::AutoPtr<VM::Object> obj) -> void {
                 auto *caller_scope = get_caller(stack, -2)->get_meta().scope;
                 for (const auto &[var, val] : obj->get_fields()) {
                     caller_scope->vars->set_field(var, val);
