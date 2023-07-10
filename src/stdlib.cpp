@@ -162,4 +162,24 @@ namespace funscript::stdlib {
 
     }
 
+    namespace sys {
+
+        void fd_write(VM::Stack &stack) {
+            std::function fn([](fint fd, MemoryManager::AutoPtr<Allocation> data, fint beg, fint end) -> fint {
+                char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
+                return fint(write(int(fd), bytes + beg, size_t(end - beg)));
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void fd_read(VM::Stack &stack) {
+            std::function fn([](fint fd, MemoryManager::AutoPtr<Allocation> data, fint beg, fint end) -> fint {
+                char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
+                return fint(read(int(fd), bytes + beg, size_t(end - beg)));
+            });
+            util::call_native_function(stack, fn);
+        }
+
+    }
+
 }
