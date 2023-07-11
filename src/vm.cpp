@@ -457,6 +457,24 @@ namespace funscript {
                     call_function(fn.get());
                     break;
                 }
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::ARR) {
+                    auto arr = MemoryManager::AutoPtr(get(pos_b).data.arr);
+                    pop(-3);
+                    if (size() + arr->len() > vm.config.stack_values_max) throw StackOverflowError();
+                    size_t pos = size();
+                    values.resize(size() + arr->len());
+                    std::copy(arr->begin(), arr->end(), values.data() + pos);
+                    break;
+                }
+                if (cnt_a == 0 && cnt_b == 1 && get(pos_b).type == Type::OBJ) {
+                    auto obj = MemoryManager::AutoPtr(get(pos_b).data.obj);
+                    pop(-3);
+                    if (size() + obj->get_values().size() > vm.config.stack_values_max) throw StackOverflowError();
+                    size_t pos = size();
+                    values.resize(size() + obj->get_values().size());
+                    std::copy(obj->get_values().begin(), obj->get_values().end(), values.data() + pos);
+                    break;
+                }
                 return op_panic(op);
             }
             case Operator::DIVIDE: {
