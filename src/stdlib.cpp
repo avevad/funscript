@@ -164,7 +164,12 @@ namespace funscript::stdlib {
 
     namespace sys {
 
-        void fd_write(VM::Stack &stack) {
+        void posix_get_errno(VM::Stack &stack) {
+            std::function fn([]() -> fint { return fint(errno); });
+            util::call_native_function(stack, fn);
+        }
+
+        void posix_write(VM::Stack &stack) {
             std::function fn([](fint fd, MemoryManager::AutoPtr<Allocation> data, fint beg, fint end) -> fint {
                 char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
                 return fint(write(int(fd), bytes + beg, size_t(end - beg)));
@@ -172,7 +177,7 @@ namespace funscript::stdlib {
             util::call_native_function(stack, fn);
         }
 
-        void fd_read(VM::Stack &stack) {
+        void posix_read(VM::Stack &stack) {
             std::function fn([](fint fd, MemoryManager::AutoPtr<Allocation> data, fint beg, fint end) -> fint {
                 char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
                 return fint(read(int(fd), bytes + beg, size_t(end - beg)));
@@ -180,6 +185,13 @@ namespace funscript::stdlib {
             util::call_native_function(stack, fn);
         }
 
+        void posix_strerror(VM::Stack &stack) {
+            std::function fn([&stack](fint err_num) -> MemoryManager::AutoPtr<VM::String> {
+                FStr err_str(strerror(int(err_num)), stack.vm.mem.str_alloc());
+                return stack.vm.mem.gc_new_auto<VM::String>(stack.vm, err_str);
+            });
+            util::call_native_function(stack, fn);
+        }
     }
 
 }

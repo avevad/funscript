@@ -420,6 +420,9 @@ namespace funscript {
 
     // Name of the variable that holds native module's symbol lookup function.
     static const char *NATIVE_MODULE_SYMBOL_LOADER_VAR = "load_native_sym";
+
+    // Name of the variable that holds native module's symbol checking function.
+    static const char *NATIVE_MODULE_SYMBOL_CHECKER_VAR = "has_native_sym";
 }
 
 #endif //FUNSCRIPT_COMMON_HPP

@@ -262,6 +262,12 @@ namespace funscript {
                 Allocation *ptr;
             };
             Type type;
+        private:
+            uint8_t reserved = 0;
+            uint16_t reserved1 = 0;
+            uint16_t reserved2 = 0;
+            uint16_t reserved3 = 0;
+        public:
             Data data;
 
             Value(Type type = Type::INT, Data data = {.num = 0});

@@ -34,6 +34,20 @@ namespace funscript::util {
         };
 
         template<>
+        struct ValueTransformer<fbln> {
+            static std::optional<fbln> from_stack(VM::Stack &stack) {
+                if (stack[-1].type != Type::BLN) return std::nullopt;
+                fbln result = stack[-1].data.bln;
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM::Stack &stack, fbln bln) {
+                stack.push_bln(bln);
+            }
+        };
+
+        template<>
         struct ValueTransformer<MemoryManager::AutoPtr<VM::Array>> {
             static std::optional<MemoryManager::AutoPtr<VM::Array>> from_stack(VM::Stack &stack) {
                 if (stack[-1].type != Type::ARR) return std::nullopt;
@@ -362,7 +376,7 @@ namespace funscript::util {
         auto module_obj = vm.mem.gc_new_auto<VM::Object>(vm);
         auto mod = vm.mem.gc_new_auto<VM::Module>(vm, FStr(name, vm.mem.str_alloc()), nullptr, module_obj.get());
         auto *mod_ptr = mod.get();
-        auto native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
+        auto load_native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
                 vm, mod.get(), [mod_ptr, lib](VM::Stack &stack) -> void {
                     std::function load_native_sym([&stack, mod_ptr, lib](MemoryManager::AutoPtr<VM::String> sym) ->
                                                           MemoryManager::AutoPtr<VM::Function> {
@@ -374,9 +388,23 @@ namespace funscript::util {
                     call_native_function(stack, load_native_sym);
                 }
         );
-        native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()));
+        load_native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()));
         module_exports->set_field(FStr(NATIVE_MODULE_SYMBOL_LOADER_VAR, vm.mem.str_alloc()),
-                                  {Type::FUN, {.fun = native_sym_fn.get()}}
+                                  {Type::FUN, {.fun = load_native_sym_fn.get()}}
+        );
+        auto check_native_sym_fn = vm.mem.gc_new_auto<VM::NativeFunction>(
+                vm, mod.get(), [lib](VM::Stack &stack) -> void {
+                    std::function check_native_sym([lib](MemoryManager::AutoPtr<VM::String> sym) -> fbln {
+                        dlerror();
+                        auto *fn_ptr = reinterpret_cast<void (*)(VM::Stack &)>(dlsym(lib, sym->bytes.c_str()));
+                        return fn_ptr != nullptr;
+                    });
+                    call_native_function(stack, check_native_sym);
+                }
+        );
+        check_native_sym_fn->assign_name(FStr(NATIVE_MODULE_SYMBOL_CHECKER_VAR, vm.mem.str_alloc()));
+        module_exports->set_field(FStr(NATIVE_MODULE_SYMBOL_CHECKER_VAR, vm.mem.str_alloc()),
+                                  {Type::FUN, {.fun = check_native_sym_fn.get()}}
         );
         module_obj->set_field(FStr(MODULE_EXPORTS_VAR, vm.mem.str_alloc()),
                               {Type::OBJ, {.obj = module_exports.get()}});

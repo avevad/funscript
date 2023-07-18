@@ -127,7 +127,7 @@ Bytes.(
             .type = Result;
 
             .error = yes;
-            .unwrap = -> *ok_types: panic 'unexpected error';
+            .unwrap = -> *ok_types: panic 'attempt to unwrap error value(s)';
             .unwrap_or = *.values1: *ok_types -> *ok_types: *values1;
 
             *values
