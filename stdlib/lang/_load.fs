@@ -21,21 +21,28 @@
 # Temporary placeholders
 .Type = 0;
 .object = { .check_value = .obj -> () };
+.boolean = { .check_value = .bln -> () };
 
-.create_type = .name -> (
+.create_type = .id -> (
     .new_type = {
+        .args = {};
+        .id = id;
         .type = Type;
+        .get_dbg_str = -> string: id;
         .check_value = .obj: object -> (): (
-            not (obj has type) then panic(name + ' expected');
+            not (obj has type) then panic(get_dbg_str() + ' expected');
             .result = no;
             .cur_type = obj.type;
             (
-                result = cur_type is new_type;
+                result = cur_type == new_type;
                 cur_type has supertype then cur_type = cur_type.supertype;
             ) until result or not (cur_type has supertype);
-            not result then panic(name + ' expected');
+            not result then panic(get_dbg_str() + ' expected');
         );
-        .get_dbg_str = -> string: name;
+        .equals = .type -> boolean: (
+            not (type has type) or not (type.type is Type) then panic 'Type expected';
+            id is type.id and args == type.args
+        );
     };
     new_type
 );
@@ -103,6 +110,32 @@ Bytes.(
     );
 );
 
+.Result_id = 'Result';
+.Result = .ok_types: array -> .err_types: array -> (
+    .Result = Type.create(Result_id);
+    Result.(
+        .args = {{*ok_types}, {*err_types}};
+        .ok = (*.values: *ok_types) -> Result: {
+            .type = Result;
+
+            .unwrap = -> *ok_types: *values;
+            .unwrap_or = *.values1: *ok_types -> *ok_types: *values;
+
+            *values
+        };
+        .err = (*.values: *err_types) -> Result: {
+            .type = Result;
+
+            .error = yes;
+            .unwrap = -> *ok_types: panic 'unexpected error';
+            .unwrap_or = *.values1: *ok_types -> *ok_types: *values1;
+
+            *values
+        };
+    );
+    Result
+);
+
 exports = {
     .panic = panic;
 
@@ -122,4 +155,5 @@ exports = {
     .pointer = pointer;
 
     .Bytes = Bytes;
+    .Result = Result;
 }
