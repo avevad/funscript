@@ -138,6 +138,14 @@ namespace funscript {
                         ip++;
                         break;
                     }
+                    case Opcode::WRP: {
+                        auto obj = vm.mem.gc_new_auto<Object>(vm);
+                        obj->init_values(values.data() + find_sep() + 1, values.data() + size());
+                        pop(find_sep() + 1);
+                        push_obj(obj.get());
+                        ip++;
+                        break;
+                    }
                     case Opcode::SEP: {
                         push_sep();
                         ip++;

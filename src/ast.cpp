@@ -318,6 +318,15 @@ namespace funscript {
                 u_mv_opt_info u_opt2 = left->compile_move(as, ch, {});
                 return {.no_scope = u_opt1.no_scope && u_opt2.no_scope};
             }
+            case Operator::TIMES: {
+                if (!dynamic_cast<VoidAST *>(left.get())) {
+                    throw CompilationError(filename, left->get_location(), "void expected");
+                }
+                ch.put_instruction({Opcode::WRP, uint32_t(as.data_chunk().put(token_loc.beg)),
+                                    0, 0});
+                u_mv_opt_info u_opt = right->compile_move(as, ch, {});
+                return {.no_scope = u_opt.no_scope};
+            }
             default:
                 throw CompilationError(filename, get_location(), "expression is not assignable");
         }

@@ -206,7 +206,11 @@ namespace funscript {
         /**
          * @brief Make a new scope from an object.
          */
-        OSC
+        OSC,
+        /**
+         * @brief Wrap all values until the separator (excluding the separator itself) in a new object and put the object on the stack.
+         */
+        WRP
     };
 
     /**
