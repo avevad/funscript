@@ -734,6 +734,55 @@ namespace funscript {
                     call_function(fn.get());
                     break;
                 }
+                if (cnt_a == 1 && cnt_b == 1 && get(pos_a).type == Type::OBJ && get(pos_b).type == Type::OBJ) {
+                    auto obj_a = MemoryManager::AutoPtr<Object>(get(pos_a).data.obj);
+                    auto obj_b = MemoryManager::AutoPtr<Object>(get(pos_b).data.obj);
+                    pop(-4);
+                    if (obj_a->get_values().size() != obj_b->get_values().size()) {
+                        push_bln(false);
+                        break;
+                    }
+                    if (obj_a->get_fields().size() != obj_b->get_fields().size()) {
+                        push_bln(false);
+                        break;
+                    }
+                    for (size_t pos = 0; pos < obj_a->get_values().size(); pos++) {
+                        push_sep();
+                        push_sep();
+                        push(obj_b->get_values()[pos]);
+                        push_sep();
+                        push(obj_a->get_values()[pos]);
+                        call_operator(Operator::EQUALS);
+                        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) panic("boolean expected");
+                        fbln result = get(-1).data.bln;
+                        pop(-2);
+                        if (!result) {
+                            push_bln(false);
+                            break;
+                        }
+                    }
+                    for (const auto &[key, val] : obj_a->get_fields()) {
+                        if (!obj_b->contains_field(key)) {
+                            push_bln(false);
+                            break;
+                        }
+                        push_sep();
+                        push_sep();
+                        push(obj_b->get_field(key).value());
+                        push_sep();
+                        push(val);
+                        call_operator(Operator::EQUALS);
+                        if (get(-1).type != Type::BLN || get(-2).type != Type::SEP) panic("boolean expected");
+                        fbln result = get(-1).data.bln;
+                        pop(-2);
+                        if (!result) {
+                            push_bln(false);
+                            break;
+                        }
+                    }
+                    push_bln(true);
+                    break;
+                }
                 return op_panic(op);
             }
             case Operator::DIFFERS: {
