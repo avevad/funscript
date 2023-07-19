@@ -86,21 +86,26 @@ Type.create = .name: string -> Type: create_type(name);
 .import = .obj: object -> (): native.import(obj);
 
 .Bytes = Type.create('Bytes');
+.ByteSpan = Type.create('ByteSpan');
 Bytes.(
-    .allocate = .size: integer -> Bytes: {
-        .type = Bytes;
+    .allocate = .size: integer -> Bytes: (
+        .bytes = {
+            .type = Bytes;
 
-        .data = native.bytes_allocate(size);
-        .size = size;
+            .data = native.bytes_allocate(size);
 
-        .get_size = -> size;
+            .get_size = -> size;
 
-        .paste_from_string = (.pos: integer, .str: string, .beg: integer, .end: integer) -> (): (
-            pos < 0 or pos > size then panic 'invalid position';
-            beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
-            native.bytes_paste_from_string(data, pos, str, beg, end);
-        );
-    };
+            .paste_from_string = (.pos: integer, .str: string, .beg: integer, .end: integer) -> (): (
+                pos < 0 or pos > size then panic 'invalid position';
+                beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
+                native.bytes_paste_from_string(data, pos, str, beg, end);
+            );
+
+            .span = (.beg: integer, .end: integer) -> ByteSpan: ByteSpan.from_bytes(bytes, beg, end);
+        };
+        bytes
+    );
 
     .from_string = (.str: string, .beg: integer, .end: integer) -> Bytes: (
         beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
@@ -108,6 +113,18 @@ Bytes.(
         bytes.paste_from_string(0, str, beg, end);
         bytes
     );
+);
+ByteSpan.(
+    .from_bytes = (.bytes: Bytes, .beg: integer, .end: integer) -> ByteSpan: {
+        beg < 0 or end > sizeof bytes or beg > end then panic 'invalid range';
+        .type = ByteSpan;
+
+        .get_beg = -> beg;
+        .get_end = -> end;
+        .get_size = -> end - beg;
+
+        .get_bytes = -> bytes;
+    };
 );
 
 .Result_id = 'Result';
@@ -120,15 +137,23 @@ Bytes.(
 
             .unwrap = -> *ok_types: *values;
             .unwrap_or = *.values1: *ok_types -> *ok_types: *values;
+            .unwrap_or_call = .err_fn: function -> *ok_types: *values;
+
+            .is_ok = -> boolean: yes;
+            .is_err = -> boolean: no;
 
             *values
         };
         .err = (*.values: *err_types) -> Result: {
             .type = Result;
-
             .error = yes;
+
             .unwrap = -> *ok_types: panic 'attempt to unwrap error value(s)';
             .unwrap_or = *.values1: *ok_types -> *ok_types: *values1;
+            .unwrap_or_call = .err_fn: function -> *ok_types: err_fn(*values);
+
+            .is_ok = -> boolean: no;
+            .is_err = -> boolean: yes;
 
             *values
         };
@@ -155,5 +180,7 @@ exports = {
     .pointer = pointer;
 
     .Bytes = Bytes;
+    .ByteSpan = ByteSpan;
+
     .Result = Result;
 }
