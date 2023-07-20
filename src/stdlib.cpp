@@ -155,7 +155,7 @@ namespace funscript::stdlib {
             std::function fn([](MemoryManager::AutoPtr<Allocation> data,
                                 fint pos, MemoryManager::AutoPtr<VM::String> str, fint beg, fint end) -> void {
                 char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
-                std::memcpy(bytes, str->bytes.c_str() + beg, end - beg);
+                std::memcpy(bytes + pos, str->bytes.c_str() + beg, end - beg);
             });
             util::call_native_function(stack, fn);
         }
