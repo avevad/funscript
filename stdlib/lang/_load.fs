@@ -102,6 +102,10 @@ Bytes.(
                 native.bytes_paste_from_string(data, pos, str, beg, end);
             );
 
+            .paste_string = (.pos: integer, .str: string) -> (): (
+                paste_from_string(pos, str, 0, sizeof str);
+            );
+
             .span = (.beg: integer, .end: integer) -> ByteSpan: ByteSpan.from_bytes(bytes, beg, end);
         };
         bytes
@@ -129,28 +133,38 @@ ByteSpan.(
 
 .Result_id = 'Result';
 .Result = .ok_types: array -> .err_types: array -> (
-    .Result = Type.create(Result_id);
-    Result.(
+    .ThisResult = Type.create(Result_id);
+    ThisResult.(
         .args = {{*ok_types}, {*err_types}};
-        .ok = (*.values: *ok_types) -> Result: {
-            .type = Result;
+        .ok = (*.values: *ok_types) -> ThisResult: {
+            .type = ThisResult;
 
             .unwrap = -> *ok_types: *values;
-            .unwrap_or = *.values1: *ok_types -> *ok_types: *values;
-            .unwrap_or_call = .err_fn: function -> *ok_types: *values;
+            .unwrap_or_else = .err_fun -> *ok_types: *values;
+
+            .and_then = .ok_types1: array -> .ok_fun -> Result(ok_types1)(err_types): ok_fun(*values);
+            .then_map = .ok_types1: array -> .ok_fun -> Result(ok_types1)(err_types).ok(ok_fun(*values));
+
+            .or_else = .err_types1: array -> .err_fun -> Result(ok_types)(err_types1).ok(*values);
+            .else_map = .err_types1: array -> .err_fun -> Result(ok_types)(err_types1).ok(*values);
 
             .is_ok = -> boolean: yes;
             .is_err = -> boolean: no;
 
             *values
         };
-        .err = (*.values: *err_types) -> Result: {
-            .type = Result;
+        .err = (*.values: *err_types) -> ThisResult: {
+            .type = ThisResult;
             .error = yes;
 
             .unwrap = -> *ok_types: panic 'attempt to unwrap error value(s)';
-            .unwrap_or = *.values1: *ok_types -> *ok_types: *values1;
-            .unwrap_or_call = .err_fn: function -> *ok_types: err_fn(*values);
+            .unwrap_or_else = .err_fun -> *ok_types: err_fun(*values);
+
+            .and_then = .ok_types1: array -> .ok_fun -> Result(ok_types1)(err_types).err(*values);
+            .then_map = .ok_types1: array -> .ok_fun -> Result(ok_types1)(err_types).err(*values);
+
+            .or_else = .err_types1: array -> .err_fun -> Result(ok_types)(err_types1): err_fun(*values);
+            .else_map = .err_types1: array -> .err_fun -> Result(ok_types)(err_types1).err(err_fun(*values));
 
             .is_ok = -> boolean: no;
             .is_err = -> boolean: yes;
@@ -158,7 +172,7 @@ ByteSpan.(
             *values
         };
     );
-    Result
+    ThisResult
 );
 
 exports = {
