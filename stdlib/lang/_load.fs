@@ -39,12 +39,13 @@
         .get_dbg_str = -> string: id;
         .check_value = .obj: object -> (): (
             not (obj has type) then panic(get_dbg_str() + ' expected');
-            .result = no;
+            .result, .end = no, no;
             .cur_type = obj.type;
             (
                 result = cur_type == new_type;
-                cur_type has supertype then cur_type = cur_type.supertype;
-            ) until result or not (cur_type has supertype);
+                cur_type has supertype then cur_type = cur_type.supertype
+                else end = yes;
+            ) until result or end;
             not result then panic(get_dbg_str() + ' expected');
         );
         .equals = .type -> boolean: (

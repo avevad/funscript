@@ -82,6 +82,56 @@ BufferedWriter.(
     };
 );
 
+.Printer = Type.create('Printer');
+Printer.(
+    .supertype = Formatter;
+
+    .with_destination = .dest: BufferedWriter -> Printer: (
+        .printer = Formatter.create();
+        printer.(
+            .type = Printer;
+
+            .dest = dest;
+            .sep = ' ';
+            .end = '\x0a';
+
+            .copy = -> Printer: (
+                .printer = Printer.with_destination(dest);
+                printer.debug = debug;
+                printer.depth_limit = depth_limit;
+                printer.sep = sep;
+                printer.end = end;
+                printer
+            );
+
+            .with_sep = .sep: string -> Printer: (
+                .printer = copy();
+                printer.sep = sep;
+                printer
+            );
+
+            .with_end = .end: string -> Printer: (
+                .printer = copy();
+                printer.end = end;
+                printer
+            );
+
+            .call = (*.values) -> (): (
+                values = [*values];
+                .pos = 0;
+                pos < sizeof values repeats (
+                    pos != 0 then dest.write_string(sep).unwrap_or_else(.err -> panic(value_to_string(err)));
+                    dest.write_string(value_to_string(values[pos])).unwrap_or_else(.err -> panic(value_to_string(err)));
+                    pos = pos + 1;
+                );
+                dest.write_string(end).unwrap_or_else(.err -> panic(value_to_string(err)));
+                dest.flush();
+            );
+        );
+        printer
+    );
+);
+
 exports = {
     .SystemError = SystemError;
 
@@ -92,4 +142,5 @@ exports = {
     .stderr = stderr;
 
     .BufferedWriter = BufferedWriter;
+    .Printer = Printer;
 };
