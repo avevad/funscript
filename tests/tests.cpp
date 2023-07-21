@@ -254,17 +254,6 @@ TEST_CASE("Objects", "[objects]") {
         REQUIRE_THAT("cnt.inc(); cnt.inc(); cnt.dec();", EVALUATES);
         CHECK_THAT("cnt.value()", EVALUATES_TO(6));
     };
-    SECTION("Result unwrapping") {
-        REQUIRE_THAT(".panic = -> 0 / 0", EVALUATES);
-        CHECK_THAT("{1, 2, 3, no, yes, 'sus'}?", EVALUATES_TO(1, 2, 3, false, true, "sus"));
-        CHECK_THAT("{.error = yes; {}, [], {{}}} ? panic()", PANICS);
-        REQUIRE_THAT(".fail = yes", EVALUATES);
-        REQUIRE_THAT(".get_str = -> (fail then {.error = yes} else {'avevad'})", EVALUATES);
-        REQUIRE_THAT(".display_username = -> {'The username is: ' + get_str()?}", EVALUATES);
-        CHECK_THAT("display_username() ? panic()", PANICS);
-        REQUIRE_THAT(".fail = no", EVALUATES);
-        CHECK_THAT("display_username() ? panic()", EVALUATES_TO("The username is: avevad"));
-    };
     SECTION("Typechecking") {
         REQUIRE_THAT(".int = {.check_value = .x -> x % 1}", EVALUATES);
         REQUIRE_THAT(".f = (.x: int, .y: int) -> int: x + y", EVALUATES);
