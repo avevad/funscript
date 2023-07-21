@@ -34,6 +34,20 @@ namespace funscript::util {
         };
 
         template<>
+        struct ValueTransformer<fflp> {
+            static std::optional<fflp> from_stack(VM::Stack &stack) {
+                if (stack[-1].type != Type::FLP) return std::nullopt;
+                fflp result = stack[-1].data.flp;
+                stack.pop();
+                return result;
+            }
+
+            static void to_stack(VM::Stack &stack, fflp flp) {
+                stack.push_flp(flp);
+            }
+        };
+
+        template<>
         struct ValueTransformer<fbln> {
             static std::optional<fbln> from_stack(VM::Stack &stack) {
                 if (stack[-1].type != Type::BLN) return std::nullopt;

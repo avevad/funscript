@@ -12,7 +12,7 @@ SystemError.(
 
             .errno = posix.get_errno();
 
-            .display = -> string: 'SystemError: ' + name + ': ' + posix.strerror(errno);
+            .to_string = -> string: 'SystemError: ' + name + ': ' + posix.strerror(errno);
         };
     );
 );
