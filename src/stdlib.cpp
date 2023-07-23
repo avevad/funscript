@@ -224,6 +224,37 @@ namespace funscript::stdlib {
             util::call_native_function(stack, fn);
         }
 
+        void bytes_paste_from_bytes(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> dst,
+                                fint pos, MemoryManager::AutoPtr<Allocation> src, fint beg, fint end) -> void {
+                char *bytes_dst = dynamic_cast<ArrayAllocation<char> *>(dst.get())->data();
+                char *bytes_src = dynamic_cast<ArrayAllocation<char> *>(src.get())->data();
+                memmove(bytes_dst + pos, bytes_src + beg, end - beg);
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void bytes_find_string(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> data,
+                                fint beg, fint end, MemoryManager::AutoPtr<VM::String> str) -> fint {
+                char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
+                return std::search(bytes + beg, bytes + end,
+                                   str->bytes.data(), str->bytes.data() + str->bytes.size()) - bytes;
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void bytes_to_string(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> data,
+                                fint beg, fint end) -> MemoryManager::AutoPtr<VM::String> {
+                char *bytes = dynamic_cast<ArrayAllocation<char> *>(data.get())->data();
+                return data->vm.mem.gc_new_auto<VM::String>(data->vm, FStr(
+                        bytes + beg, bytes + end, data->vm.mem.str_alloc()
+                ));
+            });
+            util::call_native_function(stack, fn);
+        }
+
         void concat(VM::Stack &stack) {
             size_t length = 0;
             VM::Stack::pos_t pos = -1;

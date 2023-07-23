@@ -29,4 +29,6 @@ import submodule 'native';
 
 exports = {
     .get_posix = get_posix;
+
+    .eol = '\x0a';
 };

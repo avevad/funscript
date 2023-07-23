@@ -22,6 +22,9 @@
 
     .bytes_allocate = load_native_sym '_ZN9funscript6stdlib4lang14bytes_allocateERNS_2VM5StackE';
     .bytes_paste_from_string = load_native_sym '_ZN9funscript6stdlib4lang23bytes_paste_from_stringERNS_2VM5StackE';
+    .bytes_paste_from_bytes = load_native_sym '_ZN9funscript6stdlib4lang22bytes_paste_from_bytesERNS_2VM5StackE';
+    .bytes_find_string = load_native_sym '_ZN9funscript6stdlib4lang17bytes_find_stringERNS_2VM5StackE';
+    .bytes_to_string = load_native_sym '_ZN9funscript6stdlib4lang15bytes_to_stringERNS_2VM5StackE';
 
     .concat = load_native_sym '_ZN9funscript6stdlib4lang6concatERNS_2VM5StackE';
 };
@@ -90,7 +93,7 @@ Type.create = .name: string -> Type: create_type(name);
 
 .typeof = .val -> Type: (
     (is_object(val) then (
-        val has type and val.type has type and val.type.type == Type then val.type.type
+        val has type and val.type has type and val.type.type == Type then val.type
         else object
     )),
     (is_integer(val) then integer),
@@ -120,13 +123,32 @@ Bytes.(
             .get_size = -> size;
 
             .paste_from_string = (.pos: integer, .str: string, .beg: integer, .end: integer) -> (): (
-                pos < 0 or pos > size then panic 'invalid position';
                 beg < 0 or end > sizeof str or beg > end then panic 'invalid range';
+                pos < 0 or pos + (end - beg) > size then panic 'invalid position';
                 native.bytes_paste_from_string(data, pos, str, beg, end);
+            );
+
+            .paste_from_bytes = (.pos: integer, .bytes: Bytes, .beg: integer, .end: integer) -> (): (
+                beg < 0 or end > sizeof bytes or beg > end then panic 'invalid range';
+                pos < 0 or pos + (end - beg) > size then panic 'invalid position';
+                native.bytes_paste_from_bytes(data, pos, bytes.data, beg, end);
             );
 
             .paste_string = (.pos: integer, .str: string) -> (): (
                 paste_from_string(pos, str, 0, sizeof str);
+            );
+
+            .paste = (.pos: integer, .span: ByteSpan) -> (): paste_from_bytes(pos, span.get_bytes(), span.get_beg(), span.get_end());
+
+            .find_string = (.beg: integer, .end: integer, .str: string) -> Result[integer][]: (
+                beg < 0 or end > sizeof bytes or beg > end then panic 'invalid range';
+                .pos = native.bytes_find_string(data, beg, end, str);
+                pos == end then Result[integer][].err() else Result[integer][].ok(pos)
+            );
+
+            .to_string = (.beg: integer, .end: integer) -> string: (
+                beg < 0 or end > sizeof bytes or beg > end then panic 'invalid range';
+                native.bytes_to_string(data, beg, end)
             );
 
             .span = (.beg: integer, .end: integer) -> ByteSpan: ByteSpan.from_bytes(bytes, beg, end);
@@ -151,6 +173,10 @@ ByteSpan.(
         .get_size = -> end - beg;
 
         .get_bytes = -> bytes;
+
+        .find_string = .str: string -> Result[integer][]: bytes.find_string(beg, end, str).then_map[integer](.pos -> pos - beg);
+
+        .to_string = -> string: bytes.to_string(beg, end);
     };
 );
 

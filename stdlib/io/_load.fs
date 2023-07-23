@@ -132,6 +132,76 @@ Printer.(
     );
 );
 
+.BufferedReader = Type.create('BufferedReader');
+BufferedReader.(
+    .bufferize = (.stream, .buf_size: integer) -> BufferedReader: {
+        .type = BufferedReader;
+
+        .buf = Bytes.allocate(buf_size);
+        .cnt = 0;
+
+        .read_until = .suffix: string -> Result[string][SystemError]: (
+            .result = Result[Result[string][SystemError]][].err();
+            .res_buf = Bytes.allocate(buf_size);
+            .res_cnt, .res_pos = 0, 0;
+            not result.is_ok() repeats (
+                (
+                    cnt == 0 then stream.read(buf.span(0, buf_size))
+                    else Result[integer][SystemError].ok(cnt)
+                ).then_map[](.cnt_read -> (
+                    res_cnt + cnt_read < sizeof res_buf then (
+                        .res_buf_new = Bytes.allocate(2 * (sizeof res_buf));
+                        res_buf_new.paste(0, res_buf.span(0, res_cnt));
+                        res_buf = res_buf_new;
+                    );
+                    res_buf.paste(res_cnt, buf.span(0, cnt_read));
+                    res_cnt = res_cnt + cnt_read;
+                    cnt = 0;
+                    cnt_read == 0 then result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].ok(res_buf.span(0, res_cnt).to_string()))
+                    else res_buf.span(res_pos, res_cnt).find_string(suffix).then_map[](.off -> (
+                        buf.paste(0, res_buf.span(res_pos + off, res_cnt));
+                        cnt = res_cnt - (res_pos + off);
+                        result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].ok(res_buf.span(0, res_pos + off).to_string()));
+                    )).else_map[]( -> (res_pos = res_cnt - sizeof suffix + 1));
+                )).else_map[](.err -> (
+                    result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].err(err));
+                ));
+            );
+            result.unwrap()
+        );
+
+        .read_exactly = .count: integer -> Result[string][SystemError]: (
+            .result = Result[Result[string][SystemError]][].err();
+            .res_buf = Bytes.allocate(buf_size);
+            .res_cnt = 0;
+            not result.is_ok() repeats (
+                (
+                    cnt == 0 then stream.read(buf.span(0, buf_size))
+                    else Result[integer][SystemError].ok(cnt)
+                ).then_map[](.cnt_read -> (
+                    res_cnt + cnt_read < sizeof res_buf then (
+                        .res_buf_new = Bytes.allocate(2 * (sizeof res_buf));
+                        res_buf_new.paste(0, res_buf.span(0, res_cnt));
+                        res_buf = res_buf_new;
+                    );
+                    res_buf.paste(res_cnt, buf.span(0, cnt_read));
+                    res_cnt = res_cnt + cnt_read;
+                    cnt = 0;
+                    cnt_read == 0 then result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].ok(res_buf.span(0, res_cnt).to_string()))
+                    else res_cnt >= count then (
+                        buf.paste(0, res_buf.span(count, res_cnt));
+                        cnt = res_cnt - count;
+                        result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].ok(res_buf.span(0, count).to_string()));
+                    );
+                )).else_map[](.err -> (
+                    result = Result[Result[string][SystemError]][].ok(Result[string][SystemError].err(err));
+                ));
+            );
+            result.unwrap()
+        );
+    }
+);
+
 exports = {
     .SystemError = SystemError;
 
@@ -143,4 +213,5 @@ exports = {
 
     .BufferedWriter = BufferedWriter;
     .Printer = Printer;
+    .BufferedReader = BufferedReader;
 };
