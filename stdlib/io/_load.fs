@@ -202,6 +202,27 @@ BufferedReader.(
     }
 );
 
+.Scanner = Type.create('Scanner');
+Scanner.(
+    .with_source = .src: BufferedReader -> Scanner: {
+        .type = Scanner;
+
+        .strings_separated_by = .delim: string -> Flow[string]: Flow[string].from_generator((
+            .end = no;
+            -> (
+                end then Result[string][].err()
+                else (
+                    .str = src.read_until(delim).unwrap_or_else(panic_format);
+                    sizeof(src.read_exactly(sizeof delim).unwrap_or_else(panic_format)) != sizeof delim then end = yes;
+                    Result[string][].ok(str)
+                )
+            )
+        ));
+
+        .lines = -> strings_separated_by(sys.eol);
+    };
+);
+
 exports = {
     .SystemError = SystemError;
 
@@ -213,5 +234,7 @@ exports = {
 
     .BufferedWriter = BufferedWriter;
     .Printer = Printer;
+
     .BufferedReader = BufferedReader;
+    .Scanner = Scanner;
 };
