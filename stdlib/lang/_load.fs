@@ -292,8 +292,11 @@ Formatter.create = -> Formatter: {
     );
 };
 
+.panic_format = .val -> panic(Formatter.create().value_to_string(val));
+
 exports = {
     .panic = panic;
+    .panic_format = panic_format;
 
     .module = module;
     .submodule = submodule;

@@ -12,7 +12,7 @@ SystemError.(
 
             .errno = posix.get_errno();
 
-            .to_string = -> string: 'SystemError: ' + name + ': ' + posix.strerror(errno);
+            .to_string = .fmt -> string: 'SystemError: ' + name + ': ' + posix.strerror(errno);
         };
     );
 );
@@ -120,11 +120,11 @@ Printer.(
                 values = [*values];
                 .pos = 0;
                 pos < sizeof values repeats (
-                    pos != 0 then dest.write_string(sep).unwrap_or_else(.err -> panic(value_to_string(err)));
-                    dest.write_string(value_to_string(values[pos])).unwrap_or_else(.err -> panic(value_to_string(err)));
+                    pos != 0 then dest.write_string(sep).unwrap_or_else(panic_format);
+                    dest.write_string(value_to_string(values[pos])).unwrap_or_else(panic_format);
                     pos = pos + 1;
                 );
-                dest.write_string(end).unwrap_or_else(.err -> panic(value_to_string(err)));
+                dest.write_string(end).unwrap_or_else(panic_format);
                 dest.flush();
             );
         );
