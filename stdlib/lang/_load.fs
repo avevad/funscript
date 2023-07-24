@@ -294,6 +294,98 @@ Formatter.create = -> Formatter: {
 
 .panic_format = .val -> panic(Formatter.create().value_to_string(val));
 
+.generator_iter_sentinel = {.equals = .other -> other is generator_sentinel or other.equals(generator_sentinel)};
+
+.Iterator = .elem_types: array -> {
+    .from_array = (.arr: array, .pos: integer) -> {
+        .pos = pos;
+
+        .next = -> from_array(arr, pos + 1);
+        .get = -> *elem_types: arr[pos];
+        .equals = .other -> other.pos == pos;
+    };
+
+    .generator_sentinel = generator_iter_sentinel;
+
+    .from_generator = .gen -> {
+        .retrieved_val = Result[Result(elem_types)[]][].err();
+        .stored_next = {};
+
+        .retrieve = -> (
+            retrieved_val.is_err() then (
+                retrieved_val = Result[Result(elem_types)[]][].ok(gen());
+                stored_next = from_generator(gen);
+            )
+        );
+
+        .next = -> (retrieve(); stored_next);
+        .get = -> (retrieve(); retrieved_val.unwrap().unwrap());
+        .equals = .other -> (
+            retrieve();
+            other is generator_sentinel then retrieved_val.unwrap().is_err()
+            else other.stored_next is stored_next
+        );
+    };
+
+    .mapped = (.iter, .fun) -> {
+        .iter = iter;
+
+        .next = -> mapped(iter.next(), fun);
+        .get = -> *elem_types: fun(iter.get());
+        .equals = .other -> other.iter == iter;
+    };
+};
+
+.Range = .elem_types: array -> {
+    .from_array = .arr: array -> (
+        Iterator(elem_types).from_array(arr, 0),
+        Iterator(elem_types).from_array(arr, sizeof arr)
+    );
+
+    .from_generator = .gen -> (
+        Iterator(elem_types).from_generator(gen),
+        Iterator(elem_types).generator_sentinel
+    );
+
+    .mapped = (.beg, .end, .fun) -> (
+        Iterator(elem_types).mapped(beg, fun),
+        Iterator(elem_types).mapped(end, fun)
+    );
+};
+
+.Flow_id = 'Flow';
+.Flow = .elem_types: array -> (
+    .ThisFlow = Type.create(Flow_id);
+    ThisFlow.(
+        .args = {{*elem_types}};
+
+        .from_range = (.beg, .end) -> ThisFlow: {
+            .type = ThisFlow;
+
+            .beg, .end = beg, end;
+
+            .for_each = .fun -> (
+                .cur = beg;
+                not (cur == end) repeats (
+                    fun(*elem_types: cur.get()),
+                    (cur = cur.next())
+                )
+            );
+
+            .collect = -> for_each(*.elems -> *elems);
+
+            .map = .elem_types1: array -> .fun -> from_range(Range(elem_types1).mapped(beg, end, fun));
+        };
+
+        .from_array = .arr: array -> ThisFlow: from_range(Range(elem_types).from_array(arr));
+
+        .from_generator = .gen -> ThisFlow: from_range(Range(elem_types).from_generator(gen));
+
+        .of = (*.elems) -> ThisFlow: from_array [*elems];
+    );
+    ThisFlow
+);
+
 exports = {
     .panic = panic;
     .panic_format = panic_format;
@@ -321,4 +413,8 @@ exports = {
     .Result = Result;
 
     .Formatter = Formatter;
+
+    .Iterator = Iterator;
+    .Range = Range;
+    .Flow = Flow;
 }
