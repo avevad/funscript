@@ -68,7 +68,7 @@ int main(int argc, const char **argv) {
     VM vm({
                   .mm{.allocator = &allocator},
                   .stack_values_max = 67108864 /* 64 Mi */,
-                  .stack_frames_max = 1024 /* 1 Ki */
+                  .stack_frames_max = 256 /* 1 Ki */
           });
     for (const auto &module_conf : modules) {
         try {

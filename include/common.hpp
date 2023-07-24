@@ -423,6 +423,46 @@ namespace funscript {
 
     // Name of the variable that holds native module's symbol checking function.
     static const char *NATIVE_MODULE_SYMBOL_CHECKER_VAR = "has_native_sym";
+
+
+    static const std::unordered_map<Opcode, const char *> OPCODES{
+            {Opcode::NOP, "NOP"},
+            {Opcode::VAL, "VAL"},
+            {Opcode::SEP, "SEP"},
+            {Opcode::IND, "IND"},
+            {Opcode::HAS, "HAS"},
+            {Opcode::GET, "GET"},
+            {Opcode::SET, "SET"},
+            {Opcode::VGT, "VGT"},
+            {Opcode::VST, "VST"},
+            {Opcode::SCP, "SCP"},
+            {Opcode::DIS, "DIS"},
+            {Opcode::REV, "REV"},
+            {Opcode::OPR, "OPR"},
+            {Opcode::END, "END"},
+            {Opcode::JNO, "JNO"},
+            {Opcode::JYS, "JYS"},
+            {Opcode::JMP, "JMP"},
+            {Opcode::STR, "STR"},
+            {Opcode::ARR, "ARR"},
+            {Opcode::OBJ, "OBJ"},
+            {Opcode::MOV, "MOV"},
+            {Opcode::DUP, "DUP"},
+            {Opcode::REM, "REM"},
+            {Opcode::MET, "MET"},
+            {Opcode::EXT, "EXT"},
+            {Opcode::CHK, "CHK"},
+            {Opcode::OSC, "OSC"},
+            {Opcode::WRP, "WRP"},
+    };
+
+    static const char *get_opcode_name(Opcode op) {
+        return OPCODES.at(op);
+    }
+
+    static void dump_instruction(const Instruction &ins) {
+        std::cerr << get_opcode_name(ins.op) << ' ' << std::hex << ins.u16 << ' ' << std::hex << ins.u64 << std::endl;
+    }
 }
 
 #endif //FUNSCRIPT_COMMON_HPP
