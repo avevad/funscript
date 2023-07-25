@@ -27,6 +27,8 @@
     .bytes_to_string = load_native_sym '_ZN9funscript6stdlib4lang15bytes_to_stringERNS_2VM5StackE';
 
     .concat = load_native_sym '_ZN9funscript6stdlib4lang6concatERNS_2VM5StackE';
+
+    .compile_expr = load_native_sym '_ZN9funscript6stdlib4lang12compile_exprERNS_2VM5StackE'
 };
 
 # Temporary placeholders
@@ -372,9 +374,14 @@ Formatter.create = -> Formatter: {
                 )
             );
 
+            .get_one = -> Result[*elem_types][]: (
+                beg == end then Result[*elem_types][].err()
+                else Result[*elem_types][].ok(beg.get())
+            );
+
             .collect = -> for_each(*.elems -> *elems);
 
-            .map = .elem_types1: array -> .fun -> from_range(Range(elem_types1).mapped(beg, end, fun));
+            .map = .elem_types1: array -> .fun -> Flow(elem_types1).from_range(Range(elem_types1).mapped(beg, end, fun));
         };
 
         .from_array = .arr: array -> ThisFlow: from_range(Range(elem_types).from_array(arr));
@@ -384,6 +391,10 @@ Formatter.create = -> Formatter: {
         .of = (*.elems) -> ThisFlow: from_array [*elems];
     );
     ThisFlow
+);
+
+.compile_expr = (.expr: string, .filename: string, .name: string, .globals: object) -> function: (
+    native.compile_expr(expr, filename, name, globals)
 );
 
 exports = {
@@ -417,4 +428,6 @@ exports = {
     .Iterator = Iterator;
     .Range = Range;
     .Flow = Flow;
+
+    .compile_expr = compile_expr;
 }

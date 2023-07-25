@@ -109,7 +109,7 @@ namespace funscript::tests {
 
         auto evaluate(const std::string &expr) {
             std::cout << ": " << expr << std::endl;
-            auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", expr, "'<test>'");
+            auto stack = util::eval_expr(vm, nullptr, scope.get(), "<test>", "'<test>'", expr);
             if (stack->is_panicked()) {
                 util::print_panic(*stack);
                 throw EvaluationError(std::move(stack), std::string((*stack)[-1].data.str->bytes));

@@ -271,6 +271,31 @@ namespace funscript::stdlib {
             stack.push_str(stack.vm.mem.gc_new_auto<VM::String>(stack.vm, str).get());
         }
 
+        void compile_expr(VM::Stack &stack) {
+            std::function fn([&stack](MemoryManager::AutoPtr<VM::String> expr,
+                                      MemoryManager::AutoPtr<VM::String> filename,
+                                      MemoryManager::AutoPtr<VM::String> name,
+                                      MemoryManager::AutoPtr<VM::Object> globals)
+                                     -> MemoryManager::AutoPtr<VM::Function> {
+
+                try {
+                    auto scope = stack.vm.mem.gc_new_auto<VM::Scope>(globals.get(), nullptr);
+                    auto fun = util::compile_fn(
+                            stack.vm,
+                            get_caller(stack, -2)->fun->mod,
+                            scope.get(),
+                            std::string(filename->bytes),
+                            std::string(expr->bytes)
+                    );
+                    fun->assign_name(name->bytes);
+                    return fun;
+                } catch (const CompilationError &err) {
+                    stack.panic("compilation error: " + std::string(err.what()));
+                }
+            });
+            util::call_native_function(stack, fn);
+        }
+
     }
 
     namespace sys {
