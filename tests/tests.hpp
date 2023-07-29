@@ -159,9 +159,9 @@ namespace funscript::tests {
                 auto stack = env.evaluate(expr);
                 return false;
             } catch (const EvaluationError &err) {
-                std::vector<std::any> st;
-                err.stack->generate_stack_trace(std::back_inserter(st));
-                return !st.empty();
+                bool is_compilation_err = true;
+                err.stack->generate_stack_trace([&is_compilation_err](auto) -> void { is_compilation_err = false; });
+                return !is_compilation_err;
             }
         }
 
