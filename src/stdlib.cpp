@@ -337,4 +337,62 @@ namespace funscript::stdlib {
         }
     }
 
+    namespace coroutines {
+
+        void stack_create(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<VM::Function> start_fun) -> MemoryManager::AutoPtr<Allocation> {
+                auto stack = start_fun->vm.mem.gc_new_auto<VM::Stack>(start_fun->vm, start_fun.get());
+                return stack;
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void stack_execute(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> stack_ptr) -> void {
+                VM::Stack &stack = *dynamic_cast<VM::Stack *>(stack_ptr.get());
+                stack.execute();
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void stack_generate_stack_trace(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> stack_ptr) -> MemoryManager::AutoPtr<VM::Array> {
+                VM::Stack &stack = *dynamic_cast<VM::Stack *>(stack_ptr.get());
+                size_t pos = stack.get_current_frame()->depth;
+                auto result = stack.vm.mem.gc_new_auto<VM::Array>(stack.vm, pos + 1);
+                stack.generate_stack_trace([&stack, &pos, &result](const FStr &row) -> void {
+                    (*result)[pos].type = Type::STR;
+                    (*result)[pos].data.str = stack.vm.mem.gc_new_auto<VM::String>(stack.vm, row).get();
+                    pos--;
+                });
+                return result;
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void stack_is_panicked(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> stack_ptr) -> fbln {
+                VM::Stack &stack = *dynamic_cast<VM::Stack *>(stack_ptr.get());
+                return stack.is_panicked();
+            });
+            util::call_native_function(stack, fn);
+        }
+
+        void stack_top(VM::Stack &stack0) {
+            auto stack_ptr = std::get<0>(util::values_from_stack<MemoryManager::AutoPtr<Allocation>>(stack0));
+            VM::Stack &stack = *dynamic_cast<VM::Stack *>(stack_ptr.get());
+            if (stack.size() == 0 || stack[-1].type == Type::SEP) {
+                stack0.panic("the stack is empty or has a separator on its top");
+            }
+            stack0.push(stack[-1]);
+        }
+
+        void stack_push_sep(VM::Stack &stack) {
+            std::function fn([](MemoryManager::AutoPtr<Allocation> stack_ptr) -> void {
+                VM::Stack &stack = *dynamic_cast<VM::Stack *>(stack_ptr.get());
+                stack.push_sep();
+            });
+            util::call_native_function(stack, fn);
+        }
+    }
 }

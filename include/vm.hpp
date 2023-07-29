@@ -334,6 +334,12 @@ namespace funscript {
             [[noreturn]] void
             panic(const std::string &msg, const std::source_location &loc = std::source_location::current());
 
+            /**
+             * Pushes any value onto the value stack.
+             * @param e Value to push.
+             */
+            void push(const Value &e);
+
             // Some functions for pushing values onto the value stack.
 
             void push_sep();
@@ -384,9 +390,9 @@ namespace funscript {
 
             Frame *get_current_frame() const;
 
-            template<typename Iter>
-            void generate_stack_trace(Iter out) {
-                for (Frame *frame = cur_frame; frame; frame = frame->prev_frame, out++) {
+            template<typename Cb>
+            void generate_stack_trace(const Cb &callback) {
+                for (Frame *frame = cur_frame; frame; frame = frame->prev_frame) {
                     FStr row(vm.mem.str_alloc());
                     row += std::to_string(frame->depth) + ':';
                     row += " in ";
@@ -396,7 +402,7 @@ namespace funscript {
                     else row += '?';
                     row += ':';
                     row += frame->meta_ptr->position.to_string();
-                    *out = row;
+                    callback(row);
                 }
             }
 
@@ -407,12 +413,6 @@ namespace funscript {
             Frame *cur_frame;
 
             bool panicked = false;
-
-            /**
-             * Pushes any value onto the value stack.
-             * @param e Value to push.
-             */
-            void push(const Value &e);
 
             void op_panic(Operator op);
 

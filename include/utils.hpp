@@ -315,7 +315,7 @@ namespace funscript::util {
     static void print_panic(VM::Stack &stack) {
         if (!stack.is_panicked()) assertion_failed("no panic encountered");
         FVec<FStr> trace(stack.vm.mem.std_alloc<FStr>());
-        stack.generate_stack_trace(std::back_inserter(trace));
+        stack.generate_stack_trace([&trace](const FStr &row) -> void { trace.push_back(row); });
         std::reverse(trace.begin(), trace.end());
         for (const auto &row : trace) {
             std::cerr << "! " << row << std::endl;
