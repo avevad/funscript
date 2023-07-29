@@ -255,6 +255,13 @@ namespace funscript::stdlib {
             util::call_native_function(stack, fn);
         }
 
+        void string_is_suffix(VM::Stack &stack) {
+            std::function f([](MemoryManager::AutoPtr<VM::String> str, MemoryManager::AutoPtr<VM::String> suf) -> fbln {
+                return str->bytes.ends_with(suf->bytes);
+            });
+            util::call_native_function(stack, f);
+        }
+
         void concat(VM::Stack &stack) {
             size_t length = 0;
             VM::Stack::pos_t pos = -1;

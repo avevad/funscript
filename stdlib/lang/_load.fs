@@ -28,7 +28,9 @@
 
     .concat = load_native_sym '_ZN9funscript6stdlib4lang6concatERNS_2VM5StackE';
 
-    .compile_expr = load_native_sym '_ZN9funscript6stdlib4lang12compile_exprERNS_2VM5StackE'
+    .compile_expr = load_native_sym '_ZN9funscript6stdlib4lang12compile_exprERNS_2VM5StackE';
+
+    .string_is_suffix = load_native_sym '_ZN9funscript6stdlib4lang16string_is_suffixERNS_2VM5StackE';
 };
 
 # Temporary placeholders
@@ -73,7 +75,11 @@ integer.check_value = .int -> (not is_integer(int) then panic 'integer expected'
 object.check_value = .obj -> (not is_object(obj) then panic 'object expected');
 
 .string = Type.create('string');
-string.check_value = .str -> (not is_string(str) then panic 'string expected');
+string.(
+    .check_value = .str -> (not is_string(str) then panic 'string expected');
+
+    .is_suffix = (.str: string, .suf: string) -> boolean: native.string_is_suffix(str, suf);
+);
 
 .array = Type.create('array');
 array.check_value = .arr -> (not is_array(arr) then panic 'array expected');
