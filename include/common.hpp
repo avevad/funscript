@@ -410,9 +410,12 @@ namespace funscript {
      * @return The path to source module's loader.
      */
     static std::filesystem::path get_src_module_loader_path(const std::string &name) {
+        auto base = get_module_base_path_str(name);
+        auto path_simple = std::filesystem::path(base + ".fs");
+        if (std::filesystem::exists(path_simple)) return path_simple;
         static const std::string MODULE_LOADER_FILENAME = "_load.fs";
-        return std::filesystem::path(get_module_base_path_str(name)) /
-               MODULE_LOADER_FILENAME;
+        auto path = std::filesystem::path(base) / MODULE_LOADER_FILENAME;
+        return path;
     }
 
     static const char *MODULE_EXPORTS_VAR = "exports"; // Name of the variable that holds module's exports.
