@@ -302,7 +302,7 @@ Formatter.create = -> Formatter: {
 
 .panic_format = .val -> panic(Formatter.create().value_to_string(val));
 
-.generator_iter_sentinel = {.equals = .other -> other is generator_sentinel or other.equals(generator_sentinel)};
+.generator_iter_sentinel = {.equals = .other -> other is generator_iter_sentinel or other.equals(generator_iter_sentinel)};
 
 .Iterator = .elem_types: array -> {
     .from_array = (.arr: array, .pos: integer) -> {
@@ -436,4 +436,6 @@ exports = {
     .Flow = Flow;
 
     .compile_expr = compile_expr;
-}
+};
+
+exports.lang = exports;
