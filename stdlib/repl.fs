@@ -51,7 +51,11 @@ run = -> (
         .from_generator(repl.request_expr)
         .map[Result[array][array, string]](.expr -> repl.eval_expr(expr))
         .for_each(.res -> res
-            .then_map[](.results -> repl.print_results(results))
-            .else_map[]((.stacktrace, .message) -> repl.print_panic(stacktrace, message))
+            .then_map[](repl.print_results)
+            .else_map[](repl.print_panic)
         );
-)
+);
+
+exports = {
+    .REPL = REPL;
+}
